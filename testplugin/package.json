@@ -1,13 +1,13 @@
 {
   "name": "testplugin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Test Plugin",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc"
   },
   "peerDependencies": {
-    "@nestjs/common": "^10.0.0"
+    "@nestjs/common": "^11.0.0"
   },
   "devDependencies": {
     "typescript": "^5.1.3"
