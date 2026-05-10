@@ -1,14 +1,14 @@
 # 🪁 Wau (Moon Kite / 月亮风筝)
 
-[English](#english) | [中文](#chinese)
+[English](#english-version) | [中文](#中文版本)
 
 ---
 
-<a name="english"></a>
+<a name="english-version"></a>
 
 ## English Version
 
-**Wau** is a high-flexibility, plugin-driven development platform built with **NestJS** and **Flutter**. It provides a robust system core that allows developers to dynamically inject backend routes and frontend UI components by simply uploading `.zip` extension packages.
+**Wau** is a high-flexibility, plugin-driven development platform built with **NestJS**.
 
 ### 💡 The Vision (Why Wau?)
 
@@ -30,31 +30,188 @@ In traditional development, every tiny UI adjustment or logic change requires mo
 
 ### 🚀 Quick Start
 
-1.  **Install Core**: Clone the repo and run `npm install`.
-2.  **Start Service**: `npm run start:dev`. The system will auto-create the `storage/plugins` directory.
-3.  **Upload Plugin**: Prepare a Zip containing `manifest.json` and `index.js`, then call `POST /api/plugins/upload`.
+```bash
+# 1. Install Core
+npm install
+
+# 2. Start Service
+npm run start:dev
+
+# 3. The server starts at http://localhost:3000
+#    Plugins are stored in ./storage/plugins/
+```
+
+### 🧪 Test with the Sample Plugin
+
+A sample plugin (`testplugin/`) is included in the repo. You can test the install flow immediately:
+
+```bash
+# ZIP the sample plugin
+cd testplugin && zip -r ../testplugin.zip manifest.json dist/
+
+# Install it via API
+curl -X POST -F "file=@testplugin.zip" http://localhost:3000/api/plugins/upload
+
+# Verify it is installed
+curl http://localhost:3000/api/plugins
+
+# Test the plugin routes
+curl http://localhost:3000/api/plugins/testplugin/api/testplugin/status
+```
+
+### 📦 Plugin Structure
+
+A valid Wau plugin is a ZIP archive with this structure:
+
+```
+my-plugin.zip
+├── manifest.json          # Plugin metadata
+└── dist/
+    └── index.js           # Plugin entry point
+```
+
+**manifest.json**
+
+```json
+{
+  "name": "my-plugin",
+  "version": "1.0.0",
+  "description": "What this plugin does",
+  "author": "Your Name"
+}
+```
+
+### 📡 API Reference
+
+#### List Plugins
+```
+GET /api/plugins
+```
+
+Response:
+```json
+[
+  {
+    "name": "testplugin",
+    "version": "1.0.0",
+    "description": "Test Plugin",
+    "author": "Jeff"
+  }
+]
+```
+
+#### Install or Update Plugin
+```
+POST /api/plugins/upload
+Content-Type: multipart/form-data
+
+file: <plugin.zip>
+```
+
+Behavior:
+- **Fresh install** if plugin does not exist
+- **Auto-update** if uploaded version is higher than installed
+- **Rejected** if same version or downgrade
+
+Response (install):
+```json
+{
+  "success": true,
+  "plugin": "my-plugin",
+  "version": "1.0.0",
+  "path": "/path/to/storage/plugins/my-plugin"
+}
+```
+
+Response (update):
+```json
+{
+  "success": true,
+  "plugin": "my-plugin",
+  "previousVersion": "1.0.0",
+  "version": "1.1.0",
+  "path": "/path/to/storage/plugins/my-plugin"
+}
+```
+
+#### Update Plugin (Explicit)
+```
+PUT /api/plugins/:name
+Content-Type: multipart/form-data
+
+file: <plugin.zip>
+```
+
+Use this when you want the update URL to include the plugin name explicitly.
+
+#### Uninstall Plugin
+```
+DELETE /api/plugins/:name
+```
+
+Response:
+```json
+{
+  "success": true,
+  "plugin": "my-plugin"
+}
+```
+
+### 🛠️ Creating a Plugin
+
+1. Create a new directory for your plugin
+2. Write a NestJS module with controllers and services
+3. Add `manifest.json` with `name`, `version`, `description`, `author`
+4. Build to `dist/` (`tsc` or `nest build`)
+5. ZIP the `manifest.json` and `dist/` folder
+6. Upload via `POST /api/plugins/upload`
+
+### 📂 Project Structure
+
+```
+wau-core/
+├── src/
+│   ├── app.module.ts              # Root module
+│   ├── plugin-manager.service.ts  # Plugin lifecycle management
+│   ├── plugin.controller.ts       # Plugin HTTP API
+│   └── plugins/
+│       └── plugin-loader.module.ts # Boot-time plugin loader
+├── storage/plugins/               # Installed plugins directory
+├── testplugin/                    # Sample plugin source
+└── dist/                          # Compiled output
+```
+
+### 🔮 Future Roadmap
+
+Wau is designed as a **full-stack plugin platform**. The backend core is just the beginning — here is what comes next:
+
+- **Flutter Client (`wau-flutter`)** — A mobile app shell that dynamically renders screens from JSON protocols served by plugins. The goal is to change UI without app store resubmission.
+- **React JS Web App (`wau-web`)** — A dual-purpose React application: an **admin dashboard** for managing plugins, viewing logs, and configuring JSON-driven layouts; and a **user-facing client** that renders plugin screens directly in the browser. Built with React for fast iteration on both sides.
+- **Event Bus** — Cross-plugin communication so backend plugins can trigger actions in Flutter and Web clients seamlessly.
+
+Stay tuned. The kite is still climbing.
 
 ### ☕ Developer's Note
 
-This project is initiated and maintained by **Jeff**. Due to a **busy full-time work schedule** (still fighting urgent daily requirements to make a living), updates might be slow. If you are also tired of being tortured by constant requirement changes, **Pull Requests** are more than welcome.
+This project is initiated and maintained by **JeffNaa**. Due to a **busy full-time work schedule** (still fighting urgent daily requirements to make a living), updates might be slow. If you are also tired of being tortured by constant requirement changes, **Pull Requests** are more than welcome.
 
-## License
+### License
 
 This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-<a name="chinese"></a>
+<a name="中文版本"></a>
 
 ## 中文版本
 
-**Wau** 是一个基于 **NestJS** 和 **Flutter** 构建的高自由度、插件化开发平台。它提供了一个坚固的系统内核，允许开发者通过上传 `.zip` 扩展包，动态地为后端注入路由、为前端注入 UI 组件。
+**Wau** 是一个基于 **NestJS** 构建的高自由度、插件化开发平台。
 
 ### 💡 开发初衷 (Why Wau?)
 
 这个项目的诞生，是因为作者**受够了在平时工作中被无休止地改需求**。
 
-在传统的开发模式下，每一个微小的界面调整或逻辑变更往往都需要修改核心代码、重新编译、重新发布。**Wau** 的核心理念是**“内核稳固，业务动态”**：
+在传统的开发模式下，每一个微小的界面调整或逻辑变更往往都需要修改核心代码、重新编译、重新发布。**Wau** 的核心理念是**"内核稳固，业务动态"**：
 
 - **隔离变更**：所有的业务逻辑都封装在插件中，核心系统（Core）永不为特定需求做硬编码。
 - **即插即用**：通过 `.zip` 动态加载，实现功能的秒级安装与卸载。
@@ -70,14 +227,155 @@ This project is licensed under the [MIT License](LICENSE).
 
 ### 🚀 快速开始
 
-1.  **安装内核**: `git clone` 项目并执行 `npm install`。
-2.  **启动服务**: `npm run start:dev`。系统将自动创建 `storage/plugins` 目录。
-3.  **上传插件**: 准备包含 `manifest.json` 和 `index.js` 的 Zip 包，调用 `POST /api/plugins/upload`。
+```bash
+# 1. 安装内核
+npm install
+
+# 2. 启动服务
+npm run start:dev
+
+# 3. 服务器运行在 http://localhost:3000
+#    插件存储在 ./storage/plugins/
+```
+
+### 🧪 使用示例插件测试
+
+项目中包含一个示例插件 (`testplugin/`)，你可以立即测试安装流程：
+
+```bash
+# 打包示例插件
+cd testplugin && zip -r ../testplugin.zip manifest.json dist/
+
+# 通过 API 安装
+curl -X POST -F "file=@testplugin.zip" http://localhost:3000/api/plugins/upload
+
+# 验证已安装
+curl http://localhost:3000/api/plugins
+
+# 测试插件路由
+curl http://localhost:3000/api/plugins/testplugin/api/testplugin/status
+```
+
+### 📦 插件结构
+
+一个有效的 Wau 插件是一个 ZIP 压缩包，结构如下：
+
+```
+my-plugin.zip
+├── manifest.json          # 插件元数据
+└── dist/
+    └── index.js           # 插件入口文件
+```
+
+**manifest.json**
+
+```json
+{
+  "name": "my-plugin",
+  "version": "1.0.0",
+  "description": "插件描述",
+  "author": "作者名称"
+}
+```
+
+### 📡 API 参考
+
+#### 列出插件
+```
+GET /api/plugins
+```
+
+#### 安装或更新插件
+```
+POST /api/plugins/upload
+Content-Type: multipart/form-data
+
+file: <plugin.zip>
+```
+
+行为：
+- **全新安装** — 插件不存在时
+- **自动更新** — 上传版本高于已安装版本时
+- **拒绝** — 相同版本或降级时
+
+安装响应：
+```json
+{
+  "success": true,
+  "plugin": "my-plugin",
+  "version": "1.0.0"
+}
+```
+
+更新响应：
+```json
+{
+  "success": true,
+  "plugin": "my-plugin",
+  "previousVersion": "1.0.0",
+  "version": "1.1.0"
+}
+```
+
+#### 显式更新插件
+```
+PUT /api/plugins/:name
+Content-Type: multipart/form-data
+
+file: <plugin.zip>
+```
+
+#### 卸载插件
+```
+DELETE /api/plugins/:name
+```
+
+响应：
+```json
+{
+  "success": true,
+  "plugin": "my-plugin"
+}
+```
+
+### 🛠️ 创建插件
+
+1. 创建插件目录
+2. 编写 NestJS 模块（含控制器和服务）
+3. 添加 `manifest.json`，包含 `name`、`version`、`description`、`author`
+4. 构建到 `dist/` 目录（使用 `tsc` 或 `nest build`）
+5. 将 `manifest.json` 和 `dist/` 文件夹打包为 ZIP
+6. 通过 `POST /api/plugins/upload` 上传
+
+### 📂 项目结构
+
+```
+wau-core/
+├── src/
+│   ├── app.module.ts              # 根模块
+│   ├── plugin-manager.service.ts  # 插件生命周期管理
+│   ├── plugin.controller.ts       # 插件 HTTP API
+│   └── plugins/
+│       └── plugin-loader.module.ts # 启动时插件加载器
+├── storage/plugins/               # 已安装插件目录
+├── testplugin/                    # 示例插件源码
+└── dist/                          # 编译输出
+```
+
+### 🔮 未来路线图
+
+Wau 的定位是一个**全栈插件化平台**。后端核心只是起点，接下来还有：
+
+- **Flutter 客户端 (`wau-flutter`)** — 一个移动端 App 壳，能够根据插件下发的 JSON 协议动态渲染页面。目标是调整 UI 无需重新上架应用商店。
+- **React JS Web 应用 (`wau-web`)** — 双重定位的 React 应用：既是面向管理员的**后台管理端**（插件管理、日志查看、JSON 布局配置），也是面向终端用户的**客户端**（直接在浏览器中渲染插件页面）。前后两端均基于 React 快速迭代。
+- **事件总线 (Event Bus)** — 跨插件通信机制，让后端插件能无缝触发 Flutter 和 Web 端的行为。
+
+风筝仍在攀升，敬请期待。
 
 ### ☕ 开发者寄语
 
 本项目由 **JeffNaa** 发起并维护。由于作者**平时工作繁忙**（仍在为了生计对抗各种突发需求），项目的更新进度会有些缓慢。如果你也受够了被改需求折磨，欢迎提交 **Pull Request**。
 
-## License
+### License
 
 这个使用 MIT协议。

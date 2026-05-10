@@ -47,12 +47,26 @@ export class PluginManagerService implements OnModuleInit {
       const { name, version } = manifest;
 
       if (!name) throw new BadRequestException('Plugin name is required in manifest.');
+      if (!version) throw new BadRequestException('Plugin version is required in manifest.');
 
       // 3. Determine installation path
       const targetPath = path.join(this.pluginsDir, name);
 
       if (await fs.pathExists(targetPath)) {
-        throw new BadRequestException(`Plugin [${name}] is already installed. Please uninstall it first or update instead.`);
+        const installedManifest = await fs.readJson(path.join(targetPath, 'manifest.json'));
+        const installedVersion = installedManifest.version;
+        const cmp = this.compareVersions(version, installedVersion);
+
+        if (cmp === 0) {
+          throw new BadRequestException(`Plugin [${name}] v${version} is already installed.`);
+        }
+        if (cmp < 0) {
+          throw new BadRequestException(
+            `Plugin [${name}] v${installedVersion} is installed. Cannot downgrade to v${version}.`
+          );
+        }
+        // Higher version: perform update
+        return this.update(name, file);
       }
 
       // Collect existing controller routes BEFORE extraction
@@ -198,6 +212,126 @@ export class PluginManagerService implements OnModuleInit {
       }
     }
     return allRoutes;
+  }
+
+  async update(name: string, file: Express.Multer.File) {
+    const targetPath = path.join(this.pluginsDir, name);
+
+    if (!(await fs.pathExists(targetPath))) {
+      throw new BadRequestException(
+        `Plugin [${name}] is not installed. Use POST /api/plugins/upload to install it first.`
+      );
+    }
+
+    const zip = new AdmZip(file.buffer);
+    const manifestEntry = zip.getEntries().find((e) => e.entryName === 'manifest.json');
+    if (!manifestEntry) {
+      throw new BadRequestException('Invalid Wau Plugin: manifest.json is missing.');
+    }
+
+    const manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
+    const newVersion = manifest.version;
+    if (!newVersion) {
+      throw new BadRequestException('Plugin version is required in manifest.');
+    }
+
+    const installedManifest = await fs.readJson(path.join(targetPath, 'manifest.json'));
+    const installedVersion = installedManifest.version;
+
+    const cmp = this.compareVersions(newVersion, installedVersion);
+    if (cmp <= 0) {
+      throw new BadRequestException(
+        `Update rejected: uploaded version v${newVersion} must be greater than installed v${installedVersion}.`
+      );
+    }
+
+    // Collect existing routes from OTHER plugins to check for conflicts
+    const existingRoutes = (await this.getAllExistingPluginRoutes()).filter(
+      (r) => !this.getPluginControllerRoutes(targetPath).includes(r)
+    );
+
+    // Remove old routes, cache, and directory
+    this.removePluginRoutes(name);
+    this.registry.delete(name);
+    this.clearRequireCache(targetPath);
+    await fs.remove(targetPath);
+
+    // Extract new version
+    zip.extractAllTo(targetPath, true);
+
+    // Check route conflicts
+    const newRoutes = this.getPluginControllerRoutes(targetPath);
+    const conflicts = newRoutes.filter((r) => existingRoutes.includes(r));
+    if (conflicts.length > 0) {
+      // Rollback: restore old version is not possible since we deleted it.
+      // Just remove the broken extraction.
+      await fs.remove(targetPath);
+      throw new BadRequestException(
+        `Update failed: Route conflict detected for controller paths: ${conflicts.join(', ')}`
+      );
+    }
+
+    await this.loadPluginRoutes({ name, version: newVersion });
+
+    console.log(`⬆️  Wau Plugin [${name}] updated from v${installedVersion} to v${newVersion}.`);
+
+    return {
+      success: true,
+      plugin: name,
+      previousVersion: installedVersion,
+      version: newVersion,
+      path: targetPath,
+    };
+  }
+
+  private compareVersions(v1: string, v2: string): number {
+    const parts1 = v1.split('.').map(Number);
+    const parts2 = v2.split('.').map(Number);
+    const maxLen = Math.max(parts1.length, parts2.length);
+
+    for (let i = 0; i < maxLen; i++) {
+      const a = parts1[i] || 0;
+      const b = parts2[i] || 0;
+      if (a > b) return 1;
+      if (a < b) return -1;
+    }
+    return 0;
+  }
+
+  async uninstall(name: string) {
+    const targetPath = path.join(this.pluginsDir, name);
+
+    if (!(await fs.pathExists(targetPath))) {
+      throw new BadRequestException(`Plugin [${name}] is not installed.`);
+    }
+
+    // 1. Remove routes from the plugin router
+    this.removePluginRoutes(name);
+
+    // 2. Remove from registry
+    this.registry.delete(name);
+
+    // 3. Clear require cache for this plugin
+    this.clearRequireCache(targetPath);
+
+    // 4. Delete plugin directory
+    await fs.remove(targetPath);
+
+    console.log(`🗑️  Wau Plugin [${name}] uninstalled.`);
+
+    return {
+      success: true,
+      plugin: name,
+    };
+  }
+
+  private clearRequireCache(pluginPath: string) {
+    const keys = Object.keys(require.cache);
+    for (const key of keys) {
+      if (key.startsWith(pluginPath)) {
+        delete require.cache[key];
+      }
+    }
   }
 
   async registerPluginMethods(name: string, module: any) {
