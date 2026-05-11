@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wau Core Documentation</title>
+  <style>
+    :root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --code: #161b22; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.7; max-width: 920px; margin: 0 auto; padding: 40px 24px; }
+    h1 { color: #f0f6fc; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+    h2 { color: #f0f6fc; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    h3 { color: #e6edf3; margin-top: 32px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, pre { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 0.9em; }
+    code { background: var(--code); padding: 2px 6px; border-radius: 4px; }
+    pre { background: var(--code); padding: 16px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; }
+    th { background: var(--code); color: #f0f6fc; }
+    tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+    .lang-switch { position: fixed; top: 16px; right: 24px; background: var(--code); border: 1px solid var(--border); border-radius: 6px; padding: 6px 14px; font-size: 0.85em; }
+    .note { background: rgba(88,166,255,0.08); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; }
+    .warn { background: rgba(210,153,34,0.08); border-left: 3px solid #d29922; }
+  </style>
+</head>
+<body>
+  <a href="index.zh.html" class="lang-switch">中文</a>
+
+  <h1>Wau Core Documentation</h1>
+  <p>Wau Core is a NestJS-based plugin runtime engine. It dynamically loads, manages, and routes third-party plugins while persisting plugin metadata in a PostgreSQL database via Prisma.</p>
+
+  <h2>Tech Stack</h2>
+  <table>
+    <tr><th>Layer</th><th>Technology</th></tr>
+    <tr><td>Framework</td><td>NestJS 11</td></tr>
+    <tr><td>Database</td><td>PostgreSQL</td></tr>
+    <tr><td>ORM</td><td>Prisma 7 + @prisma/adapter-pg</td></tr>
+    <tr><td>HTTP</td><td>Express (via NestJS platform-express)</td></tr>
+    <tr><td>Config</td><td>@nestjs/config</td></tr>
+    <tr><td>Utilities</td><td>fs-extra, adm-zip</td></tr>
+  </table>
+
+  <h2>System Architecture</h2>
+  <pre>
++--------------------------------------------------+
+|                    AppModule                       |
+|  +----------------+  +-------------------------+  |
+|  | ConfigModule   |  | PrismaModule (Global)   |  |
+|  | (isGlobal)     |  |  - PrismaService        |  |
+|  +----------------+  +-------------------------+  |
+|  +----------------+  +-------------------------+  |
+|  | PluginLoaderModule   | PluginController      |  |
+|  | (DynamicModule)      | (REST API)            |  |
+|  |  - Scans FS at boot  |                       |  |
+|  |  - Imports NestJS    |                       |  |
+|  |    plugin modules    |                       |  |
+|  +----------------+  +-------------------------+  |
+|  +---------------------------------------------+  |
+|  |     PluginManagerService                    |  |
+|  |  - DB-backed plugin registry                |  |
+|  |  - Install / Update / Uninstall             |  |
+|  |  - Dynamic Express route mounting           |  |
+|  +---------------------------------------------+  |
++--------------------------------------------------+
+|              PostgreSQL Database                   |
+|    plugin_registry  |  plugin_data                |
++--------------------------------------------------+
+</pre>
+
+  <h2>Module Breakdown</h2>
+
+  <h3>1. PrismaModule <code>src/prisma/</code></h3>
+  <p>Marked <code>@Global()</code> so <code>PrismaService</code> is injectable everywhere without explicit import.</p>
+  <ul>
+    <li><code>PrismaService</code> creates a <code>PrismaClient</code> backed by a <code>pg.Pool</code> from <code>DATABASE_URL</code>.</li>
+    <li>Implements <code>OnModuleDestroy</code> to gracefully disconnect on shutdown.</li>
+    <li>Exposes <code>client</code> for direct model access (no repository pattern).</li>
+  </ul>
+
+  <h3>2. PluginLoaderModule <code>src/plugins/plugin-loader.module.ts</code></h3>
+  <p>A <strong>dynamic module</strong> with a static <code>forRoot(pluginsDir)</code> factory. It runs at application bootstrap time (before DI is fully ready) and therefore <strong>scans the filesystem</strong>.</p>
+  <p>Responsibilities:</p>
+  <ul>
+    <li>Enumerate <code>storage/plugins/&lt;name&gt;/dist/index.js</code></li>
+    <li>Use <code>Reflect.getMetadata('controllers', PluginModule)</code> to detect controller paths</li>
+    <li>Detect and throw on duplicate controller routes across plugins</li>
+    <li>Import valid plugin modules into the NestJS module graph</li>
+  </ul>
+  <div class="note warn">Because this module runs in a static factory, it cannot use the database as its source of truth. It remains filesystem-based.</div>
+
+  <h3>3. PluginManagerService <code>src/plugin-manager.service.ts</code></h3>
+  <p>The core engine for plugin lifecycle and runtime routing.</p>
+
+  <h4>Constructor Dependencies</h4>
+  <pre>constructor(
+  private readonly adapterHost: HttpAdapterHost,
+  private readonly prisma: PrismaService,
+)</pre>
+
+  <h4>Internal State</h4>
+  <table>
+    <tr><th>Property</th><th>Type</th><th>Purpose</th></tr>
+    <tr><td><code>registry</code></td><td><code>Map&lt;string, any&gt;</code></td><td>Runtime cache of loaded plugin module objects (for <code>invoke()</code>)</td></tr>
+    <tr><td><code>pluginsDir</code></td><td><code>string</code></td><td><code>process.cwd() + '/storage/plugins'</code></td></tr>
+    <tr><td><code>pluginRouter</code></td><td><code>express.Router</code></td><td>Dedicated Express router mounted at <code>/api/plugins</code></td></tr>
+  </table>
+
+  <h4>Methods</h4>
+  <table>
+    <tr><th>Method</th><th>Description</th></tr>
+    <tr><td><code>onModuleInit()</code></td><td>Ensures plugins directory exists, mounts <code>pluginRouter</code>, calls <code>loadAllPlugins()</code></td></tr>
+    <tr><td><code>install(file)</code></td><td>Validates ZIP manifest, checks DB for existing plugin, extracts ZIP, detects route conflicts, loads routes, writes <code>PluginRegistry</code> DB record</td></tr>
+    <tr><td><code>update(name, file)</code></td><td>Validates new version &gt; installed version, removes old code, extracts new ZIP, detects conflicts, updates DB via <code>upsert</code></td></tr>
+    <tr><td><code>uninstall(name)</code></td><td>Removes routes, clears registry &amp; require cache, deletes DB record, deletes plugin directory</td></tr>
+    <tr><td><code>listPlugins()</code></td><td>Returns all records from <code>pluginRegistry</code> DB table</td></tr>
+    <tr><td><code>loadAllPlugins()</code></td><td>Reads DB plugin list, validates filesystem presence, calls <code>loadPluginRoutes()</code> for each</td></tr>
+    <tr><td><code>loadPluginRoutes(pluginInfo)</code></td><td><code>require()</code>s plugin entry point, registers routes on <code>pluginRouter</code></td></tr>
+    <tr><td><code>invoke(pluginName, methodName, ...args)</code></td><td>Calls a method on a cached plugin module (inter-plugin communication)</td></tr>
+    <tr><td><code>registerPluginMethods(name, module)</code></td><td>Stores a plugin module in the runtime registry Map</td></tr>
+  </table>
+
+  <h3>4. PluginController <code>src/plugin.controller.ts</code></h3>
+  <p>REST API surface for plugin management. Base path: <code>/api/plugins</code></p>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Body</th><th>Action</th></tr>
+    <tr><td><code>POST</code></td><td><code>/api/plugins/upload</code></td><td>multipart <code>file</code> (ZIP)</td><td>Install plugin</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/plugins</code></td><td>&mdash;</td><td>List installed plugins</td></tr>
+    <tr><td><code>PUT</code></td><td><code>/api/plugins/:name</code></td><td>multipart <code>file</code> (ZIP)</td><td>Update plugin by name</td></tr>
+    <tr><td><code>DELETE</code></td><td><code>/api/plugins/:name</code></td><td>&mdash;</td><td>Uninstall plugin by name</td></tr>
+  </table>
+
+  <h2>Database Schema</h2>
+  <p>File: <code>prisma/schema.prisma</code></p>
+
+  <h3>PluginRegistry</h3>
+  <p>Authoritative source of installed plugin metadata.</p>
+  <pre>model PluginRegistry {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  version   String
+  manifest  Json
+  mode      String   @default("jsonb")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("plugin_registry")
+}</pre>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+    <tr><td><code>id</code></td><td>CUID</td><td>Primary key</td></tr>
+    <tr><td><code>name</code></td><td>String</td><td>Unique; matches plugin directory name</td></tr>
+    <tr><td><code>version</code></td><td>String</td><td>Semver string from manifest</td></tr>
+    <tr><td><code>manifest</code></td><td>JSONB</td><td>Full <code>manifest.json</code> content</td></tr>
+    <tr><td><code>mode</code></td><td>String</td><td>Reserved for future plugin type discrimination</td></tr>
+  </table>
+
+  <h3>PluginData</h3>
+  <p>Key-value store for plugin runtime data.</p>
+  <pre>model PluginData {
+  id        String   @id @default(cuid())
+  plugin    String
+  key       String
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([plugin, key])
+  @@index([plugin])
+  @@map("plugin_data")
+}</pre>
+
+  <h2>Plugin Format Specification</h2>
+  <p>A valid Wau plugin is a ZIP archive containing:</p>
+  <pre>myplugin.zip
+├── manifest.json          # Required
+├── package.json           # Required (peerDependency: @nestjs/common)
+├── tsconfig.json          # Required
+├── index.ts               # Entry point: exports the NestJS Module class
+├── myplugin.module.ts     # NestJS @Module()
+├── myplugin.controller.ts # NestJS @Controller() with routes
+└── myplugin.service.ts    # Injectable services
+</pre>
+
+  <h3>manifest.json</h3>
+  <pre>{
+  "name": "testplugin",
+  "version": "1.0.1",
+  "description": "Test Plugin",
+  "author": "Jeff"
+}</pre>
+  <p>Required fields: <code>name</code>, <code>version</code>.</p>
+
+  <h3>Built Output</h3>
+  <p>After TypeScript compilation, the plugin must expose <code>dist/index.js</code> as its entry point. This file must export the NestJS module class:</p>
+  <pre>export { TestpluginModule } from './testplugin.module';</pre>
+
+  <h2>PluginRegistry Database Migration</h2>
+
+  <h3>What Changed</h3>
+  <p>Prior to this migration, <code>PluginManagerService</code> relied solely on an in-memory <code>Map</code> and filesystem scanning of <code>manifest.json</code> files. The <code>PluginRegistry</code> Prisma model existed in the schema but was never used by application code.</p>
+
+  <h3>New Data Flow</h3>
+  <pre>
+Install/Update/Uninstall
+        |
+        v
++-------------------+       +------------------+
+| PluginManagerSvc  |&lt;----&gt;| plugin_registry  |
+|  - Validate ZIP   |  CRUD |  (PostgreSQL)    |
+|  - Extract to FS  |       +------------------+
+|  - Load routes    |              |
+|  - Persist to DB  |              v
++-------------------+       +------------------+
+                            | storage/plugins  |
+                            |  (Code files)    |
+                            +------------------+
+</pre>
+
+  <h3>Consistency Strategy</h3>
+  <table>
+    <tr><th>Scenario</th><th>Behavior</th></tr>
+    <tr><td>DB record exists, code exists</td><td>Normal load at startup</td></tr>
+    <tr><td>DB record exists, code missing</td><td>Warn and skip (orphaned DB record)</td></tr>
+    <tr><td>Code exists, DB record missing</td><td>Ignored by PluginManagerService; PluginLoaderModule still loads NestJS module. Re-install to create DB record.</td></tr>
+  </table>
+
+  <h3>Rollback Behavior</h3>
+  <table>
+    <tr><th>Operation</th><th>Rollback on Failure</th></tr>
+    <tr><td>Install (route conflict)</td><td>Delete extracted directory + delete DB record</td></tr>
+    <tr><td>Update (route conflict)</td><td>Delete new extraction. Old code already deleted; DB updated to new version. This is an architectural limitation.</td></tr>
+    <tr><td>Uninstall</td><td>DB record deleted first, then directory. If directory deletion fails, filesystem orphan remains.</td></tr>
+  </table>
+
+  <h2>File Structure</h2>
+  <pre>
+src/
+├── app.module.ts
+├── main.ts
+├── plugin.controller.ts
+├── plugin-manager.service.ts      # Modified: now uses PrismaService
+├── plugins/
+│   └── plugin-loader.module.ts   # Unchanged: filesystem-based dynamic loader
+└── prisma/
+    ├── prisma.module.ts          # Global Prisma module
+    └── prisma.service.ts         # PrismaClient lifecycle management
+
+prisma/
+├── schema.prisma                 # Unchanged: PluginRegistry model already defined
+└── migrations/
+    └── 20260511164328_init/      # Initial migration (already applied)
+
+storage/
+└── plugins/
+    └── &lt;plugin-name&gt;/           # Plugin code extracted here
+</pre>
+
+  <h2>Environment Variables</h2>
+  <table>
+    <tr><th>Variable</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>DATABASE_URL</code></td><td>Yes</td><td>PostgreSQL connection string</td></tr>
+    <tr><td><code>PORT</code></td><td>No</td><td>HTTP server port (default: 3000)</td></tr>
+  </table>
+
+</body>
+</html>

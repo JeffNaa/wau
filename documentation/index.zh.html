@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wau Core 文档</title>
+  <style>
+    :root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --code: #161b22; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--fg); line-height: 1.7; max-width: 920px; margin: 0 auto; padding: 40px 24px; }
+    h1 { color: #f0f6fc; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+    h2 { color: #f0f6fc; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    h3 { color: #e6edf3; margin-top: 32px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, pre { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', 'Noto Sans Mono', monospace; font-size: 0.9em; }
+    code { background: var(--code); padding: 2px 6px; border-radius: 4px; }
+    pre { background: var(--code); padding: 16px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; }
+    th { background: var(--code); color: #f0f6fc; }
+    tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+    .lang-switch { position: fixed; top: 16px; right: 24px; background: var(--code); border: 1px solid var(--border); border-radius: 6px; padding: 6px 14px; font-size: 0.85em; }
+    .note { background: rgba(88,166,255,0.08); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; }
+    .warn { background: rgba(210,153,34,0.08); border-left: 3px solid #d29922; }
+  </style>
+</head>
+<body>
+  <a href="index.html" class="lang-switch">English</a>
+
+  <h1>Wau Core 文档</h1>
+  <p>Wau Core 是一个基于 NestJS 的插件运行时引擎。它动态加载、管理和路由第三方插件，同时通过 Prisma 将插件元数据持久化到 PostgreSQL 数据库。</p>
+
+  <h2>技术栈</h2>
+  <table>
+    <tr><th>层级</th><th>技术</th></tr>
+    <tr><td>框架</td><td>NestJS 11</td></tr>
+    <tr><td>数据库</td><td>PostgreSQL</td></tr>
+    <tr><td>ORM</td><td>Prisma 7 + @prisma/adapter-pg</td></tr>
+    <tr><td>HTTP</td><td>Express（通过 NestJS platform-express）</td></tr>
+    <tr><td>配置</td><td>@nestjs/config</td></tr>
+    <tr><td>工具库</td><td>fs-extra, adm-zip</td></tr>
+  </table>
+
+  <h2>系统架构</h2>
+  <pre>
++--------------------------------------------------+
+|                    AppModule                       |
+|  +----------------+  +-------------------------+  |
+|  | ConfigModule   |  | PrismaModule (全局)     |  |
+|  | (isGlobal)     |  |  - PrismaService        |  |
+|  +----------------+  +-------------------------+  |
+|  +----------------+  +-------------------------+  |
+|  | PluginLoaderModule   | PluginController      |  |
+|  | (动态模块)           | (REST API)            |  |
+|  |  - 启动时扫描文件    |                       |  |
+|  |  - 导入 NestJS       |                       |  |
+|  |    插件模块          |                       |  |
+|  +----------------+  +-------------------------+  |
+|  +---------------------------------------------+  |
+|  |     PluginManagerService                    |  |
+|  |  - 基于数据库的插件注册表                   |  |
+|  |  - 安装 / 更新 / 卸载                       |  |
+|  |  - 动态 Express 路由挂载                    |  |
+|  +---------------------------------------------+  |
++--------------------------------------------------+
+|              PostgreSQL 数据库                     |
+|    plugin_registry  |  plugin_data                |
++--------------------------------------------------+
+  </pre>
+
+  <h2>模块详解</h2>
+
+  <h3>1. PrismaModule <code>src/prisma/</code></h3>
+  <p>标记为 <code>@Global()</code>，因此 <code>PrismaService</code> 可以在任何地方注入，无需显式导入。</p>
+  <ul>
+    <li><code>PrismaService</code> 通过 <code>pg.Pool</code> 从 <code>DATABASE_URL</code> 创建 <code>PrismaClient</code>。</li>
+    <li>实现 <code>OnModuleDestroy</code>，在关闭时优雅断开连接。</li>
+    <li>暴露 <code>client</code> 属性直接访问模型（无仓库模式）。</li>
+  </ul>
+
+  <h3>2. PluginLoaderModule <code>src/plugins/plugin-loader.module.ts</code></h3>
+  <p>一个带有静态 <code>forRoot(pluginsDir)</code> 工厂方法的<strong>动态模块</strong>。它在应用启动时运行（此时依赖注入尚未完全就绪），因此<strong>扫描文件系统</strong>。</p>
+  <p>职责：</p>
+  <ul>
+    <li>枚举 <code>storage/plugins/&lt;name&gt;/dist/index.js</code></li>
+    <li>使用 <code>Reflect.getMetadata('controllers', PluginModule)</code> 检测控制器路径</li>
+    <li>检测并拦截跨插件重复的控制器路由</li>
+    <li>将有效插件模块导入 NestJS 模块图</li>
+  </ul>
+  <div class="note warn">由于该模块在静态工厂中运行，无法以数据库作为数据源。它保持基于文件系统的实现。</div>
+
+  <h3>3. PluginManagerService <code>src/plugin-manager.service.ts</code></h3>
+  <p>插件生命周期和运行时路由的核心引擎。</p>
+
+  <h4>构造依赖</h4>
+  <pre>constructor(
+  private readonly adapterHost: HttpAdapterHost,
+  private readonly prisma: PrismaService,
+)</pre>
+
+  <h4>内部状态</h4>
+  <table>
+    <tr><th>属性</th><th>类型</th><th>用途</th></tr>
+    <tr><td><code>registry</code></td><td><code>Map&lt;string, any&gt;</code></td><td>运行时缓存已加载的插件模块对象（供 <code>invoke()</code> 使用）</td></tr>
+    <tr><td><code>pluginsDir</code></td><td><code>string</code></td><td><code>process.cwd() + '/storage/plugins'</code></td></tr>
+    <tr><td><code>pluginRouter</code></td><td><code>express.Router</code></td><td>挂载在 <code>/api/plugins</code> 的专用 Express 路由</td></tr>
+  </table>
+
+  <h4>方法列表</h4>
+  <table>
+    <tr><th>方法</th><th>说明</th></tr>
+    <tr><td><code>onModuleInit()</code></td><td>确保插件目录存在，挂载 <code>pluginRouter</code>，调用 <code>loadAllPlugins()</code></td></tr>
+    <tr><td><code>install(file)</code></td><td>验证 ZIP manifest，检查数据库是否已有该插件，解压 ZIP，检测路由冲突，加载路由，写入 <code>PluginRegistry</code> 数据库记录</td></tr>
+    <tr><td><code>update(name, file)</code></td><td>验证新版本 > 已安装版本，删除旧代码，解压新 ZIP，检测冲突，通过 <code>upsert</code> 更新数据库</td></tr>
+    <tr><td><code>uninstall(name)</code></td><td>删除路由，清空 registry 和 require 缓存，删除数据库记录，删除插件目录</td></tr>
+    <tr><td><code>listPlugins()</code></td><td>从 <code>pluginRegistry</code> 数据库表返回所有记录</td></tr>
+    <tr><td><code>loadAllPlugins()</code></td><td>读取数据库插件列表，校验文件系统存在性，为每个插件调用 <code>loadPluginRoutes()</code></td></tr>
+    <tr><td><code>loadPluginRoutes(pluginInfo)</code></td><td><code>require()</code> 插件入口文件，在 <code>pluginRouter</code> 上注册路由</td></tr>
+    <tr><td><code>invoke(pluginName, methodName, ...args)</code></td><td>调用缓存插件模块上的方法（插件间通信）</td></tr>
+    <tr><td><code>registerPluginMethods(name, module)</code></td><td>将插件模块存入运行时 registry Map</td></tr>
+  </table>
+
+  <h3>4. PluginController <code>src/plugin.controller.ts</code></h3>
+  <p>插件管理的 REST API 接口。基础路径：<code>/api/plugins</code></p>
+  <table>
+    <tr><th>方法</th><th>路径</th><th>请求体</th><th>操作</th></tr>
+    <tr><td><code>POST</code></td><td><code>/api/plugins/upload</code></td><td>multipart <code>file</code> (ZIP)</td><td>安装插件</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/plugins</code></td><td>&mdash;</td><td>列出已安装插件</td></tr>
+    <tr><td><code>PUT</code></td><td><code>/api/plugins/:name</code></td><td>multipart <code>file</code> (ZIP)</td><td>按名称更新插件</td></tr>
+    <tr><td><code>DELETE</code></td><td><code>/api/plugins/:name</code></td><td>&mdash;</td><td>按名称卸载插件</td></tr>
+  </table>
+
+  <h2>数据库模型</h2>
+  <p>文件：<code>prisma/schema.prisma</code></p>
+
+  <h3>PluginRegistry</h3>
+  <p>已安装插件元数据的权威来源。</p>
+  <pre>model PluginRegistry {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  version   String
+  manifest  Json
+  mode      String   @default("jsonb")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("plugin_registry")
+}</pre>
+  <table>
+    <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+    <tr><td><code>id</code></td><td>CUID</td><td>主键</td></tr>
+    <tr><td><code>name</code></td><td>String</td><td>唯一；与插件目录名一致</td></tr>
+    <tr><td><code>version</code></td><td>String</td><td>manifest 中的语义化版本</td></tr>
+    <tr><td><code>manifest</code></td><td>JSONB</td><td>完整的 <code>manifest.json</code> 内容</td></tr>
+    <tr><td><code>mode</code></td><td>String</td><td>预留，用于未来插件类型区分</td></tr>
+  </table>
+
+  <h3>PluginData</h3>
+  <p>插件运行时键值数据存储。</p>
+  <pre>model PluginData {
+  id        String   @id @default(cuid())
+  plugin    String
+  key       String
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([plugin, key])
+  @@index([plugin])
+  @@map("plugin_data")
+}</pre>
+
+  <h2>插件格式规范</h2>
+  <p>一个有效的 Wau 插件是一个 ZIP 压缩包，包含以下结构：</p>
+  <pre>myplugin.zip
+├── manifest.json          # 必需
+├── package.json           # 必需（peerDependency: @nestjs/common）
+├── tsconfig.json          # 必需
+├── index.ts               # 入口文件：导出 NestJS 模块类
+├── myplugin.module.ts     # NestJS @Module()
+├── myplugin.controller.ts # NestJS @Controller() 路由
+└── myplugin.service.ts    # 可注入服务
+</pre>
+
+  <h3>manifest.json</h3>
+  <pre>{
+  "name": "testplugin",
+  "version": "1.0.1",
+  "description": "Test Plugin",
+  "author": "Jeff"
+}</pre>
+  <p>必需字段：<code>name</code>、<code>version</code>。</p>
+
+  <h3>构建输出</h3>
+  <p>TypeScript 编译后，插件必须暴露 <code>dist/index.js</code> 作为入口文件。该文件必须导出 NestJS 模块类：</p>
+  <pre>export { TestpluginModule } from './testplugin.module';</pre>
+
+  <h2>PluginRegistry 数据库迁移</h2>
+
+  <h3>变更内容</h3>
+  <p>迁移前，<code>PluginManagerService</code> 仅依赖内存中的 <code>Map</code> 和文件系统扫描 <code>manifest.json</code>。虽然 <code>PluginRegistry</code> Prisma 模型已存在于 schema 中，但应用代码从未使用它。</p>
+
+  <h3>新数据流</h3>
+  <pre>
+安装/更新/卸载
+        |
+        v
++-------------------+       +------------------+
+| PluginManagerSvc  |&lt;----&gt;| plugin_registry  |
+|  - 验证 ZIP       |  CRUD |  (PostgreSQL)    |
+|  - 解压到文件系统 |       +------------------+
+|  - 加载路由       |              |
+|  - 持久化到数据库 |              v
++-------------------+       +------------------+
+                            | storage/plugins  |
+                            |  (代码文件)      |
+                            +------------------+
+</pre>
+
+  <h3>一致性策略</h3>
+  <table>
+    <tr><th>场景</th><th>行为</th></tr>
+    <tr><td>数据库有记录，代码存在</td><td>启动时正常加载</td></tr>
+    <tr><td>数据库有记录，代码缺失</td><td>警告并跳过（孤立的数据库记录）</td></tr>
+    <tr><td>代码存在，数据库无记录</td><td>PluginManagerService 忽略；PluginLoaderModule 仍会加载 NestJS 模块。重新安装可补录数据库记录。</td></tr>
+  </table>
+
+  <h3>回滚行为</h3>
+  <table>
+    <tr><th>操作</th><th>失败时的回滚</th></tr>
+    <tr><td>安装（路由冲突）</td><td>删除已解压目录 + 删除数据库记录</td></tr>
+    <tr><td>更新（路由冲突）</td><td>删除新解压的目录。旧代码已被删除；数据库已更新到新版本。这是架构限制。</td></tr>
+    <tr><td>卸载</td><td>先删除数据库记录，再删除目录。若目录删除失败，文件系统残留孤儿文件。</td></tr>
+  </table>
+
+  <h2>文件结构</h2>
+  <pre>
+src/
+├── app.module.ts
+├── main.ts
+├── plugin.controller.ts
+├── plugin-manager.service.ts      # 已修改：现使用 PrismaService
+├── plugins/
+│   └── plugin-loader.module.ts   # 未变：基于文件系统的动态加载器
+└── prisma/
+    ├── prisma.module.ts          # 全局 Prisma 模块
+    └── prisma.service.ts         # PrismaClient 生命周期管理
+
+prisma/
+├── schema.prisma                 # 未变：PluginRegistry 模型已定义
+└── migrations/
+    └── 20260511164328_init/      # 初始迁移（已应用）
+
+storage/
+└── plugins/
+    └── &lt;plugin-name&gt;/           # 插件代码解压至此
+</pre>
+
+  <h2>环境变量</h2>
+  <table>
+    <tr><th>变量</th><th>必需</th><th>说明</th></tr>
+    <tr><td><code>DATABASE_URL</code></td><td>是</td><td>PostgreSQL 连接字符串</td></tr>
+    <tr><td><code>PORT</code></td><td>否</td><td>HTTP 服务端口（默认：3000）</td></tr>
+  </table>
+
+</body>
+</html>

@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model PluginData {
+  id        String   @id @default(cuid())
+  plugin    String
+  key       String
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([plugin, key])
+  @@index([plugin])
+  @@map("plugin_data")
+}
+
+model PluginRegistry {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  version   String
+  manifest  Json
+  mode      String   @default("jsonb")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("plugin_registry")
+}
