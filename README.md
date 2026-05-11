@@ -28,6 +28,23 @@ In traditional development, every tiny UI adjustment or logic change requires mo
 - **📱 Cross-Platform Protocol**: A unified JSON protocol drives rendering for both Flutter and Web clients.
 - **🗄️ Extensible Data Model**: Uses PostgreSQL + JSONB, allowing plugins to store private metadata without altering core table structures.
 
+### 📊 Progress
+
+| Milestone | Status | Notes |
+|-----------|--------|-------|
+| NestJS Core bootstrap | ✅ Done | `AppModule`, `main.ts` |
+| Prisma + PostgreSQL setup | ✅ Done | Global `PrismaModule`, `PrismaService` with `pg` adapter |
+| Dynamic plugin loader | ✅ Done | `PluginLoaderModule.forRoot()` scans `storage/plugins/` at boot |
+| Plugin lifecycle API | ✅ Done | `POST/GET/PUT/DELETE /api/plugins` — install, list, update, uninstall |
+| Plugin route mounting | ✅ Done | Express `Router` mounted at `/api/plugins`, hot-reload supported |
+| **PluginRegistry DB migration** | ✅ Done | Plugin metadata now persisted in `plugin_registry` table; DB is the source of truth |
+| Flutter client (`wau-flutter`) | ⏳ Planned | Dynamic JSON-driven UI rendering |
+| React Web admin (`wau-web`) | ⏳ Planned | Plugin management dashboard + user client |
+| Event Bus | ⏳ Planned | Cross-plugin & cross-platform communication |
+| SDUI Protocol | ⏳ Planned | Backend-driven layout engine |
+
+> 📚 **For technical details** (architecture, database schema, API specs, plugin format), see [`documentation/index.html`](documentation/index.html) (EN) or [`documentation/index.zh.html`](documentation/index.zh.html) (中文).
+
 ### 🚀 Quick Start
 
 ```bash
@@ -224,6 +241,23 @@ This project is licensed under the [MIT License](LICENSE).
 - **📡 动态路由注入**: 插件包解压缩后，内核自动扫描并注册其定义的 API 路由。
 - **📱 跨端组件协议**: 核心系统通过统一的 JSON 协议驱动 Flutter 和 Web 端渲染。
 - **🗄️ 扩展性数据模型**: 采用 PostgreSQL + JSONB 架构，允许插件存储私有的元数据（Metadata）。
+
+### 📊 项目进展
+
+| 里程碑 | 状态 | 说明 |
+|--------|------|------|
+| NestJS Core 框架搭建 | ✅ 完成 | `AppModule`、`main.ts` |
+| Prisma + PostgreSQL 配置 | ✅ 完成 | 全局 `PrismaModule`、`PrismaService`（`pg` 适配器）|
+| 动态插件加载器 | ✅ 完成 | `PluginLoaderModule.forRoot()` 启动时扫描 `storage/plugins/` |
+| 插件生命周期 API | ✅ 完成 | `POST/GET/PUT/DELETE /api/plugins` — 安装、列表、更新、卸载 |
+| 插件路由挂载 | ✅ 完成 | Express `Router` 挂载于 `/api/plugins`，支持热重载 |
+| **PluginRegistry 数据库迁移** | ✅ 完成 | 插件元数据已持久化到 `plugin_registry` 表；数据库为权威来源 |
+| Flutter 客户端 (`wau-flutter`) | ⏳ 规划中 | JSON 驱动的动态 UI 渲染 |
+| React Web 管理端 (`wau-web`) | ⏳ 规划中 | 插件管理后台 + 用户端 |
+| 事件总线 | ⏳ 规划中 | 跨插件 & 跨平台通信 |
+| SDUI 协议 | ⏳ 规划中 | 后端驱动布局引擎 |
+
+> 📚 **详细技术文档**（架构图、数据库模型、API 规范、插件格式）见 [`documentation/index.html`](documentation/index.html)（英文）或 [`documentation/index.zh.html`](documentation/index.zh.html)（中文）。
 
 ### 🚀 快速开始
 

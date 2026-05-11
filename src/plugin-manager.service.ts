@@ -4,10 +4,14 @@ import { HttpAdapterHost } from '@nestjs/core';
 import * as AdmZip from 'adm-zip';
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import { PrismaService } from './prisma/prisma.service';
 
 @Injectable()
 export class PluginManagerService implements OnModuleInit {
-  constructor(private readonly adapterHost: HttpAdapterHost) {}
+  constructor(
+    private readonly adapterHost: HttpAdapterHost,
+    private readonly prisma: PrismaService,
+  ) {}
 
   private readonly registry = new Map<string, any>();
 
@@ -52,6 +56,22 @@ export class PluginManagerService implements OnModuleInit {
       // 3. Determine installation path
       const targetPath = path.join(this.pluginsDir, name);
 
+      // Check DB first, then filesystem for backward compatibility
+      const dbPlugin = await this.prisma.client.pluginRegistry.findUnique({ where: { name } });
+      if (dbPlugin) {
+        const cmp = this.compareVersions(version, dbPlugin.version);
+        if (cmp === 0) {
+          throw new BadRequestException(`Plugin [${name}] v${version} is already installed.`);
+        }
+        if (cmp < 0) {
+          throw new BadRequestException(
+            `Plugin [${name}] v${dbPlugin.version} is installed. Cannot downgrade to v${version}.`
+          );
+        }
+        // Higher version: perform update
+        return this.update(name, file);
+      }
+
       if (await fs.pathExists(targetPath)) {
         const installedManifest = await fs.readJson(path.join(targetPath, 'manifest.json'));
         const installedVersion = installedManifest.version;
@@ -87,6 +107,11 @@ export class PluginManagerService implements OnModuleInit {
       // Load routes immediately after install
       await this.loadPluginRoutes({ name, version });
 
+      // Persist to database
+      await this.prisma.client.pluginRegistry.create({
+        data: { name, version, manifest },
+      });
+
       console.log(`📦 Wau Plugin [${name}] v${version} installed.`);
 
       return {
@@ -102,17 +127,9 @@ export class PluginManagerService implements OnModuleInit {
 
   // Get all installed plugins
   async listPlugins() {
-    const dirs = await fs.readdir(this.pluginsDir);
-    const plugins: any[] = [];
-    
-    for (const dir of dirs) {
-      const manifestPath = path.join(this.pluginsDir, dir, 'manifest.json');
-      if (await fs.pathExists(manifestPath)) {
-        const content = await fs.readJson(manifestPath);
-        plugins.push(content);
-      }
-    }
-    return plugins;
+    return this.prisma.client.pluginRegistry.findMany({
+      select: { name: true, version: true, manifest: true, createdAt: true, updatedAt: true },
+    });
   }
 
   async loadPluginRoutes(pluginInfo: any) {
@@ -153,10 +170,15 @@ export class PluginManagerService implements OnModuleInit {
   }
 
   async loadAllPlugins() {
-    const plugins = await this.listPlugins(); // Get installed plugin list
+    const dbPlugins = await this.prisma.client.pluginRegistry.findMany();
 
-    for (const pluginInfo of plugins) {
-      await this.loadPluginRoutes(pluginInfo);
+    for (const plugin of dbPlugins) {
+      const pluginPath = path.join(this.pluginsDir, plugin.name);
+      if (await fs.pathExists(pluginPath)) {
+        await this.loadPluginRoutes({ name: plugin.name, version: plugin.version });
+      } else {
+        console.warn(`[WauPluginManager] Plugin [${plugin.name}] registered in DB but code missing at ${pluginPath}`);
+      }
     }
   }
 
@@ -217,7 +239,8 @@ export class PluginManagerService implements OnModuleInit {
   async update(name: string, file: Express.Multer.File) {
     const targetPath = path.join(this.pluginsDir, name);
 
-    if (!(await fs.pathExists(targetPath))) {
+    const dbPlugin = await this.prisma.client.pluginRegistry.findUnique({ where: { name } });
+    if (!dbPlugin && !(await fs.pathExists(targetPath))) {
       throw new BadRequestException(
         `Plugin [${name}] is not installed. Use POST /api/plugins/upload to install it first.`
       );
@@ -235,8 +258,7 @@ export class PluginManagerService implements OnModuleInit {
       throw new BadRequestException('Plugin version is required in manifest.');
     }
 
-    const installedManifest = await fs.readJson(path.join(targetPath, 'manifest.json'));
-    const installedVersion = installedManifest.version;
+    const installedVersion = dbPlugin?.version ?? (await fs.readJson(path.join(targetPath, 'manifest.json'))).version;
 
     const cmp = this.compareVersions(newVersion, installedVersion);
     if (cmp <= 0) {
@@ -263,8 +285,6 @@ export class PluginManagerService implements OnModuleInit {
     const newRoutes = this.getPluginControllerRoutes(targetPath);
     const conflicts = newRoutes.filter((r) => existingRoutes.includes(r));
     if (conflicts.length > 0) {
-      // Rollback: restore old version is not possible since we deleted it.
-      // Just remove the broken extraction.
       await fs.remove(targetPath);
       throw new BadRequestException(
         `Update failed: Route conflict detected for controller paths: ${conflicts.join(', ')}`
@@ -272,6 +292,13 @@ export class PluginManagerService implements OnModuleInit {
     }
 
     await this.loadPluginRoutes({ name, version: newVersion });
+
+    // Persist to database
+    await this.prisma.client.pluginRegistry.upsert({
+      where: { name },
+      update: { version: newVersion, manifest },
+      create: { name, version: newVersion, manifest },
+    });
 
     console.log(`⬆️  Wau Plugin [${name}] updated from v${installedVersion} to v${newVersion}.`);
 
@@ -301,7 +328,8 @@ export class PluginManagerService implements OnModuleInit {
   async uninstall(name: string) {
     const targetPath = path.join(this.pluginsDir, name);
 
-    if (!(await fs.pathExists(targetPath))) {
+    const dbPlugin = await this.prisma.client.pluginRegistry.findUnique({ where: { name } });
+    if (!dbPlugin && !(await fs.pathExists(targetPath))) {
       throw new BadRequestException(`Plugin [${name}] is not installed.`);
     }
 
@@ -314,7 +342,12 @@ export class PluginManagerService implements OnModuleInit {
     // 3. Clear require cache for this plugin
     this.clearRequireCache(targetPath);
 
-    // 4. Delete plugin directory
+    // 4. Remove from database
+    if (dbPlugin) {
+      await this.prisma.client.pluginRegistry.delete({ where: { name } });
+    }
+
+    // 5. Delete plugin directory
     await fs.remove(targetPath);
 
     console.log(`🗑️  Wau Plugin [${name}] uninstalled.`);
