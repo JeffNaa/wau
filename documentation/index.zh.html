@@ -59,10 +59,14 @@
 |  +----------------+  +-------------------------+  |
 |  +---------------------------------------------+  |
 |  |     PluginManagerService                    |  |
-|  |  - 基于数据库的插件注册表                   |  |
 |  |  - 安装 / 更新 / 卸载                       |  |
 |  |  - 动态 Express 路由挂载                    |  |
+|  |  - DB 操作委托给 PluginRegistryService      |  |
 |  +---------------------------------------------+  |
+|  +------------------+  +----------------------+  |
+|  | PluginRegistrySvc|  | PluginDataService    |  |
+|  |  - registry CRUD |  |  - 插件键值数据      |  |
+|  +------------------+  +----------------------+  |
 +--------------------------------------------------+
 |              PostgreSQL 数据库                     |
 |    plugin_registry  |  plugin_data                |
@@ -96,7 +100,7 @@
   <h4>构造依赖</h4>
   <pre>constructor(
   private readonly adapterHost: HttpAdapterHost,
-  private readonly prisma: PrismaService,
+  private readonly pluginRegistry: PluginRegistryService,
 )</pre>
 
   <h4>内部状态</h4>
@@ -121,7 +125,29 @@
     <tr><td><code>registerPluginMethods(name, module)</code></td><td>将插件模块存入运行时 registry Map</td></tr>
   </table>
 
-  <h3>4. PluginController <code>src/plugin.controller.ts</code></h3>
+  <h3>4. PluginRegistryService <code>src/plugin-registry/plugin-registry.service.ts</code></h3>
+  <p>封装 <code>PluginRegistry</code> 模型的所有数据库操作。注入到 <code>PluginManagerService</code> 中，使生命周期逻辑不直接依赖 <code>PrismaService</code>。</p>
+  <table>
+    <tr><th>方法</th><th>说明</th></tr>
+    <tr><td><code>findAll()</code></td><td>列出所有插件注册表记录</td></tr>
+    <tr><td><code>findOne(name)</code><td>按唯一名称查找单个插件</td></tr>
+    <tr><td><code>create(data)</code></td><td>插入新插件记录</td></tr>
+    <tr><td><code>update(name, data)</code></td><td>更新版本和/或 manifest</td></tr>
+    <tr><td><code>upsert(name, data)</code></td><td>存在则更新，不存在则创建</td></tr>
+    <tr><td><code>remove(name)</code></td><td>删除插件记录</td></tr>
+  </table>
+
+  <h3>5. PluginDataService <code>src/plugin-data/plugin-data.service.ts</code></h3>
+  <p>插件运行时键值数据存储。通过简洁的 upsert API 包装 <code>PluginData</code> 模型。</p>
+  <table>
+    <tr><th>方法</th><th>说明</th></tr>
+    <tr><td><code>get(plugin, key)</code></td><td>读取单个键值条目</td></tr>
+    <tr><td><code>set(plugin, key, data)</code></td><td>创建或覆盖键值条目</td></tr>
+    <tr><td><code>remove(plugin, key)</code></td><td>删除键值条目</td></tr>
+    <tr><td><code>list(plugin)</code></td><td>列出某插件的所有键值条目</td></tr>
+  </table>
+
+  <h3>6. PluginController <code>src/plugin.controller.ts</code></h3>
   <p>插件管理的 REST API 接口。基础路径：<code>/api/plugins</code></p>
   <table>
     <tr><th>方法</th><th>路径</th><th>请求体</th><th>操作</th></tr>
@@ -132,7 +158,7 @@
   </table>
 
   <h2>数据库模型</h2>
-  <p>文件：<code>prisma/schema.prisma</code></p>
+  <p>文件：<code>prisma/schema/schema.prisma</code>（generator &amp; datasource）+ <code>prisma/schema/plugin.prisma</code>（模型定义）</p>
 
   <h3>PluginRegistry</h3>
   <p>已安装插件元数据的权威来源。</p>
@@ -240,17 +266,23 @@ src/
 ├── app.module.ts
 ├── main.ts
 ├── plugin.controller.ts
-├── plugin-manager.service.ts      # 已修改：现使用 PrismaService
+├── plugin-manager.service.ts      # 插件生命周期；DB 委托给 PluginRegistryService
+├── plugin-registry/
+│   ├── plugin-registry.module.ts
+│   └── plugin-registry.service.ts # plugin_registry 表 CRUD
+├── plugin-data/
+│   ├── plugin-data.module.ts
+│   └── plugin-data.service.ts     # plugin_data 表键值操作
 ├── plugins/
-│   └── plugin-loader.module.ts   # 未变：基于文件系统的动态加载器
+│   └── plugin-loader.module.ts   # 基于文件系统的动态加载器
 └── prisma/
     ├── prisma.module.ts          # 全局 Prisma 模块
     └── prisma.service.ts         # PrismaClient 生命周期管理
 
 prisma/
-├── schema.prisma                 # 未变：PluginRegistry 模型已定义
-└── migrations/
-    └── 20260511164328_init/      # 初始迁移（已应用）
+└── schema/
+    ├── schema.prisma             # Generator + datasource
+    └── plugin.prisma             # PluginData + PluginRegistry 模型
 
 storage/
 └── plugins/

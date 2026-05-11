@@ -4,6 +4,8 @@ import { PluginManagerService } from './plugin-manager.service';
 import { PluginController } from './plugin.controller';
 import { PluginLoaderModule } from './plugins/plugin-loader.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { PluginRegistryModule } from './plugin-registry/plugin-registry.module';
+import { PluginDataModule } from './plugin-data/plugin-data.module';
 import * as path from 'path';
 
 const pluginsDir = path.join(process.cwd(), 'storage/plugins');
@@ -12,6 +14,8 @@ const pluginsDir = path.join(process.cwd(), 'storage/plugins');
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    PluginRegistryModule,
+    PluginDataModule,
     PluginLoaderModule.forRoot(pluginsDir),
   ],
   controllers: [PluginController],
