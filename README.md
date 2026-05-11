@@ -189,10 +189,24 @@ Response:
 wau-core/
 ├── src/
 │   ├── app.module.ts              # Root module
-│   ├── plugin-manager.service.ts  # Plugin lifecycle management
+│   ├── plugin-manager.service.ts  # Plugin lifecycle (delegates DB to PluginRegistryService)
 │   ├── plugin.controller.ts       # Plugin HTTP API
+│   ├── plugin-registry/
+│   │   ├── plugin-registry.module.ts
+│   │   └── plugin-registry.service.ts  # CRUD for plugin_registry table
+│   ├── plugin-data/
+│   │   ├── plugin-data.module.ts
+│   │   └── plugin-data.service.ts      # KV ops for plugin_data table
+│   ├── prisma/
+│   │   ├── prisma.module.ts       # Global Prisma module
+│   │   └── prisma.service.ts      # PrismaClient lifecycle
 │   └── plugins/
 │       └── plugin-loader.module.ts # Boot-time plugin loader
+├── prisma/
+│   ├── config.ts
+│   └── schema/
+│       ├── schema.prisma          # Generator + datasource
+│       └── plugin.prisma          # PluginData + PluginRegistry models
 ├── storage/plugins/               # Installed plugins directory
 ├── testplugin/                    # Sample plugin source
 └── dist/                          # Compiled output
@@ -387,10 +401,24 @@ DELETE /api/plugins/:name
 wau-core/
 ├── src/
 │   ├── app.module.ts              # 根模块
-│   ├── plugin-manager.service.ts  # 插件生命周期管理
+│   ├── plugin-manager.service.ts  # 插件生命周期（DB 委托给 PluginRegistryService）
 │   ├── plugin.controller.ts       # 插件 HTTP API
+│   ├── plugin-registry/
+│   │   ├── plugin-registry.module.ts
+│   │   └── plugin-registry.service.ts  # plugin_registry 表 CRUD
+│   ├── plugin-data/
+│   │   ├── plugin-data.module.ts
+│   │   └── plugin-data.service.ts      # plugin_data 表键值操作
+│   ├── prisma/
+│   │   ├── prisma.module.ts       # 全局 Prisma 模块
+│   │   └── prisma.service.ts      # PrismaClient 生命周期管理
 │   └── plugins/
 │       └── plugin-loader.module.ts # 启动时插件加载器
+├── prisma/
+│   ├── config.ts
+│   └── schema/
+│       ├── schema.prisma          # Generator + datasource
+│       └── plugin.prisma          # PluginData + PluginRegistry 模型
 ├── storage/plugins/               # 已安装插件目录
 ├── testplugin/                    # 示例插件源码
 └── dist/                          # 编译输出

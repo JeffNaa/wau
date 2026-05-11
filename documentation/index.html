@@ -59,10 +59,15 @@
 |  +----------------+  +-------------------------+  |
 |  +---------------------------------------------+  |
 |  |     PluginManagerService                    |  |
-|  |  - DB-backed plugin registry                |  |
 |  |  - Install / Update / Uninstall             |  |
 |  |  - Dynamic Express route mounting           |  |
+|  |  - Delegates DB to PluginRegistryService    |  |
 |  +---------------------------------------------+  |
+|  +------------------+  +----------------------+  |
+|  | PluginRegistrySvc|  | PluginDataService    |  |
+|  |  - CRUD registry |  |  - KV store for      |  |
+|  |    table         |  |    plugin data       |  |
+|  +------------------+  +----------------------+  |
 +--------------------------------------------------+
 |              PostgreSQL Database                   |
 |    plugin_registry  |  plugin_data                |
@@ -96,7 +101,7 @@
   <h4>Constructor Dependencies</h4>
   <pre>constructor(
   private readonly adapterHost: HttpAdapterHost,
-  private readonly prisma: PrismaService,
+  private readonly pluginRegistry: PluginRegistryService,
 )</pre>
 
   <h4>Internal State</h4>
@@ -121,7 +126,29 @@
     <tr><td><code>registerPluginMethods(name, module)</code></td><td>Stores a plugin module in the runtime registry Map</td></tr>
   </table>
 
-  <h3>4. PluginController <code>src/plugin.controller.ts</code></h3>
+  <h3>4. PluginRegistryService <code>src/plugin-registry/plugin-registry.service.ts</code></h3>
+  <p>Encapsulates all database operations for the <code>PluginRegistry</code> model. Injected into <code>PluginManagerService</code> so the lifecycle logic does not depend directly on <code>PrismaService</code>.</p>
+  <table>
+    <tr><th>Method</th><th>Description</th></tr>
+    <tr><td><code>findAll()</code></td><td>List all plugin registry records</td></tr>
+    <tr><td><code>findOne(name)</code><td>Find a single plugin by unique name</td></tr>
+    <tr><td><code>create(data)</code></td><td>Insert a new plugin record</td></tr>
+    <tr><td><code>update(name, data)</code></td><td>Update version and/or manifest</td></tr>
+    <tr><td><code>upsert(name, data)</code></td><td>Update if exists, create if not</td></tr>
+    <tr><td><code>remove(name)</code></td><td>Delete a plugin record</td></tr>
+  </table>
+
+  <h3>5. PluginDataService <code>src/plugin-data/plugin-data.service.ts</code></h3>
+  <p>Key-value store for plugin runtime data. Wraps the <code>PluginData</code> model with a clean upsert-based API.</p>
+  <table>
+    <tr><th>Method</th><th>Description</th></tr>
+    <tr><td><code>get(plugin, key)</code></td><td>Read a single KV entry</td></tr>
+    <tr><td><code>set(plugin, key, data)</code></td><td>Create or overwrite a KV entry</td></tr>
+    <tr><td><code>remove(plugin, key)</code></td><td>Delete a KV entry</td></tr>
+    <tr><td><code>list(plugin)</code></td><td>List all KV entries for a plugin</td></tr>
+  </table>
+
+  <h3>6. PluginController <code>src/plugin.controller.ts</code></h3>
   <p>REST API surface for plugin management. Base path: <code>/api/plugins</code></p>
   <table>
     <tr><th>Method</th><th>Path</th><th>Body</th><th>Action</th></tr>
@@ -132,7 +159,7 @@
   </table>
 
   <h2>Database Schema</h2>
-  <p>File: <code>prisma/schema.prisma</code></p>
+  <p>Files: <code>prisma/schema/schema.prisma</code> (generator &amp; datasource) + <code>prisma/schema/plugin.prisma</code> (models)</p>
 
   <h3>PluginRegistry</h3>
   <p>Authoritative source of installed plugin metadata.</p>
@@ -240,17 +267,23 @@ src/
 ├── app.module.ts
 ├── main.ts
 ├── plugin.controller.ts
-├── plugin-manager.service.ts      # Modified: now uses PrismaService
+├── plugin-manager.service.ts      # Plugin lifecycle; delegates DB to PluginRegistryService
+├── plugin-registry/
+│   ├── plugin-registry.module.ts
+│   └── plugin-registry.service.ts # CRUD for plugin_registry table
+├── plugin-data/
+│   ├── plugin-data.module.ts
+│   └── plugin-data.service.ts     # KV ops for plugin_data table
 ├── plugins/
-│   └── plugin-loader.module.ts   # Unchanged: filesystem-based dynamic loader
+│   └── plugin-loader.module.ts   # Filesystem-based dynamic loader
 └── prisma/
     ├── prisma.module.ts          # Global Prisma module
     └── prisma.service.ts         # PrismaClient lifecycle management
 
 prisma/
-├── schema.prisma                 # Unchanged: PluginRegistry model already defined
-└── migrations/
-    └── 20260511164328_init/      # Initial migration (already applied)
+└── schema/
+    ├── schema.prisma             # Generator + datasource
+    └── plugin.prisma             # PluginData + PluginRegistry models
 
 storage/
 └── plugins/

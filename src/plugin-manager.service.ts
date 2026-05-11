@@ -4,13 +4,13 @@ import { HttpAdapterHost } from '@nestjs/core';
 import * as AdmZip from 'adm-zip';
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { PrismaService } from './prisma/prisma.service';
+import { PluginRegistryService } from './plugin-registry/plugin-registry.service';
 
 @Injectable()
 export class PluginManagerService implements OnModuleInit {
   constructor(
     private readonly adapterHost: HttpAdapterHost,
-    private readonly prisma: PrismaService,
+    private readonly pluginRegistry: PluginRegistryService,
   ) {}
 
   private readonly registry = new Map<string, any>();
@@ -57,7 +57,7 @@ export class PluginManagerService implements OnModuleInit {
       const targetPath = path.join(this.pluginsDir, name);
 
       // Check DB first, then filesystem for backward compatibility
-      const dbPlugin = await this.prisma.client.pluginRegistry.findUnique({ where: { name } });
+      const dbPlugin = await this.pluginRegistry.findOne(name);
       if (dbPlugin) {
         const cmp = this.compareVersions(version, dbPlugin.version);
         if (cmp === 0) {
@@ -108,9 +108,7 @@ export class PluginManagerService implements OnModuleInit {
       await this.loadPluginRoutes({ name, version });
 
       // Persist to database
-      await this.prisma.client.pluginRegistry.create({
-        data: { name, version, manifest },
-      });
+      await this.pluginRegistry.create({ name, version, manifest });
 
       console.log(`📦 Wau Plugin [${name}] v${version} installed.`);
 
@@ -127,9 +125,7 @@ export class PluginManagerService implements OnModuleInit {
 
   // Get all installed plugins
   async listPlugins() {
-    return this.prisma.client.pluginRegistry.findMany({
-      select: { name: true, version: true, manifest: true, createdAt: true, updatedAt: true },
-    });
+    return this.pluginRegistry.findAll();
   }
 
   async loadPluginRoutes(pluginInfo: any) {
@@ -170,7 +166,7 @@ export class PluginManagerService implements OnModuleInit {
   }
 
   async loadAllPlugins() {
-    const dbPlugins = await this.prisma.client.pluginRegistry.findMany();
+    const dbPlugins = await this.pluginRegistry.findAll();
 
     for (const plugin of dbPlugins) {
       const pluginPath = path.join(this.pluginsDir, plugin.name);
@@ -239,7 +235,7 @@ export class PluginManagerService implements OnModuleInit {
   async update(name: string, file: Express.Multer.File) {
     const targetPath = path.join(this.pluginsDir, name);
 
-    const dbPlugin = await this.prisma.client.pluginRegistry.findUnique({ where: { name } });
+    const dbPlugin = await this.pluginRegistry.findOne(name);
     if (!dbPlugin && !(await fs.pathExists(targetPath))) {
       throw new BadRequestException(
         `Plugin [${name}] is not installed. Use POST /api/plugins/upload to install it first.`
@@ -294,11 +290,7 @@ export class PluginManagerService implements OnModuleInit {
     await this.loadPluginRoutes({ name, version: newVersion });
 
     // Persist to database
-    await this.prisma.client.pluginRegistry.upsert({
-      where: { name },
-      update: { version: newVersion, manifest },
-      create: { name, version: newVersion, manifest },
-    });
+    await this.pluginRegistry.upsert(name, { version: newVersion, manifest });
 
     console.log(`⬆️  Wau Plugin [${name}] updated from v${installedVersion} to v${newVersion}.`);
 
@@ -328,7 +320,7 @@ export class PluginManagerService implements OnModuleInit {
   async uninstall(name: string) {
     const targetPath = path.join(this.pluginsDir, name);
 
-    const dbPlugin = await this.prisma.client.pluginRegistry.findUnique({ where: { name } });
+    const dbPlugin = await this.pluginRegistry.findOne(name);
     if (!dbPlugin && !(await fs.pathExists(targetPath))) {
       throw new BadRequestException(`Plugin [${name}] is not installed.`);
     }
@@ -344,7 +336,7 @@ export class PluginManagerService implements OnModuleInit {
 
     // 4. Remove from database
     if (dbPlugin) {
-      await this.prisma.client.pluginRegistry.delete({ where: { name } });
+      await this.pluginRegistry.remove(name);
     }
 
     // 5. Delete plugin directory

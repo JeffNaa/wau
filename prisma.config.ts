@@ -5,7 +5,7 @@ import { resolve } from 'path'
 config({ path: resolve(__dirname, '.env') })
 
 export default defineConfig({
-  schema: './prisma/schema.prisma',
+  schema: './prisma/schema',
   datasource: {
     url: env('DATABASE_URL'),
   },
