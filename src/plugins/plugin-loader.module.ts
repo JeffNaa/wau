@@ -13,31 +13,45 @@ export class PluginLoaderModule {
     fs.ensureDirSync(pluginsDir);
 
     const dirs = fs.readdirSync(pluginsDir);
-    
+
     for (const dir of dirs) {
-      const pluginMainPath = path.join(pluginsDir, dir, 'dist', 'index.js');
-      
+      const pluginDirPath = path.join(pluginsDir, dir);
+      const pluginMainPath = path.join(pluginDirPath, 'dist', 'index.js');
+
       if (fs.existsSync(pluginMainPath)) {
         try {
           const exported = require(pluginMainPath);
-          
+
           // Find the exported class (assuming it's a Nest Module)
           const PluginModule: any = Object.values(exported).find((val) => typeof val === 'function');
-          
+
           if (PluginModule) {
+            // Read manifest to get the plugin name for route prefix
+            const manifestPath = path.join(pluginDirPath, 'manifest.json');
+            let manifestName = dir;
+            if (fs.existsSync(manifestPath)) {
+              const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+              manifestName = manifest.name || dir;
+            }
+
             const controllers = Reflect.getMetadata('controllers', PluginModule) || [];
             for (const controller of controllers) {
               const rawPath = Reflect.getMetadata('path', controller);
-              if (rawPath) {
-                const paths = Array.isArray(rawPath) ? rawPath : [rawPath];
-                for (const p of paths) {
-                  const normalizedPath = p.startsWith('/') ? p : `/${p}`;
-                  if (registeredRoutes.has(normalizedPath)) {
-                    throw new Error(`Duplicate plugin route detected: ${normalizedPath} in plugin ${dir}`);
-                  }
-                  registeredRoutes.add(normalizedPath);
-                }
+              const controllerPath = rawPath || '';
+
+              // Auto-prefix with manifest name: /{manifestName}/{controllerPath}
+              const normalizedControllerPath = controllerPath.startsWith('/') ? controllerPath : `/${controllerPath}`;
+              const fullPath = normalizedControllerPath
+                ? `/${manifestName}${normalizedControllerPath}`
+                : `/${manifestName}`;
+
+              if (registeredRoutes.has(fullPath)) {
+                throw new Error(`Duplicate plugin route detected: ${fullPath} in plugin ${dir}`);
               }
+              registeredRoutes.add(fullPath);
+
+              // Override controller path metadata so NestJS registers the prefixed route
+              Reflect.defineMetadata('path', fullPath.replace(/^\//, ''), controller);
             }
 
             imports.push(PluginModule);
