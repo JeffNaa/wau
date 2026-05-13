@@ -29,7 +29,7 @@
   <a href="index.html" class="lang-switch">English</a>
 
   <h1>Wau Core 文档</h1>
-  <p>Wau Core 是一个基于 NestJS 的插件运行时引擎。它动态加载、管理和路由第三方插件，同时通过 Prisma 将插件元数据持久化到 PostgreSQL 数据库。</p>
+  <p>Wau Core 是一个基于 NestJS 的插件运行时引擎。它通过 PluginLoaderModule 在启动时扫描并加载第三方插件模块，同时通过 Prisma 将插件元数据持久化到 PostgreSQL 数据库。插件安装/更新/卸载后，服务器自动重启以重新加载路由。</p>
 
   <h2>技术栈</h2>
   <table>
@@ -53,14 +53,14 @@
 |  +----------------+  +-------------------------+  |
 |  | PluginLoaderModule   | PluginController      |  |
 |  | (动态模块)           | (REST API)            |  |
-|  |  - 启动时扫描文件    |                       |  |
-|  |  - 导入 NestJS       |                       |  |
-|  |    插件模块          |                       |  |
+|  |  - 启动时扫描文件    |  - /plugins/upload    |  |
+|  |  - 导入 NestJS       |  - /plugins           |  |
+|  |    插件模块          |  - /plugins/:name     |  |
 |  +----------------+  +-------------------------+  |
 |  +---------------------------------------------+  |
 |  |     PluginManagerService                    |  |
 |  |  - 安装 / 更新 / 卸载                       |  |
-|  |  - 动态 Express 路由挂载                    |  |
+|  |  - 触发服务器重启重新加载路由               |  |
 |  |  - DB 操作委托给 PluginRegistryService      |  |
 |  +---------------------------------------------+  |
 |  +------------------+  +----------------------+  |
@@ -87,19 +87,19 @@
   <p>一个带有静态 <code>forRoot(pluginsDir)</code> 工厂方法的<strong>动态模块</strong>。它在应用启动时运行（此时依赖注入尚未完全就绪），因此<strong>扫描文件系统</strong>。</p>
   <p>职责：</p>
   <ul>
-    <li>枚举 <code>storage/plugins/&lt;name&gt;/dist/index.js</code></li>
+    <li>枚举 <code>storage/plugins/&lt;name&gt;/dist/index.js</code>，若不存在则回退到 <code>storage/plugins/&lt;name&gt;/index.js</code></li>
     <li>使用 <code>Reflect.getMetadata('controllers', PluginModule)</code> 检测控制器路径</li>
+    <li>以 manifest name 为前缀自动拼接路由（如 <code>/testplugin/status</code>）</li>
     <li>检测并拦截跨插件重复的控制器路由</li>
     <li>将有效插件模块导入 NestJS 模块图</li>
   </ul>
-  <div class="note warn">由于该模块在静态工厂中运行，无法以数据库作为数据源。它保持基于文件系统的实现。</div>
+  <div class="note warn">由于该模块在静态工厂中运行，无法以数据库作为数据源。它保持基于文件系统的实现。插件安装/更新/卸载后，服务器会自动重启以重新加载路由。</div>
 
   <h3>3. PluginManagerService <code>src/plugin-manager.service.ts</code></h3>
   <p>插件生命周期和运行时路由的核心引擎。</p>
 
   <h4>构造依赖</h4>
   <pre>constructor(
-  private readonly adapterHost: HttpAdapterHost,
   private readonly pluginRegistry: PluginRegistryService,
 )</pre>
 
@@ -108,19 +108,17 @@
     <tr><th>属性</th><th>类型</th><th>用途</th></tr>
     <tr><td><code>registry</code></td><td><code>Map&lt;string, any&gt;</code></td><td>运行时缓存已加载的插件模块对象（供 <code>invoke()</code> 使用）</td></tr>
     <tr><td><code>pluginsDir</code></td><td><code>string</code></td><td><code>process.cwd() + '/storage/plugins'</code></td></tr>
-    <tr><td><code>pluginRouter</code></td><td><code>express.Router</code></td><td>挂载在 <code>/api/plugins</code> 的专用 Express 路由</td></tr>
   </table>
 
   <h4>方法列表</h4>
   <table>
     <tr><th>方法</th><th>说明</th></tr>
-    <tr><td><code>onModuleInit()</code></td><td>确保插件目录存在，挂载 <code>pluginRouter</code>，调用 <code>loadAllPlugins()</code></td></tr>
-    <tr><td><code>install(file)</code></td><td>验证 ZIP manifest，检查数据库是否已有该插件，解压 ZIP，检测路由冲突，加载路由，写入 <code>PluginRegistry</code> 数据库记录</td></tr>
-    <tr><td><code>update(name, file)</code></td><td>验证新版本 > 已安装版本，删除旧代码，解压新 ZIP，检测冲突，通过 <code>upsert</code> 更新数据库</td></tr>
-    <tr><td><code>uninstall(name)</code></td><td>删除路由，清空 registry 和 require 缓存，删除数据库记录，删除插件目录</td></tr>
+    <tr><td><code>onModuleInit()</code></td><td>确保插件目录存在</td></tr>
+    <tr><td><code>install(file)</code></td><td>验证 ZIP manifest，检查数据库是否已有该插件，解压 ZIP，检测路由冲突，写入 <code>PluginRegistry</code> 数据库记录，触发服务器重启</td></tr>
+    <tr><td><code>update(name, file)</code></td><td>验证新版本 > 已安装版本，删除旧代码，解压新 ZIP，检测冲突，通过 <code>upsert</code> 更新数据库，触发服务器重启</td></tr>
+    <tr><td><code>uninstall(name)</code></td><td>清空 registry 和 require 缓存，删除数据库记录，删除插件目录，触发服务器重启</td></tr>
     <tr><td><code>listPlugins()</code></td><td>从 <code>pluginRegistry</code> 数据库表返回所有记录</td></tr>
-    <tr><td><code>loadAllPlugins()</code></td><td>读取数据库插件列表，校验文件系统存在性，为每个插件调用 <code>loadPluginRoutes()</code></td></tr>
-    <tr><td><code>loadPluginRoutes(pluginInfo)</code></td><td><code>require()</code> 插件入口文件，在 <code>pluginRouter</code> 上注册路由</td></tr>
+    <tr><td><code>getPluginControllerRoutes(pluginPath)</code></td><td>扫描插件入口文件，提取控制器路由（用于安装前冲突检测）</td></tr>
     <tr><td><code>invoke(pluginName, methodName, ...args)</code></td><td>调用缓存插件模块上的方法（插件间通信）</td></tr>
     <tr><td><code>registerPluginMethods(name, module)</code></td><td>将插件模块存入运行时 registry Map</td></tr>
   </table>
@@ -148,13 +146,13 @@
   </table>
 
   <h3>6. PluginController <code>src/plugin.controller.ts</code></h3>
-  <p>插件管理的 REST API 接口。基础路径：<code>/api/plugins</code></p>
+  <p>插件管理的 REST API 接口。基础路径：<code>/plugins</code></p>
   <table>
     <tr><th>方法</th><th>路径</th><th>请求体</th><th>操作</th></tr>
-    <tr><td><code>POST</code></td><td><code>/api/plugins/upload</code></td><td>multipart <code>file</code> (ZIP)</td><td>安装插件</td></tr>
+    <tr><td><code>POST</code></td><td><code>/plugins/upload</code></td><td>multipart <code>file</code> (ZIP)</td><td>安装插件</td></tr>
     <tr><td><code>GET</code></td><td><code>/api/plugins</code></td><td>&mdash;</td><td>列出已安装插件</td></tr>
-    <tr><td><code>PUT</code></td><td><code>/api/plugins/:name</code></td><td>multipart <code>file</code> (ZIP)</td><td>按名称更新插件</td></tr>
-    <tr><td><code>DELETE</code></td><td><code>/api/plugins/:name</code></td><td>&mdash;</td><td>按名称卸载插件</td></tr>
+    <tr><td><code>PUT</code></td><td><code>/plugins/:name</code></td><td>multipart <code>file</code> (ZIP)</td><td>按名称更新插件</td></tr>
+    <tr><td><code>DELETE</code></td><td><code>/plugins/:name</code></td><td>&mdash;</td><td>按名称卸载插件</td></tr>
   </table>
 
   <h2>数据库模型</h2>
@@ -219,7 +217,7 @@
   <p>必需字段：<code>name</code>、<code>version</code>。</p>
 
   <h3>构建输出</h3>
-  <p>TypeScript 编译后，插件必须暴露 <code>dist/index.js</code> 作为入口文件。该文件必须导出 NestJS 模块类：</p>
+  <p>TypeScript 编译后，插件优先暴露 <code>dist/index.js</code> 作为入口文件；若 <code>dist/</code> 目录不存在，则回退到根目录的 <code>index.js</code>。该文件必须导出 NestJS 模块类：</p>
   <pre>export { TestpluginModule } from './testplugin.module';</pre>
 
   <h2>PluginRegistry 数据库迁移</h2>
@@ -236,7 +234,7 @@
 | PluginManagerSvc  |&lt;----&gt;| plugin_registry  |
 |  - 验证 ZIP       |  CRUD |  (PostgreSQL)    |
 |  - 解压到文件系统 |       +------------------+
-|  - 加载路由       |              |
+|  - 触发重启加载路由 |            |
 |  - 持久化到数据库 |              v
 +-------------------+       +------------------+
                             | storage/plugins  |

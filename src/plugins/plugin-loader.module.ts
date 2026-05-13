@@ -16,7 +16,12 @@ export class PluginLoaderModule {
 
     for (const dir of dirs) {
       const pluginDirPath = path.join(pluginsDir, dir);
-      const pluginMainPath = path.join(pluginDirPath, 'dist', 'index.js');
+      let pluginMainPath = path.join(pluginDirPath, 'dist', 'index.js');
+
+      // Fallback to root-level index.js if dist/ is absent
+      if (!fs.existsSync(pluginMainPath)) {
+        pluginMainPath = path.join(pluginDirPath, 'index.js');
+      }
 
       if (fs.existsSync(pluginMainPath)) {
         try {

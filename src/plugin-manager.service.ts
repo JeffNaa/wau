@@ -10,7 +10,7 @@ import { restart } from './bootstrap';
 export class PluginManagerService implements OnModuleInit {
   constructor(
     private readonly pluginRegistry: PluginRegistryService,
-  ) {}
+  ) { }
 
   private readonly registry = new Map<string, any>();
 
@@ -122,7 +122,10 @@ export class PluginManagerService implements OnModuleInit {
 
   private getPluginControllerRoutes(pluginPath: string): string[] {
     const routes: string[] = [];
-    const pluginMainPath = path.join(pluginPath, 'dist', 'index.js');
+    let pluginMainPath = path.join(pluginPath, 'dist', 'index.js');
+    if (!fs.existsSync(pluginMainPath)) {
+      pluginMainPath = path.join(pluginPath, 'index.js');
+    }
     const manifestPath = path.join(pluginPath, 'manifest.json');
 
     let manifestName = path.basename(pluginPath);
@@ -168,75 +171,79 @@ export class PluginManagerService implements OnModuleInit {
   }
 
   async update(name: string, file: Express.Multer.File) {
-    const targetPath = path.join(this.pluginsDir, name);
+    try {
+      const targetPath = path.join(this.pluginsDir, name);
 
-    const dbPlugin = await this.pluginRegistry.findOne(name);
-    if (!dbPlugin && !(await fs.pathExists(targetPath))) {
-      throw new BadRequestException(
-        `Plugin [${name}] is not installed. Use POST /api/plugins/upload to install it first.`
+      const dbPlugin = await this.pluginRegistry.findOne(name);
+      if (!dbPlugin && !(await fs.pathExists(targetPath))) {
+        throw new BadRequestException(
+          `Plugin [${name}] is not installed. Use POST /plugins/upload to install it first.`
+        );
+      }
+
+      const zip = new AdmZip(file.buffer);
+      const manifestEntry = zip.getEntries().find((e) => e.entryName === 'manifest.json');
+      if (!manifestEntry) {
+        throw new BadRequestException('Invalid Wau Plugin: manifest.json is missing.');
+      }
+
+      const manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
+      const newVersion = manifest.version;
+      if (!newVersion) {
+        throw new BadRequestException('Plugin version is required in manifest.');
+      }
+
+      const installedVersion = dbPlugin?.version ?? (await fs.readJson(path.join(targetPath, 'manifest.json'))).version;
+
+      const cmp = this.compareVersions(newVersion, installedVersion);
+      if (cmp <= 0) {
+        throw new BadRequestException(
+          `Update rejected: uploaded version v${newVersion} must be greater than installed v${installedVersion}.`
+        );
+      }
+
+      // Collect existing routes from OTHER plugins to check for conflicts
+      const existingRoutes = (await this.getAllExistingPluginRoutes()).filter(
+        (r) => !this.getPluginControllerRoutes(targetPath).includes(r)
       );
-    }
 
-    const zip = new AdmZip(file.buffer);
-    const manifestEntry = zip.getEntries().find((e) => e.entryName === 'manifest.json');
-    if (!manifestEntry) {
-      throw new BadRequestException('Invalid Wau Plugin: manifest.json is missing.');
-    }
-
-    const manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
-    const newVersion = manifest.version;
-    if (!newVersion) {
-      throw new BadRequestException('Plugin version is required in manifest.');
-    }
-
-    const installedVersion = dbPlugin?.version ?? (await fs.readJson(path.join(targetPath, 'manifest.json'))).version;
-
-    const cmp = this.compareVersions(newVersion, installedVersion);
-    if (cmp <= 0) {
-      throw new BadRequestException(
-        `Update rejected: uploaded version v${newVersion} must be greater than installed v${installedVersion}.`
-      );
-    }
-
-    // Collect existing routes from OTHER plugins to check for conflicts
-    const existingRoutes = (await this.getAllExistingPluginRoutes()).filter(
-      (r) => !this.getPluginControllerRoutes(targetPath).includes(r)
-    );
-
-    // Remove old cache and directory
-    this.registry.delete(name);
-    this.clearRequireCache(targetPath);
-    await fs.remove(targetPath);
-
-    // Extract new version
-    zip.extractAllTo(targetPath, true);
-
-    // Check route conflicts
-    const newRoutes = this.getPluginControllerRoutes(targetPath);
-    const conflicts = newRoutes.filter((r) => existingRoutes.includes(r));
-    if (conflicts.length > 0) {
+      // Remove old cache and directory
+      this.registry.delete(name);
+      this.clearRequireCache(targetPath);
       await fs.remove(targetPath);
-      throw new BadRequestException(
-        `Update failed: Route conflict detected for controller paths: ${conflicts.join(', ')}`
-      );
+
+      // Extract new version
+      zip.extractAllTo(targetPath, true);
+
+      // Check route conflicts
+      const newRoutes = this.getPluginControllerRoutes(targetPath);
+      const conflicts = newRoutes.filter((r) => existingRoutes.includes(r));
+      if (conflicts.length > 0) {
+        await fs.remove(targetPath);
+        throw new BadRequestException(
+          `Update failed: Route conflict detected for controller paths: ${conflicts.join(', ')}`
+        );
+      }
+
+      // Persist to database
+      await this.pluginRegistry.upsert(name, { version: newVersion, manifest });
+
+      console.log(`⬆️  Wau Plugin [${name}] updated from v${installedVersion} to v${newVersion}. Restarting server...`);
+
+      // Restart to reload plugin routes via PluginLoaderModule
+      restart().catch((err) => console.error('Restart failed:', err));
+
+      return {
+        success: true,
+        plugin: name,
+        previousVersion: installedVersion,
+        version: newVersion,
+        path: targetPath,
+        message: 'Server will restart shortly to apply the update.',
+      };
+    } catch (error) {
+      throw new BadRequestException(`Installation failed: ${error.message}`);
     }
-
-    // Persist to database
-    await this.pluginRegistry.upsert(name, { version: newVersion, manifest });
-
-    console.log(`⬆️  Wau Plugin [${name}] updated from v${installedVersion} to v${newVersion}. Restarting server...`);
-
-    // Restart to reload plugin routes via PluginLoaderModule
-    restart().catch((err) => console.error('Restart failed:', err));
-
-    return {
-      success: true,
-      plugin: name,
-      previousVersion: installedVersion,
-      version: newVersion,
-      path: targetPath,
-      message: 'Server will restart shortly to apply the update.',
-    };
   }
 
   private compareVersions(v1: string, v2: string): number {
