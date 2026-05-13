@@ -41,7 +41,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], TestpluginController.prototype, "printOrder", null);
 exports.TestpluginController = TestpluginController = __decorate([
-    (0, common_1.Controller)('api/testplugin'),
+    (0, common_1.Controller)(),
     __metadata("design:paramtypes", [testplugin_service_1.TestpluginService])
 ], TestpluginController);
 //# sourceMappingURL=testplugin.controller.js.map

@@ -3,7 +3,7 @@ import { Controller, Post, Get, Put, Delete, Param, UseInterceptors, UploadedFil
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PluginManagerService } from './plugin-manager.service';
 
-@Controller('api/plugins')
+@Controller('plugins')
 export class PluginController {
   constructor(private readonly pluginService: PluginManagerService) {}
 

@@ -29,7 +29,7 @@
   <a href="index.zh.html" class="lang-switch">中文</a>
 
   <h1>Wau Core Documentation</h1>
-  <p>Wau Core is a NestJS-based plugin runtime engine. It dynamically loads, manages, and routes third-party plugins while persisting plugin metadata in a PostgreSQL database via Prisma.</p>
+  <p>Wau Core is a NestJS-based plugin runtime engine. It scans and loads third-party plugin modules at boot time via PluginLoaderModule, while persisting plugin metadata in a PostgreSQL database via Prisma. The server auto-restarts after plugin install/update/uninstall to reload routes.</p>
 
   <h2>Tech Stack</h2>
   <table>
@@ -53,14 +53,14 @@
 |  +----------------+  +-------------------------+  |
 |  | PluginLoaderModule   | PluginController      |  |
 |  | (DynamicModule)      | (REST API)            |  |
-|  |  - Scans FS at boot  |                       |  |
-|  |  - Imports NestJS    |                       |  |
-|  |    plugin modules    |                       |  |
+|  |  - Scans FS at boot  |  - /plugins/upload    |  |
+|  |  - Imports NestJS    |  - /plugins           |  |
+|  |    plugin modules    |  - /plugins/:name     |  |
 |  +----------------+  +-------------------------+  |
 |  +---------------------------------------------+  |
 |  |     PluginManagerService                    |  |
 |  |  - Install / Update / Uninstall             |  |
-|  |  - Dynamic Express route mounting           |  |
+|  |  - Triggers server restart to reload routes |  |
 |  |  - Delegates DB to PluginRegistryService    |  |
 |  +---------------------------------------------+  |
 |  +------------------+  +----------------------+  |
@@ -88,19 +88,19 @@
   <p>A <strong>dynamic module</strong> with a static <code>forRoot(pluginsDir)</code> factory. It runs at application bootstrap time (before DI is fully ready) and therefore <strong>scans the filesystem</strong>.</p>
   <p>Responsibilities:</p>
   <ul>
-    <li>Enumerate <code>storage/plugins/&lt;name&gt;/dist/index.js</code></li>
+    <li>Enumerate <code>storage/plugins/&lt;name&gt;/dist/index.js</code>, falling back to <code>storage/plugins/&lt;name&gt;/index.js</code> if <code>dist/</code> is absent</li>
     <li>Use <code>Reflect.getMetadata('controllers', PluginModule)</code> to detect controller paths</li>
+    <li>Auto-prefix routes with manifest name (e.g. <code>/testplugin/status</code>)</li>
     <li>Detect and throw on duplicate controller routes across plugins</li>
     <li>Import valid plugin modules into the NestJS module graph</li>
   </ul>
-  <div class="note warn">Because this module runs in a static factory, it cannot use the database as its source of truth. It remains filesystem-based.</div>
+  <div class="note warn">Because this module runs in a static factory, it cannot use the database as its source of truth. It remains filesystem-based. After install/update/uninstall, the server auto-restarts to reload routes.</div>
 
   <h3>3. PluginManagerService <code>src/plugin-manager.service.ts</code></h3>
   <p>The core engine for plugin lifecycle and runtime routing.</p>
 
   <h4>Constructor Dependencies</h4>
   <pre>constructor(
-  private readonly adapterHost: HttpAdapterHost,
   private readonly pluginRegistry: PluginRegistryService,
 )</pre>
 
@@ -109,19 +109,17 @@
     <tr><th>Property</th><th>Type</th><th>Purpose</th></tr>
     <tr><td><code>registry</code></td><td><code>Map&lt;string, any&gt;</code></td><td>Runtime cache of loaded plugin module objects (for <code>invoke()</code>)</td></tr>
     <tr><td><code>pluginsDir</code></td><td><code>string</code></td><td><code>process.cwd() + '/storage/plugins'</code></td></tr>
-    <tr><td><code>pluginRouter</code></td><td><code>express.Router</code></td><td>Dedicated Express router mounted at <code>/api/plugins</code></td></tr>
   </table>
 
   <h4>Methods</h4>
   <table>
     <tr><th>Method</th><th>Description</th></tr>
-    <tr><td><code>onModuleInit()</code></td><td>Ensures plugins directory exists, mounts <code>pluginRouter</code>, calls <code>loadAllPlugins()</code></td></tr>
-    <tr><td><code>install(file)</code></td><td>Validates ZIP manifest, checks DB for existing plugin, extracts ZIP, detects route conflicts, loads routes, writes <code>PluginRegistry</code> DB record</td></tr>
-    <tr><td><code>update(name, file)</code></td><td>Validates new version &gt; installed version, removes old code, extracts new ZIP, detects conflicts, updates DB via <code>upsert</code></td></tr>
-    <tr><td><code>uninstall(name)</code></td><td>Removes routes, clears registry &amp; require cache, deletes DB record, deletes plugin directory</td></tr>
+    <tr><td><code>onModuleInit()</code></td><td>Ensures plugins directory exists</td></tr>
+    <tr><td><code>install(file)</code></td><td>Validates ZIP manifest, checks DB for existing plugin, extracts ZIP, detects route conflicts, writes <code>PluginRegistry</code> DB record, triggers server restart</td></tr>
+    <tr><td><code>update(name, file)</code></td><td>Validates new version &gt; installed version, removes old code, extracts new ZIP, detects conflicts, updates DB via <code>upsert</code>, triggers server restart</td></tr>
+    <tr><td><code>uninstall(name)</code></td><td>Clears registry &amp; require cache, deletes DB record, deletes plugin directory, triggers server restart</td></tr>
     <tr><td><code>listPlugins()</code></td><td>Returns all records from <code>pluginRegistry</code> DB table</td></tr>
-    <tr><td><code>loadAllPlugins()</code></td><td>Reads DB plugin list, validates filesystem presence, calls <code>loadPluginRoutes()</code> for each</td></tr>
-    <tr><td><code>loadPluginRoutes(pluginInfo)</code></td><td><code>require()</code>s plugin entry point, registers routes on <code>pluginRouter</code></td></tr>
+    <tr><td><code>getPluginControllerRoutes(pluginPath)</code></td><td>Scans plugin entry file to extract controller routes (used for pre-install conflict detection)</td></tr>
     <tr><td><code>invoke(pluginName, methodName, ...args)</code></td><td>Calls a method on a cached plugin module (inter-plugin communication)</td></tr>
     <tr><td><code>registerPluginMethods(name, module)</code></td><td>Stores a plugin module in the runtime registry Map</td></tr>
   </table>
@@ -149,13 +147,13 @@
   </table>
 
   <h3>6. PluginController <code>src/plugin.controller.ts</code></h3>
-  <p>REST API surface for plugin management. Base path: <code>/api/plugins</code></p>
+  <p>REST API surface for plugin management. Base path: <code>/plugins</code></p>
   <table>
     <tr><th>Method</th><th>Path</th><th>Body</th><th>Action</th></tr>
-    <tr><td><code>POST</code></td><td><code>/api/plugins/upload</code></td><td>multipart <code>file</code> (ZIP)</td><td>Install plugin</td></tr>
-    <tr><td><code>GET</code></td><td><code>/api/plugins</code></td><td>&mdash;</td><td>List installed plugins</td></tr>
-    <tr><td><code>PUT</code></td><td><code>/api/plugins/:name</code></td><td>multipart <code>file</code> (ZIP)</td><td>Update plugin by name</td></tr>
-    <tr><td><code>DELETE</code></td><td><code>/api/plugins/:name</code></td><td>&mdash;</td><td>Uninstall plugin by name</td></tr>
+    <tr><td><code>POST</code></td><td><code>/plugins/upload</code></td><td>multipart <code>file</code> (ZIP)</td><td>Install plugin</td></tr>
+    <tr><td><code>GET</code></td><td><code>/plugins</code></td><td>&mdash;</td><td>List installed plugins</td></tr>
+    <tr><td><code>PUT</code></td><td><code>/plugins/:name</code></td><td>multipart <code>file</code> (ZIP)</td><td>Update plugin by name</td></tr>
+    <tr><td><code>DELETE</code></td><td><code>/plugins/:name</code></td><td>&mdash;</td><td>Uninstall plugin by name</td></tr>
   </table>
 
   <h2>Database Schema</h2>
@@ -220,7 +218,7 @@
   <p>Required fields: <code>name</code>, <code>version</code>.</p>
 
   <h3>Built Output</h3>
-  <p>After TypeScript compilation, the plugin must expose <code>dist/index.js</code> as its entry point. This file must export the NestJS module class:</p>
+  <p>After TypeScript compilation, the plugin should expose <code>dist/index.js</code> as its entry point; if <code>dist/</code> is absent, it falls back to root-level <code>index.js</code>. This file must export the NestJS module class:</p>
   <pre>export { TestpluginModule } from './testplugin.module';</pre>
 
   <h2>PluginRegistry Database Migration</h2>
@@ -237,7 +235,7 @@ Install/Update/Uninstall
 | PluginManagerSvc  |&lt;----&gt;| plugin_registry  |
 |  - Validate ZIP   |  CRUD |  (PostgreSQL)    |
 |  - Extract to FS  |       +------------------+
-|  - Load routes    |              |
+|  - Trigger restart|            |
 |  - Persist to DB  |              v
 +-------------------+       +------------------+
                             | storage/plugins  |

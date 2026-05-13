@@ -1,11 +1,12 @@
 import { Controller, Get, Post, Body } from '@nestjs/common';
 import { TestpluginService } from './testplugin.service';
 
-@Controller('api/testplugin')
+@Controller()
 export class TestpluginController {
   constructor(private readonly testpluginService: TestpluginService) {}
 
   @Get('status')
+
   getStatus() {
     return this.testpluginService.getStatus();
   }

@@ -23,7 +23,7 @@ In traditional development, every tiny UI adjustment or logic change requires mo
 
 ### ✨ Key Features
 
-- **🔌 Hot-Plugging**: Dynamically upload and extract plugin packages via the Dashboard with immediate effect—no NestJS restart required.
+- **🔌 Plugin Management**: Dynamically upload and extract plugin packages via the Dashboard. The server auto-restarts to load new plugin routes.
 - **📡 Dynamic Route Injection**: The core automatically scans and registers API routes defined within the plugin package.
 - **📱 Cross-Platform Protocol**: A unified JSON protocol drives rendering for both Flutter and Web clients.
 - **🗄️ Extensible Data Model**: Uses PostgreSQL + JSONB, allowing plugins to store private metadata without altering core table structures.
@@ -35,8 +35,8 @@ In traditional development, every tiny UI adjustment or logic change requires mo
 | NestJS Core bootstrap | ✅ Done | `AppModule`, `main.ts` |
 | Prisma + PostgreSQL setup | ✅ Done | Global `PrismaModule`, `PrismaService` with `pg` adapter |
 | Dynamic plugin loader | ✅ Done | `PluginLoaderModule.forRoot()` scans `storage/plugins/` at boot |
-| Plugin lifecycle API | ✅ Done | `POST/GET/PUT/DELETE /api/plugins` — install, list, update, uninstall |
-| Plugin route mounting | ✅ Done | Express `Router` mounted at `/api/plugins`, hot-reload supported |
+| Plugin lifecycle API | ✅ Done | `POST/GET/PUT/DELETE /plugins` — install, list, update, uninstall |
+| Plugin route mounting | ✅ Done | NestJS `PluginLoaderModule` scans `storage/plugins/` at boot and auto-prefixes routes |
 | **PluginRegistry DB migration** | ✅ Done | Plugin metadata now persisted in `plugin_registry` table; DB is the source of truth |
 | Flutter client (`wau-flutter`) | ⏳ Planned | Dynamic JSON-driven UI rendering |
 | React Web admin (`wau-web`) | ⏳ Planned | Plugin management dashboard + user client |
@@ -67,13 +67,13 @@ A sample plugin (`testplugin/`) is included in the repo. You can test the instal
 cd testplugin && zip -r ../testplugin.zip manifest.json dist/
 
 # Install it via API
-curl -X POST -F "file=@testplugin.zip" http://localhost:3000/api/plugins/upload
+curl -X POST -F "file=@testplugin.zip" http://localhost:3000/plugins/upload
 
 # Verify it is installed
-curl http://localhost:3000/api/plugins
+curl http://localhost:3000/plugins
 
 # Test the plugin routes
-curl http://localhost:3000/api/plugins/testplugin/api/testplugin/status
+curl http://localhost:3000/testplugin/status
 ```
 
 ### 📦 Plugin Structure
@@ -84,7 +84,7 @@ A valid Wau plugin is a ZIP archive with this structure:
 my-plugin.zip
 ├── manifest.json          # Plugin metadata
 └── dist/
-    └── index.js           # Plugin entry point
+    └── index.js           # Plugin entry point (fallback: index.js at root)
 ```
 
 **manifest.json**
@@ -102,7 +102,7 @@ my-plugin.zip
 
 #### List Plugins
 ```
-GET /api/plugins
+GET /plugins
 ```
 
 Response:
@@ -119,7 +119,7 @@ Response:
 
 #### Install or Update Plugin
 ```
-POST /api/plugins/upload
+POST /plugins/upload
 Content-Type: multipart/form-data
 
 file: <plugin.zip>
@@ -153,7 +153,7 @@ Response (update):
 
 #### Update Plugin (Explicit)
 ```
-PUT /api/plugins/:name
+PUT /plugins/:name
 Content-Type: multipart/form-data
 
 file: <plugin.zip>
@@ -163,7 +163,7 @@ Use this when you want the update URL to include the plugin name explicitly.
 
 #### Uninstall Plugin
 ```
-DELETE /api/plugins/:name
+DELETE /plugins/:name
 ```
 
 Response:
@@ -181,7 +181,7 @@ Response:
 3. Add `manifest.json` with `name`, `version`, `description`, `author`
 4. Build to `dist/` (`tsc` or `nest build`)
 5. ZIP the `manifest.json` and `dist/` folder
-6. Upload via `POST /api/plugins/upload`
+6. Upload via `POST /plugins/upload`
 
 ### 📂 Project Structure
 
@@ -251,7 +251,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 ### ✨ 核心特性
 
-- **🔌 插件热加载**: 支持通过 Dashboard 动态上传并解压缩插件包，实时生效，无需重启进程。
+- **🔌 插件管理**: 支持通过 Dashboard 动态上传并解压缩插件包，服务器自动重启加载新插件路由。
 - **📡 动态路由注入**: 插件包解压缩后，内核自动扫描并注册其定义的 API 路由。
 - **📱 跨端组件协议**: 核心系统通过统一的 JSON 协议驱动 Flutter 和 Web 端渲染。
 - **🗄️ 扩展性数据模型**: 采用 PostgreSQL + JSONB 架构，允许插件存储私有的元数据（Metadata）。
@@ -263,8 +263,8 @@ This project is licensed under the [MIT License](LICENSE).
 | NestJS Core 框架搭建 | ✅ 完成 | `AppModule`、`main.ts` |
 | Prisma + PostgreSQL 配置 | ✅ 完成 | 全局 `PrismaModule`、`PrismaService`（`pg` 适配器）|
 | 动态插件加载器 | ✅ 完成 | `PluginLoaderModule.forRoot()` 启动时扫描 `storage/plugins/` |
-| 插件生命周期 API | ✅ 完成 | `POST/GET/PUT/DELETE /api/plugins` — 安装、列表、更新、卸载 |
-| 插件路由挂载 | ✅ 完成 | Express `Router` 挂载于 `/api/plugins`，支持热重载 |
+| 插件生命周期 API | ✅ 完成 | `POST/GET/PUT/DELETE /plugins` — 安装、列表、更新、卸载 |
+| 插件路由挂载 | ✅ 完成 | NestJS `PluginLoaderModule` 启动时扫描 `storage/plugins/` 并自动添加路由前缀 |
 | **PluginRegistry 数据库迁移** | ✅ 完成 | 插件元数据已持久化到 `plugin_registry` 表；数据库为权威来源 |
 | Flutter 客户端 (`wau-flutter`) | ⏳ 规划中 | JSON 驱动的动态 UI 渲染 |
 | React Web 管理端 (`wau-web`) | ⏳ 规划中 | 插件管理后台 + 用户端 |
@@ -295,13 +295,13 @@ npm run start:dev
 cd testplugin && zip -r ../testplugin.zip manifest.json dist/
 
 # 通过 API 安装
-curl -X POST -F "file=@testplugin.zip" http://localhost:3000/api/plugins/upload
+curl -X POST -F "file=@testplugin.zip" http://localhost:3000/plugins/upload
 
 # 验证已安装
-curl http://localhost:3000/api/plugins
+curl http://localhost:3000/plugins
 
 # 测试插件路由
-curl http://localhost:3000/api/plugins/testplugin/api/testplugin/status
+curl http://localhost:3000/testplugin/status
 ```
 
 ### 📦 插件结构
@@ -312,7 +312,7 @@ curl http://localhost:3000/api/plugins/testplugin/api/testplugin/status
 my-plugin.zip
 ├── manifest.json          # 插件元数据
 └── dist/
-    └── index.js           # 插件入口文件
+    └── index.js           # 插件入口文件（若不存在则回退到根目录 index.js）
 ```
 
 **manifest.json**
@@ -330,12 +330,12 @@ my-plugin.zip
 
 #### 列出插件
 ```
-GET /api/plugins
+GET /plugins
 ```
 
 #### 安装或更新插件
 ```
-POST /api/plugins/upload
+POST /plugins/upload
 Content-Type: multipart/form-data
 
 file: <plugin.zip>
@@ -367,7 +367,7 @@ file: <plugin.zip>
 
 #### 显式更新插件
 ```
-PUT /api/plugins/:name
+PUT /plugins/:name
 Content-Type: multipart/form-data
 
 file: <plugin.zip>
@@ -375,7 +375,7 @@ file: <plugin.zip>
 
 #### 卸载插件
 ```
-DELETE /api/plugins/:name
+DELETE /plugins/:name
 ```
 
 响应：
@@ -393,7 +393,7 @@ DELETE /api/plugins/:name
 3. 添加 `manifest.json`，包含 `name`、`version`、`description`、`author`
 4. 构建到 `dist/` 目录（使用 `tsc` 或 `nest build`）
 5. 将 `manifest.json` 和 `dist/` 文件夹打包为 ZIP
-6. 通过 `POST /api/plugins/upload` 上传
+6. 通过 `POST /plugins/upload` 上传
 
 ### 📂 项目结构
 
