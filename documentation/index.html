@@ -44,34 +44,38 @@
 
   <h2>System Architecture</h2>
   <pre>
-+--------------------------------------------------+
-|                    AppModule                       |
-|  +----------------+  +-------------------------+  |
-|  | ConfigModule   |  | PrismaModule (Global)   |  |
-|  | (isGlobal)     |  |  - PrismaService        |  |
-|  +----------------+  +-------------------------+  |
-|  +----------------+  +-------------------------+  |
-|  | PluginLoaderModule   | PluginController      |  |
-|  | (DynamicModule)      | (REST API)            |  |
-|  |  - Scans FS at boot  |  - /plugins/upload    |  |
-|  |  - Imports NestJS    |  - /plugins           |  |
-|  |    plugin modules    |  - /plugins/:name     |  |
-|  +----------------+  +-------------------------+  |
-|  +---------------------------------------------+  |
-|  |     PluginManagerService                    |  |
-|  |  - Install / Update / Uninstall             |  |
-|  |  - Triggers server restart to reload routes |  |
-|  |  - Delegates DB to PluginRegistryService    |  |
-|  +---------------------------------------------+  |
-|  +------------------+  +----------------------+  |
-|  | PluginRegistrySvc|  | PluginDataService    |  |
-|  |  - CRUD registry |  |  - KV store for      |  |
-|  |    table         |  |    plugin data       |  |
-|  +------------------+  +----------------------+  |
-+--------------------------------------------------+
-|              PostgreSQL Database                   |
-|    plugin_registry  |  plugin_data                |
-+--------------------------------------------------+
++---------------------------------------------------------+
+|                       AppModule                           |
+|  +----------------+  +-------------------------------+  |
+|  | ConfigModule   |  | PrismaModule (Global)         |  |
+|  | (isGlobal)     |  |  - PrismaService              |  |
+|  +----------------+  +-------------------------------+  |
+|  +----------------+  +-------------------------------+  |
+|  | PluginLoaderModule   | PluginController            |  |
+|  | (DynamicModule)      | (REST API)                  |  |
+|  |  - Scans FS at boot  |  - /plugins/upload          |  |
+|  |  - Imports NestJS    |  - /plugins                 |  |
+|  |    plugin modules    |  - /plugins/:name           |  |
+|  +----------------+  +-------------------------------+  |
+|  +---------------------------------------------------+  |
+|  |     PluginManagerService                            |  |
+|  |  - Install / Update / Uninstall                     |  |
+|  |  - Triggers server restart to reload routes         |  |
+|  |  - Delegates DB to PluginRegistryService            |  |
+|  +---------------------------------------------------+  |
+|  +------------------+  +----------------------+        |  |
+|  | PluginRegistrySvc|  | PluginDataService    |        |  |
+|  |  - CRUD registry |  |  - KV store for      |        |  |
+|  |    table         |  |    plugin data       |        |  |
+|  +------------------+  +----------------------+        |  |
+|  +------------------+  +----------------------+        |  |
+|  | PluginMigration  |  | PluginSchemaService  |        |  |
+|  |  - SQL migrations|  |  - JSON schema CRUD  |        |  |
+|  +------------------+  +----------------------+        |  |
++---------------------------------------------------------+
+|                PostgreSQL Database                        |
+|    plugin_registry  |  plugin_data                      |
++---------------------------------------------------------+
 </pre>
 
   <h2>Module Breakdown</h2>
@@ -90,7 +94,7 @@
   <ul>
     <li>Enumerate <code>storage/plugins/&lt;name&gt;/dist/index.js</code>, falling back to <code>storage/plugins/&lt;name&gt;/index.js</code> if <code>dist/</code> is absent</li>
     <li>Use <code>Reflect.getMetadata('controllers', PluginModule)</code> to detect controller paths</li>
-    <li>Auto-prefix routes with manifest name (e.g. <code>/testplugin/status</code>)</li>
+    <li>Auto-prefix routes with manifest name (e.g. <code>/test-plugin/status</code>)</li>
     <li>Detect and throw on duplicate controller routes across plugins</li>
     <li>Import valid plugin modules into the NestJS module graph</li>
   </ul>
@@ -146,7 +150,31 @@
     <tr><td><code>list(plugin)</code></td><td>List all KV entries for a plugin</td></tr>
   </table>
 
-  <h3>6. PluginController <code>src/plugin.controller.ts</code></h3>
+  <h3>6. PluginMigrationService <code>src/plugin-migration/plugin-migration.service.ts</code></h3>
+  <p>Manages SQL migrations for plugins that declare a <code>migrations/</code> directory. Tracks applied migrations in the <code>PluginRegistry</code> DB record to avoid re-running.</p>
+  <table>
+    <tr><th>Method</th><th>Description</th></tr>
+    <tr><td><code>applyMigrations(name, path, applied)</code></td><td>Reads <code>migrations/*.sql</code>, skips already applied, executes pending statements via <code>prisma.query()</code></td></tr>
+    <tr><td><code>rollbackMigrations(name)</code></td><td>Drops all tables prefixed <code>plugin_{name}_*</code> (used on uninstall)</td></tr>
+    <tr><td><code>readMigrationFiles(path)</code></td><td>Returns sorted list of <code>.sql</code> filenames in the migrations directory</td></tr>
+  </table>
+
+  <h3>7. PluginSchemaService <code>src/plugin-schema/plugin-schema.service.ts</code></h3>
+  <p>Provides dynamic table creation and CRUD operations driven by a JSON schema declared in <code>manifest.json</code>. Table names are prefixed <code>plugin_{name}_{model}</code>.</p>
+  <table>
+    <tr><th>Method</th><th>Description</th></tr>
+    <tr><td><code>syncSchema(name, schema)</code></td><td>Creates tables or adds new columns based on the JSON schema definition</td></tr>
+    <tr><td><code>dropSchema(name, schema)</code></td><td>Drops all tables for the plugin's schema (used on uninstall)</td></tr>
+    <tr><td><code>create(name, model, data)</code></td><td>Insert a row</td></tr>
+    <tr><td><code>find(name, model, options)</code></td><td>Query with <code>where</code>, <code>orderBy</code>, <code>limit</code>, <code>offset</code></td></tr>
+    <tr><td><code>findOne(name, model, where)</code></td><td>Single row lookup</td></tr>
+    <tr><td><code>update(name, model, where, data)</code></td><td>Update rows matching the where clause</td></tr>
+    <tr><td><code>remove(name, model, where)</code></td><td>Delete rows matching the where clause</td></tr>
+    <tr><td><code>count(name, model, where)</code></td><td>Count matching rows</td></tr>
+  </table>
+  <p>Supported field types: <code>string</code>, <code>int</code>, <code>bigint</code>, <code>float</code>, <code>decimal</code>, <code>boolean</code>, <code>date</code>, <code>timestamp</code>, <code>json</code>, <code>text</code>. Supports <code>required</code>, <code>default</code>, <code>unique</code>, <code>index</code>, <code>primary</code>, <code>length</code>, <code>precision/scale</code>.</p>
+
+  <h3>8. PluginController <code>src/plugin.controller.ts</code></h3>
   <p>REST API surface for plugin management. Base path: <code>/plugins</code></p>
   <table>
     <tr><th>Method</th><th>Path</th><th>Body</th><th>Action</th></tr>
@@ -162,13 +190,13 @@
   <h3>PluginRegistry</h3>
   <p>Authoritative source of installed plugin metadata.</p>
   <pre>model PluginRegistry {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  version   String
-  manifest  Json
-  mode      String   @default("jsonb")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                String   @id @default(cuid())
+  name              String   @unique
+  version           String
+  manifest          Json
+  migrationsApplied Json?    @map("migrations_applied")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   @@map("plugin_registry")
 }</pre>
@@ -178,7 +206,7 @@
     <tr><td><code>name</code></td><td>String</td><td>Unique; matches plugin directory name</td></tr>
     <tr><td><code>version</code></td><td>String</td><td>Semver string from manifest</td></tr>
     <tr><td><code>manifest</code></td><td>JSONB</td><td>Full <code>manifest.json</code> content</td></tr>
-    <tr><td><code>mode</code></td><td>String</td><td>Reserved for future plugin type discrimination</td></tr>
+    <tr><td><code>migrationsApplied</code></td><td>JSONB</td><td>List of applied SQL migration filenames</td></tr>
   </table>
 
   <h3>PluginData</h3>
@@ -205,21 +233,35 @@
 ├── index.ts               # Entry point: exports the NestJS Module class
 ├── myplugin.module.ts     # NestJS @Module()
 ├── myplugin.controller.ts # NestJS @Controller() with routes
-└── myplugin.service.ts    # Injectable services
+├── myplugin.service.ts    # Injectable services
+└── migrations/            # Optional: SQL migration files (.sql)
 </pre>
 
   <h3>manifest.json</h3>
   <pre>{
-  "name": "testplugin",
+  "name": "test-plugin",
   "version": "1.0.1",
   "description": "Test Plugin",
-  "author": "Jeff"
+  "author": "Jeff",
+  "schema": {
+    "products": {
+      "sku": { "type": "string", "required": true, "unique": true },
+      "name": { "type": "string", "required": true },
+      "price": { "type": "decimal", "required": true, "precision": 10, "scale": 2 }
+    }
+  }
 }</pre>
-  <p>Required fields: <code>name</code>, <code>version</code>.</p>
+  <p>Required fields: <code>name</code>, <code>version</code>. Optional: <code>schema</code> (JSON schema for dynamic tables), <code>description</code>, <code>author</code>.</p>
+
+  <h3>JSON Schema</h3>
+  <p>Plugins can declare a <code>schema</code> object in <code>manifest.json</code> to have the core automatically create PostgreSQL tables. Table names are prefixed <code>plugin_{name}_{model}</code>. Each field supports <code>type</code>, <code>required</code>, <code>default</code>, <code>unique</code>, <code>index</code>, <code>primary</code>, <code>length</code>, <code>precision</code>, <code>scale</code>.</p>
+
+  <h3>SQL Migrations</h3>
+  <p>Plugins can include a <code>migrations/</code> directory with <code>.sql</code> files. Files are executed in alphabetical order on install/update and tracked in <code>plugin_registry.migrations_applied</code>. On uninstall, tables prefixed <code>plugin_{name}_*</code> are dropped automatically.</p>
 
   <h3>Built Output</h3>
   <p>After TypeScript compilation, the plugin should expose <code>dist/index.js</code> as its entry point; if <code>dist/</code> is absent, it falls back to root-level <code>index.js</code>. This file must export the NestJS module class:</p>
-  <pre>export { TestpluginModule } from './testplugin.module';</pre>
+  <pre>export { TestPluginModule } from './test-plugin.module';</pre>
 
   <h2>PluginRegistry Database Migration</h2>
 
@@ -264,6 +306,7 @@ Install/Update/Uninstall
 src/
 ├── app.module.ts
 ├── main.ts
+├── bootstrap.ts                   # Server restart helper
 ├── plugin.controller.ts
 ├── plugin-manager.service.ts      # Plugin lifecycle; delegates DB to PluginRegistryService
 ├── plugin-registry/
@@ -272,6 +315,13 @@ src/
 ├── plugin-data/
 │   ├── plugin-data.module.ts
 │   └── plugin-data.service.ts     # KV ops for plugin_data table
+├── plugin-migration/
+│   ├── plugin-migration.module.ts
+│   └── plugin-migration.service.ts # SQL migration runner
+├── plugin-schema/
+│   ├── plugin-schema.module.ts
+│   ├── plugin-schema.service.ts   # JSON schema table sync + CRUD
+│   └── plugin-schema.types.ts     # Schema type definitions
 ├── plugins/
 │   └── plugin-loader.module.ts   # Filesystem-based dynamic loader
 └── prisma/
@@ -286,6 +336,12 @@ prisma/
 storage/
 └── plugins/
     └── &lt;plugin-name&gt;/           # Plugin code extracted here
+
+sample-plugins/                   # Sample plugin source code
+├── test-plugin/
+├── test-kv-plugin/
+├── test-migration-plugin/
+└── test-hybrid-plugin/
 </pre>
 
   <h2>Environment Variables</h2>

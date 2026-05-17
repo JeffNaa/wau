@@ -25,8 +25,10 @@ In traditional development, every tiny UI adjustment or logic change requires mo
 
 - **🔌 Plugin Management**: Dynamically upload and extract plugin packages via the Dashboard. The server auto-restarts to load new plugin routes.
 - **📡 Dynamic Route Injection**: The core automatically scans and registers API routes defined within the plugin package.
-- **📱 Cross-Platform Protocol**: A unified JSON protocol drives rendering for both Flutter and Web clients.
 - **🗄️ Extensible Data Model**: Uses PostgreSQL + JSONB, allowing plugins to store private metadata without altering core table structures.
+- **📊 JSON Schema**: Plugins declare tables via `manifest.json` schema — the core auto-creates and syncs PostgreSQL tables.
+- **🔄 SQL Migrations**: Plugins ship `.sql` migration files; the core tracks and applies them incrementally.
+- **📱 Cross-Platform Protocol**: A unified JSON protocol drives rendering for both Flutter and Web clients.
 
 ### 📊 Progress
 
@@ -38,6 +40,8 @@ In traditional development, every tiny UI adjustment or logic change requires mo
 | Plugin lifecycle API | ✅ Done | `POST/GET/PUT/DELETE /plugins` — install, list, update, uninstall |
 | Plugin route mounting | ✅ Done | NestJS `PluginLoaderModule` scans `storage/plugins/` at boot and auto-prefixes routes |
 | **PluginRegistry DB migration** | ✅ Done | Plugin metadata now persisted in `plugin_registry` table; DB is the source of truth |
+| **Plugin Schema** | ✅ Done | JSON schema-driven dynamic table creation via `PluginSchemaService` |
+| **Plugin Migrations** | ✅ Done | SQL migration support via `PluginMigrationService` |
 | Flutter client (`wau-flutter`) | ⏳ Planned | Dynamic JSON-driven UI rendering |
 | React Web admin (`wau-web`) | ⏳ Planned | Plugin management dashboard + user client |
 | Event Bus | ⏳ Planned | Cross-plugin & cross-platform communication |
@@ -60,11 +64,11 @@ npm run start:dev
 
 ### 🧪 Test with the Sample Plugin
 
-A sample plugin (`test-plugin/`) is included in the repo. You can test the install flow immediately:
+A sample plugin (`sample-plugins/test-plugin/`) is included in the repo. You can test the install flow immediately:
 
 ```bash
 # ZIP the sample plugin
-cd test-plugin && zip -r ../test-plugin.zip manifest.json dist/
+cd sample-plugins/test-plugin && zip -r ../../test-plugin.zip manifest.json dist/
 
 # Install it via API
 curl -X POST -F "file=@test-plugin.zip" http://localhost:3000/plugins/upload
@@ -83,8 +87,9 @@ A valid Wau plugin is a ZIP archive with this structure:
 ```
 my-plugin.zip
 ├── manifest.json          # Plugin metadata
-└── dist/
-    └── index.js           # Plugin entry point (fallback: index.js at root)
+├── dist/
+│   └── index.js           # Plugin entry point (fallback: index.js at root)
+└── migrations/            # Optional: SQL migration files
 ```
 
 **manifest.json**
@@ -94,7 +99,14 @@ my-plugin.zip
   "name": "my-plugin",
   "version": "1.0.0",
   "description": "What this plugin does",
-  "author": "Your Name"
+  "author": "Your Name",
+  "schema": {
+    "products": {
+      "sku": { "type": "string", "required": true, "unique": true },
+      "name": { "type": "string", "required": true },
+      "price": { "type": "decimal", "required": true, "precision": 10, "scale": 2 }
+    }
+  }
 }
 ```
 
@@ -189,6 +201,7 @@ Response:
 wau-core/
 ├── src/
 │   ├── app.module.ts              # Root module
+│   ├── bootstrap.ts               # Server restart helper
 │   ├── plugin-manager.service.ts  # Plugin lifecycle (delegates DB to PluginRegistryService)
 │   ├── plugin.controller.ts       # Plugin HTTP API
 │   ├── plugin-registry/
@@ -197,6 +210,13 @@ wau-core/
 │   ├── plugin-data/
 │   │   ├── plugin-data.module.ts
 │   │   └── plugin-data.service.ts      # KV ops for plugin_data table
+│   ├── plugin-migration/
+│   │   ├── plugin-migration.module.ts
+│   │   └── plugin-migration.service.ts # SQL migration runner
+│   ├── plugin-schema/
+│   │   ├── plugin-schema.module.ts
+│   │   ├── plugin-schema.service.ts    # JSON schema table sync + CRUD
+│   │   └── plugin-schema.types.ts      # Schema type definitions
 │   ├── prisma/
 │   │   ├── prisma.module.ts       # Global Prisma module
 │   │   └── prisma.service.ts      # PrismaClient lifecycle
@@ -207,8 +227,12 @@ wau-core/
 │   └── schema/
 │       ├── schema.prisma          # Generator + datasource
 │       └── plugin.prisma          # PluginData + PluginRegistry models
+├── sample-plugins/                # Sample plugin source code
+│   ├── test-plugin/
+│   ├── test-kv-plugin/
+│   ├── test-migration-plugin/
+│   └── test-hybrid-plugin/
 ├── storage/plugins/               # Installed plugins directory
-├── test-plugin/                    # Sample plugin source
 └── dist/                          # Compiled output
 ```
 
@@ -253,8 +277,10 @@ This project is licensed under the [MIT License](LICENSE).
 
 - **🔌 插件管理**: 支持通过 Dashboard 动态上传并解压缩插件包，服务器自动重启加载新插件路由。
 - **📡 动态路由注入**: 插件包解压缩后，内核自动扫描并注册其定义的 API 路由。
-- **📱 跨端组件协议**: 核心系统通过统一的 JSON 协议驱动 Flutter 和 Web 端渲染。
 - **🗄️ 扩展性数据模型**: 采用 PostgreSQL + JSONB 架构，允许插件存储私有的元数据（Metadata）。
+- **📊 JSON Schema**: 插件通过 `manifest.json` 声明表结构，核心自动创建并同步 PostgreSQL 表。
+- **🔄 SQL 迁移**: 插件可携带 `.sql` 迁移文件，核心跟踪并增量应用。
+- **📱 跨端组件协议**: 核心系统通过统一的 JSON 协议驱动 Flutter 和 Web 端渲染。
 
 ### 📊 项目进展
 
@@ -266,6 +292,8 @@ This project is licensed under the [MIT License](LICENSE).
 | 插件生命周期 API | ✅ 完成 | `POST/GET/PUT/DELETE /plugins` — 安装、列表、更新、卸载 |
 | 插件路由挂载 | ✅ 完成 | NestJS `PluginLoaderModule` 启动时扫描 `storage/plugins/` 并自动添加路由前缀 |
 | **PluginRegistry 数据库迁移** | ✅ 完成 | 插件元数据已持久化到 `plugin_registry` 表；数据库为权威来源 |
+| **Plugin Schema** | ✅ 完成 | 通过 `PluginSchemaService` 基于 JSON schema 动态建表 |
+| **Plugin Migrations** | ✅ 完成 | 通过 `PluginMigrationService` 支持 SQL 迁移 |
 | Flutter 客户端 (`wau-flutter`) | ⏳ 规划中 | JSON 驱动的动态 UI 渲染 |
 | React Web 管理端 (`wau-web`) | ⏳ 规划中 | 插件管理后台 + 用户端 |
 | 事件总线 | ⏳ 规划中 | 跨插件 & 跨平台通信 |
@@ -288,11 +316,11 @@ npm run start:dev
 
 ### 🧪 使用示例插件测试
 
-项目中包含一个示例插件 (`test-plugin/`)，你可以立即测试安装流程：
+项目中包含一个示例插件 (`sample-plugins/test-plugin/`)，你可以立即测试安装流程：
 
 ```bash
 # 打包示例插件
-cd test-plugin && zip -r ../test-plugin.zip manifest.json dist/
+cd sample-plugins/test-plugin && zip -r ../../test-plugin.zip manifest.json dist/
 
 # 通过 API 安装
 curl -X POST -F "file=@test-plugin.zip" http://localhost:3000/plugins/upload
@@ -311,8 +339,9 @@ curl http://localhost:3000/test-plugin/status
 ```
 my-plugin.zip
 ├── manifest.json          # 插件元数据
-└── dist/
-    └── index.js           # 插件入口文件（若不存在则回退到根目录 index.js）
+├── dist/
+│   └── index.js           # 插件入口文件（若不存在则回退到根目录 index.js）
+└── migrations/            # 可选：SQL 迁移文件
 ```
 
 **manifest.json**
@@ -322,7 +351,14 @@ my-plugin.zip
   "name": "my-plugin",
   "version": "1.0.0",
   "description": "插件描述",
-  "author": "作者名称"
+  "author": "作者名称",
+  "schema": {
+    "products": {
+      "sku": { "type": "string", "required": true, "unique": true },
+      "name": { "type": "string", "required": true },
+      "price": { "type": "decimal", "required": true, "precision": 10, "scale": 2 }
+    }
+  }
 }
 ```
 
@@ -401,6 +437,7 @@ DELETE /plugins/:name
 wau-core/
 ├── src/
 │   ├── app.module.ts              # 根模块
+│   ├── bootstrap.ts               # 服务器重启辅助
 │   ├── plugin-manager.service.ts  # 插件生命周期（DB 委托给 PluginRegistryService）
 │   ├── plugin.controller.ts       # 插件 HTTP API
 │   ├── plugin-registry/
@@ -409,6 +446,13 @@ wau-core/
 │   ├── plugin-data/
 │   │   ├── plugin-data.module.ts
 │   │   └── plugin-data.service.ts      # plugin_data 表键值操作
+│   ├── plugin-migration/
+│   │   ├── plugin-migration.module.ts
+│   │   └── plugin-migration.service.ts # SQL 迁移执行器
+│   ├── plugin-schema/
+│   │   ├── plugin-schema.module.ts
+│   │   ├── plugin-schema.service.ts    # JSON schema 表同步 + CRUD
+│   │   └── plugin-schema.types.ts      # Schema 类型定义
 │   ├── prisma/
 │   │   ├── prisma.module.ts       # 全局 Prisma 模块
 │   │   └── prisma.service.ts      # PrismaClient 生命周期管理
@@ -419,8 +463,12 @@ wau-core/
 │   └── schema/
 │       ├── schema.prisma          # Generator + datasource
 │       └── plugin.prisma          # PluginData + PluginRegistry 模型
+├── sample-plugins/                # 示例插件源码
+│   ├── test-plugin/
+│   ├── test-kv-plugin/
+│   ├── test-migration-plugin/
+│   └── test-hybrid-plugin/
 ├── storage/plugins/               # 已安装插件目录
-├── test-plugin/                    # 示例插件源码
 └── dist/                          # 编译输出
 ```
 
