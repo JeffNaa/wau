@@ -12,13 +12,13 @@ model PluginData {
 }
 
 model PluginRegistry {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  version   String
-  manifest  Json
-  mode      String   @default("jsonb")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                String   @id @default(cuid())
+  name              String   @unique
+  version           String
+  manifest          Json
+  migrationsApplied Json?    @map("migrations_applied")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   @@map("plugin_registry")
 }

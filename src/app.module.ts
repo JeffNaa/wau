@@ -6,6 +6,8 @@ import { PluginLoaderModule } from './plugins/plugin-loader.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PluginRegistryModule } from './plugin-registry/plugin-registry.module';
 import { PluginDataModule } from './plugin-data/plugin-data.module';
+import { PluginMigrationModule } from './plugin-migration/plugin-migration.module';
+import { PluginSchemaModule } from './plugin-schema/plugin-schema.module';
 import * as path from 'path';
 
 const pluginsDir = path.join(process.cwd(), 'storage/plugins');
@@ -16,6 +18,8 @@ const pluginsDir = path.join(process.cwd(), 'storage/plugins');
     PrismaModule,
     PluginRegistryModule,
     PluginDataModule,
+    PluginMigrationModule,
+    PluginSchemaModule,
     PluginLoaderModule.forRoot(pluginsDir),
   ],
   controllers: [PluginController],

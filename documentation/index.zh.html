@@ -44,33 +44,37 @@
 
   <h2>系统架构</h2>
   <pre>
-+--------------------------------------------------+
-|                    AppModule                       |
-|  +----------------+  +-------------------------+  |
-|  | ConfigModule   |  | PrismaModule (全局)     |  |
-|  | (isGlobal)     |  |  - PrismaService        |  |
-|  +----------------+  +-------------------------+  |
-|  +----------------+  +-------------------------+  |
-|  | PluginLoaderModule   | PluginController      |  |
-|  | (动态模块)           | (REST API)            |  |
-|  |  - 启动时扫描文件    |  - /plugins/upload    |  |
-|  |  - 导入 NestJS       |  - /plugins           |  |
-|  |    插件模块          |  - /plugins/:name     |  |
-|  +----------------+  +-------------------------+  |
-|  +---------------------------------------------+  |
-|  |     PluginManagerService                    |  |
-|  |  - 安装 / 更新 / 卸载                       |  |
-|  |  - 触发服务器重启重新加载路由               |  |
-|  |  - DB 操作委托给 PluginRegistryService      |  |
-|  +---------------------------------------------+  |
-|  +------------------+  +----------------------+  |
-|  | PluginRegistrySvc|  | PluginDataService    |  |
-|  |  - registry CRUD |  |  - 插件键值数据      |  |
-|  +------------------+  +----------------------+  |
-+--------------------------------------------------+
-|              PostgreSQL 数据库                     |
-|    plugin_registry  |  plugin_data                |
-+--------------------------------------------------+
++---------------------------------------------------------+
+|                       AppModule                           |
+|  +----------------+  +-------------------------------+  |
+|  | ConfigModule   |  | PrismaModule (全局)           |  |
+|  | (isGlobal)     |  |  - PrismaService              |  |
+|  +----------------+  +-------------------------------+  |
+|  +----------------+  +-------------------------------+  |
+|  | PluginLoaderModule   | PluginController            |  |
+|  | (动态模块)           | (REST API)                  |  |
+|  |  - 启动时扫描文件    |  - /plugins/upload          |  |
+|  |  - 导入 NestJS       |  - /plugins                 |  |
+|  |    插件模块          |  - /plugins/:name           |  |
+|  +----------------+  +-------------------------------+  |
+|  +---------------------------------------------------+  |
+|  |     PluginManagerService                            |  |
+|  |  - 安装 / 更新 / 卸载                               |  |
+|  |  - 触发服务器重启重新加载路由                       |  |
+|  |  - DB 操作委托给 PluginRegistryService              |  |
+|  +---------------------------------------------------+  |
+|  +------------------+  +----------------------+        |  |
+|  | PluginRegistrySvc|  | PluginDataService    |        |  |
+|  |  - registry CRUD |  |  - 插件键值数据      |        |  |
+|  +------------------+  +----------------------+        |  |
+|  +------------------+  +----------------------+        |  |
+|  | PluginMigration  |  | PluginSchemaService  |        |  |
+|  |  - SQL 迁移管理  |  |  - JSON schema CRUD  |        |  |
+|  +------------------+  +----------------------+        |  |
++---------------------------------------------------------+
+|                PostgreSQL 数据库                          |
+|    plugin_registry  |  plugin_data                      |
++---------------------------------------------------------+
   </pre>
 
   <h2>模块详解</h2>
@@ -89,7 +93,7 @@
   <ul>
     <li>枚举 <code>storage/plugins/&lt;name&gt;/dist/index.js</code>，若不存在则回退到 <code>storage/plugins/&lt;name&gt;/index.js</code></li>
     <li>使用 <code>Reflect.getMetadata('controllers', PluginModule)</code> 检测控制器路径</li>
-    <li>以 manifest name 为前缀自动拼接路由（如 <code>/testplugin/status</code>）</li>
+    <li>以 manifest name 为前缀自动拼接路由（如 <code>/test-plugin/status</code>）</li>
     <li>检测并拦截跨插件重复的控制器路由</li>
     <li>将有效插件模块导入 NestJS 模块图</li>
   </ul>
@@ -145,12 +149,36 @@
     <tr><td><code>list(plugin)</code></td><td>列出某插件的所有键值条目</td></tr>
   </table>
 
-  <h3>6. PluginController <code>src/plugin.controller.ts</code></h3>
+  <h3>6. PluginMigrationService <code>src/plugin-migration/plugin-migration.service.ts</code></h3>
+  <p>管理声明了 <code>migrations/</code> 目录的插件的 SQL 迁移。在 <code>PluginRegistry</code> 数据库记录中跟踪已应用的迁移，避免重复执行。</p>
+  <table>
+    <tr><th>方法</th><th>说明</th></tr>
+    <tr><td><code>applyMigrations(name, path, applied)</code></td><td>读取 <code>migrations/*.sql</code>，跳过已应用的迁移，通过 <code>prisma.query()</code> 执行待处理的 SQL 语句</td></tr>
+    <tr><td><code>rollbackMigrations(name)</code></td><td>删除所有以 <code>plugin_{name}_*</code> 为前缀的表（卸载时使用）</td></tr>
+    <tr><td><code>readMigrationFiles(path)</code></td><td>返回迁移目录中按字母排序的 <code>.sql</code> 文件列表</td></tr>
+  </table>
+
+  <h3>7. PluginSchemaService <code>src/plugin-schema/plugin-schema.service.ts</code></h3>
+  <p>通过 <code>manifest.json</code> 中声明的 JSON schema 动态创建表并提供 CRUD 操作。表名前缀为 <code>plugin_{name}_{model}</code>。</p>
+  <table>
+    <tr><th>方法</th><th>说明</th></tr>
+    <tr><td><code>syncSchema(name, schema)</code></td><td>根据 JSON schema 定义创建表或添加新列</td></tr>
+    <tr><td><code>dropSchema(name, schema)</code></td><td>删除插件 schema 对应的所有表（卸载时使用）</td></tr>
+    <tr><td><code>create(name, model, data)</code></td><td>插入一行数据</td></tr>
+    <tr><td><code>find(name, model, options)</code></td><td>支持 <code>where</code>、<code>orderBy</code>、<code>limit</code>、<code>offset</code> 的查询</td></tr>
+    <tr><td><code>findOne(name, model, where)</code></td><td>查询单行</td></tr>
+    <tr><td><code>update(name, model, where, data)</code></td><td>更新匹配 where 条件的行</td></tr>
+    <tr><td><code>remove(name, model, where)</code></td><td>删除匹配 where 条件的行</td></tr>
+    <tr><td><code>count(name, model, where)</code></td><td>统计匹配行数</td></tr>
+  </table>
+  <p>支持的字段类型：<code>string</code>、<code>int</code>、<code>bigint</code>、<code>float</code>、<code>decimal</code>、<code>boolean</code>、<code>date</code>、<code>timestamp</code>、<code>json</code>、<code>text</code>。支持约束：<code>required</code>、<code>default</code>、<code>unique</code>、<code>index</code>、<code>primary</code>、<code>length</code>、<code>precision/scale</code>。</p>
+
+  <h3>8. PluginController <code>src/plugin.controller.ts</code></h3>
   <p>插件管理的 REST API 接口。基础路径：<code>/plugins</code></p>
   <table>
     <tr><th>方法</th><th>路径</th><th>请求体</th><th>操作</th></tr>
     <tr><td><code>POST</code></td><td><code>/plugins/upload</code></td><td>multipart <code>file</code> (ZIP)</td><td>安装插件</td></tr>
-    <tr><td><code>GET</code></td><td><code>/api/plugins</code></td><td>&mdash;</td><td>列出已安装插件</td></tr>
+    <tr><td><code>GET</code></td><td><code>/plugins</code></td><td>&mdash;</td><td>列出已安装插件</td></tr>
     <tr><td><code>PUT</code></td><td><code>/plugins/:name</code></td><td>multipart <code>file</code> (ZIP)</td><td>按名称更新插件</td></tr>
     <tr><td><code>DELETE</code></td><td><code>/plugins/:name</code></td><td>&mdash;</td><td>按名称卸载插件</td></tr>
   </table>
@@ -161,13 +189,13 @@
   <h3>PluginRegistry</h3>
   <p>已安装插件元数据的权威来源。</p>
   <pre>model PluginRegistry {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  version   String
-  manifest  Json
-  mode      String   @default("jsonb")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                String   @id @default(cuid())
+  name              String   @unique
+  version           String
+  manifest          Json
+  migrationsApplied Json?    @map("migrations_applied")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   @@map("plugin_registry")
 }</pre>
@@ -177,7 +205,7 @@
     <tr><td><code>name</code></td><td>String</td><td>唯一；与插件目录名一致</td></tr>
     <tr><td><code>version</code></td><td>String</td><td>manifest 中的语义化版本</td></tr>
     <tr><td><code>manifest</code></td><td>JSONB</td><td>完整的 <code>manifest.json</code> 内容</td></tr>
-    <tr><td><code>mode</code></td><td>String</td><td>预留，用于未来插件类型区分</td></tr>
+    <tr><td><code>migrationsApplied</code></td><td>JSONB</td><td>已应用的 SQL 迁移文件名列表</td></tr>
   </table>
 
   <h3>PluginData</h3>
@@ -204,21 +232,35 @@
 ├── index.ts               # 入口文件：导出 NestJS 模块类
 ├── myplugin.module.ts     # NestJS @Module()
 ├── myplugin.controller.ts # NestJS @Controller() 路由
-└── myplugin.service.ts    # 可注入服务
+├── myplugin.service.ts    # 可注入服务
+└── migrations/            # 可选：SQL 迁移文件（.sql）
 </pre>
 
   <h3>manifest.json</h3>
   <pre>{
-  "name": "testplugin",
+  "name": "test-plugin",
   "version": "1.0.1",
   "description": "Test Plugin",
-  "author": "Jeff"
+  "author": "Jeff",
+  "schema": {
+    "products": {
+      "sku": { "type": "string", "required": true, "unique": true },
+      "name": { "type": "string", "required": true },
+      "price": { "type": "decimal", "required": true, "precision": 10, "scale": 2 }
+    }
+  }
 }</pre>
-  <p>必需字段：<code>name</code>、<code>version</code>。</p>
+  <p>必需字段：<code>name</code>、<code>version</code>。可选字段：<code>schema</code>（JSON schema 动态建表）、<code>description</code>、<code>author</code>。</p>
+
+  <h3>JSON Schema</h3>
+  <p>插件可在 <code>manifest.json</code> 中声明 <code>schema</code> 对象，由核心自动创建 PostgreSQL 表。表名前缀为 <code>plugin_{name}_{model}</code>。每个字段支持 <code>type</code>、<code>required</code>、<code>default</code>、<code>unique</code>、<code>index</code>、<code>primary</code>、<code>length</code>、<code>precision</code>、<code>scale</code>。</p>
+
+  <h3>SQL 迁移</h3>
+  <p>插件可包含 <code>migrations/</code> 目录存放 <code>.sql</code> 文件。安装/更新时按字母顺序执行，执行记录在 <code>plugin_registry.migrations_applied</code> 中。卸载时自动删除前缀为 <code>plugin_{name}_*</code> 的表。</p>
 
   <h3>构建输出</h3>
   <p>TypeScript 编译后，插件优先暴露 <code>dist/index.js</code> 作为入口文件；若 <code>dist/</code> 目录不存在，则回退到根目录的 <code>index.js</code>。该文件必须导出 NestJS 模块类：</p>
-  <pre>export { TestpluginModule } from './testplugin.module';</pre>
+  <pre>export { TestPluginModule } from './test-plugin.module';</pre>
 
   <h2>PluginRegistry 数据库迁移</h2>
 
@@ -263,6 +305,7 @@
 src/
 ├── app.module.ts
 ├── main.ts
+├── bootstrap.ts                   # 服务器重启辅助
 ├── plugin.controller.ts
 ├── plugin-manager.service.ts      # 插件生命周期；DB 委托给 PluginRegistryService
 ├── plugin-registry/
@@ -271,6 +314,13 @@ src/
 ├── plugin-data/
 │   ├── plugin-data.module.ts
 │   └── plugin-data.service.ts     # plugin_data 表键值操作
+├── plugin-migration/
+│   ├── plugin-migration.module.ts
+│   └── plugin-migration.service.ts # SQL 迁移执行器
+├── plugin-schema/
+│   ├── plugin-schema.module.ts
+│   ├── plugin-schema.service.ts   # JSON schema 表同步 + CRUD
+│   └── plugin-schema.types.ts     # Schema 类型定义
 ├── plugins/
 │   └── plugin-loader.module.ts   # 基于文件系统的动态加载器
 └── prisma/
@@ -285,6 +335,12 @@ prisma/
 storage/
 └── plugins/
     └── &lt;plugin-name&gt;/           # 插件代码解压至此
+
+sample-plugins/                   # 示例插件源码
+├── test-plugin/
+├── test-kv-plugin/
+├── test-migration-plugin/
+└── test-hybrid-plugin/
 </pre>
 
   <h2>环境变量</h2>

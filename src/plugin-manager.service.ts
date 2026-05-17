@@ -4,12 +4,19 @@ import * as AdmZip from 'adm-zip';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { PluginRegistryService } from './plugin-registry/plugin-registry.service';
+import { PluginMigrationService } from './plugin-migration/plugin-migration.service';
+import { PluginDataService } from './plugin-data/plugin-data.service';
+import { PluginSchemaService } from './plugin-schema/plugin-schema.service';
+import { PluginSchema } from './plugin-schema/plugin-schema.types';
 import { restart } from './bootstrap';
 
 @Injectable()
 export class PluginManagerService implements OnModuleInit {
   constructor(
     private readonly pluginRegistry: PluginRegistryService,
+    private readonly pluginMigration: PluginMigrationService,
+    private readonly pluginData: PluginDataService,
+    private readonly pluginSchema: PluginSchemaService,
   ) { }
 
   private readonly registry = new Map<string, any>();
@@ -94,8 +101,26 @@ export class PluginManagerService implements OnModuleInit {
         throw new BadRequestException(`Installation failed: Route conflict detected for controller paths: ${conflicts.join(', ')}`);
       }
 
+      // Apply schema and/or migrations based on what the plugin provides
+      const manifestSchema: PluginSchema | undefined = manifest.schema;
+      let migrationsApplied: string[] | undefined;
+
+      // JSON schema: create dynamic tables
+      if (manifestSchema) {
+        await this.pluginSchema.syncSchema(name, manifestSchema);
+      }
+
+      // SQL migrations: run pending migration files
+      const migrationFiles = await this.pluginMigration.readMigrationFiles(targetPath);
+      if (migrationFiles.length > 0) {
+        const applied = await this.pluginMigration.applyMigrations(name, targetPath, []);
+        if (applied.length > 0) {
+          migrationsApplied = applied;
+        }
+      }
+
       // Persist to database
-      await this.pluginRegistry.create({ name, version, manifest });
+      await this.pluginRegistry.create({ name, version, manifest, migrationsApplied });
 
       console.log(`📦 Wau Plugin [${name}] v${version} installed. Restarting server...`);
 
@@ -225,8 +250,30 @@ export class PluginManagerService implements OnModuleInit {
         );
       }
 
+      // Apply schema and/or migrations based on what the plugin provides
+      const manifestSchema: PluginSchema | undefined = manifest.schema;
+      let migrationsApplied = dbPlugin?.migrationsApplied as string[] | undefined;
+
+      // JSON schema: sync dynamic tables
+      if (manifestSchema) {
+        await this.pluginSchema.syncSchema(name, manifestSchema);
+      }
+
+      // SQL migrations: run pending migration files
+      const migrationFiles = await this.pluginMigration.readMigrationFiles(targetPath);
+      if (migrationFiles.length > 0) {
+        const applied = await this.pluginMigration.applyMigrations(
+          name,
+          targetPath,
+          migrationsApplied ?? [],
+        );
+        if (applied.length > 0) {
+          migrationsApplied = [...(migrationsApplied ?? []), ...applied];
+        }
+      }
+
       // Persist to database
-      await this.pluginRegistry.upsert(name, { version: newVersion, manifest });
+      await this.pluginRegistry.upsert(name, { version: newVersion, manifest, migrationsApplied });
 
       console.log(`⬆️  Wau Plugin [${name}] updated from v${installedVersion} to v${newVersion}. Restarting server...`);
 
@@ -274,12 +321,32 @@ export class PluginManagerService implements OnModuleInit {
     // 2. Clear require cache for this plugin
     this.clearRequireCache(targetPath);
 
-    // 3. Remove from database
+    // 3. Handle data cleanup
+    const manifestSchema: PluginSchema | undefined = (dbPlugin?.manifest as any)?.schema;
+    const migrationsApplied = dbPlugin?.migrationsApplied as string[] | undefined;
+
+    // Drop schema tables if plugin defined a JSON schema
+    if (manifestSchema) {
+      await this.pluginSchema.dropSchema(name, manifestSchema);
+    }
+
+    // Rollback SQL migration tables if plugin had migrations
+    if (migrationsApplied && migrationsApplied.length > 0) {
+      await this.pluginMigration.rollbackMigrations(name);
+    }
+
+    // Always clean up plugin_data entries for this plugin
+    const entries = await this.pluginData.list(name);
+    for (const entry of entries) {
+      await this.pluginData.remove(name, entry.key);
+    }
+
+    // 4. Remove from database
     if (dbPlugin) {
       await this.pluginRegistry.remove(name);
     }
 
-    // 4. Delete plugin directory
+    // 5. Delete plugin directory
     await fs.remove(targetPath);
 
     console.log(`🗑️  Wau Plugin [${name}] uninstalled. Restarting server...`);

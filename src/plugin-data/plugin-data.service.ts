@@ -28,4 +28,14 @@ export class PluginDataService {
   async list(plugin: string) {
     return this.prisma.client.pluginData.findMany({ where: { plugin } });
   }
+
+  // For migration-mode plugins to query their own tables
+  async queryRaw<T>(query: string, params?: any[]) {
+    return this.prisma.client.$queryRawUnsafe<T>(query, ...(params || []));
+  }
+
+  // For migration-mode plugins to execute writes on their own tables
+  async executeRaw(query: string, params?: any[]) {
+    return this.prisma.client.$executeRawUnsafe(query, ...(params || []));
+  }
 }
