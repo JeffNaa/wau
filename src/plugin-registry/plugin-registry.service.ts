@@ -13,19 +13,54 @@ export class PluginRegistryService {
     return this.prisma.client.pluginRegistry.findUnique({ where: { name } });
   }
 
-  async create(data: { name: string; version: string; manifest: any }) {
-    return this.prisma.client.pluginRegistry.create({ data });
+  async create(data: {
+    name: string;
+    version: string;
+    manifest: any;
+    migrationsApplied?: string[];
+  }) {
+    return this.prisma.client.pluginRegistry.create({
+      data: {
+        ...data,
+        migrationsApplied: data.migrationsApplied ?? [],
+      },
+    });
   }
 
-  async update(name: string, data: { version?: string; manifest?: any }) {
+  async update(
+    name: string,
+    data: {
+      version?: string;
+      manifest?: any;
+      migrationsApplied?: string[];
+    },
+  ) {
     return this.prisma.client.pluginRegistry.update({ where: { name }, data });
   }
 
-  async upsert(name: string, data: { version: string; manifest: any }) {
+  async upsert(
+    name: string,
+    data: {
+      version: string;
+      manifest: any;
+      migrationsApplied?: string[];
+    },
+  ) {
     return this.prisma.client.pluginRegistry.upsert({
       where: { name },
-      update: { version: data.version, manifest: data.manifest },
-      create: { name, version: data.version, manifest: data.manifest },
+      update: {
+        version: data.version,
+        manifest: data.manifest,
+        ...(data.migrationsApplied !== undefined && {
+          migrationsApplied: data.migrationsApplied,
+        }),
+      },
+      create: {
+        name,
+        version: data.version,
+        manifest: data.manifest,
+        migrationsApplied: data.migrationsApplied ?? [],
+      },
     });
   }
 

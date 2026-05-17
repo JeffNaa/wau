@@ -60,20 +60,20 @@ npm run start:dev
 
 ### 🧪 Test with the Sample Plugin
 
-A sample plugin (`testplugin/`) is included in the repo. You can test the install flow immediately:
+A sample plugin (`test-plugin/`) is included in the repo. You can test the install flow immediately:
 
 ```bash
 # ZIP the sample plugin
-cd testplugin && zip -r ../testplugin.zip manifest.json dist/
+cd test-plugin && zip -r ../test-plugin.zip manifest.json dist/
 
 # Install it via API
-curl -X POST -F "file=@testplugin.zip" http://localhost:3000/plugins/upload
+curl -X POST -F "file=@test-plugin.zip" http://localhost:3000/plugins/upload
 
 # Verify it is installed
 curl http://localhost:3000/plugins
 
 # Test the plugin routes
-curl http://localhost:3000/testplugin/status
+curl http://localhost:3000/test-plugin/status
 ```
 
 ### 📦 Plugin Structure
@@ -109,7 +109,7 @@ Response:
 ```json
 [
   {
-    "name": "testplugin",
+    "name": "test-plugin",
     "version": "1.0.0",
     "description": "Test Plugin",
     "author": "Jeff"
@@ -208,7 +208,7 @@ wau-core/
 │       ├── schema.prisma          # Generator + datasource
 │       └── plugin.prisma          # PluginData + PluginRegistry models
 ├── storage/plugins/               # Installed plugins directory
-├── testplugin/                    # Sample plugin source
+├── test-plugin/                    # Sample plugin source
 └── dist/                          # Compiled output
 ```
 
@@ -288,20 +288,20 @@ npm run start:dev
 
 ### 🧪 使用示例插件测试
 
-项目中包含一个示例插件 (`testplugin/`)，你可以立即测试安装流程：
+项目中包含一个示例插件 (`test-plugin/`)，你可以立即测试安装流程：
 
 ```bash
 # 打包示例插件
-cd testplugin && zip -r ../testplugin.zip manifest.json dist/
+cd test-plugin && zip -r ../test-plugin.zip manifest.json dist/
 
 # 通过 API 安装
-curl -X POST -F "file=@testplugin.zip" http://localhost:3000/plugins/upload
+curl -X POST -F "file=@test-plugin.zip" http://localhost:3000/plugins/upload
 
 # 验证已安装
 curl http://localhost:3000/plugins
 
 # 测试插件路由
-curl http://localhost:3000/testplugin/status
+curl http://localhost:3000/test-plugin/status
 ```
 
 ### 📦 插件结构
@@ -420,7 +420,7 @@ wau-core/
 │       ├── schema.prisma          # Generator + datasource
 │       └── plugin.prisma          # PluginData + PluginRegistry 模型
 ├── storage/plugins/               # 已安装插件目录
-├── testplugin/                    # 示例插件源码
+├── test-plugin/                    # 示例插件源码
 └── dist/                          # 编译输出
 ```
 

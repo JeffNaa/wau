@@ -1,0 +1,19 @@
+{
+  "name": "test-migration-plugin",
+  "version": "1.0.0",
+  "author": "Jeff",
+  "schema": {
+    "authors": {
+      "name": { "type": "string", "required": true },
+      "email": { "type": "string", "unique": true },
+      "bio": { "type": "text" }
+    },
+    "books": {
+      "author_id": { "type": "int", "required": true, "index": true },
+      "title": { "type": "string", "required": true },
+      "isbn": { "type": "string", "unique": true, "length": 20 },
+      "published_year": { "type": "int" },
+      "genre": { "type": "string", "index": true }
+    }
+  }
+}

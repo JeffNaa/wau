@@ -1,0 +1,24 @@
+{
+  "name": "test-hybrid-plugin",
+  "version": "1.0.0",
+  "author": "Jeff",
+  "schema": {
+    "products": {
+      "sku": { "type": "string", "required": true, "unique": true, "length": 50 },
+      "name": { "type": "string", "required": true, "length": 200 },
+      "description": { "type": "text" },
+      "price": { "type": "decimal", "required": true, "precision": 10, "scale": 2 },
+      "stock": { "type": "int", "required": true, "default": 0 },
+      "category": { "type": "string", "index": true, "length": 100 },
+      "active": { "type": "boolean", "required": true, "default": true }
+    },
+    "orders": {
+      "product_id": { "type": "int", "required": true, "index": true },
+      "quantity": { "type": "int", "required": true, "default": 1 },
+      "total": { "type": "decimal", "required": true, "precision": 10, "scale": 2 },
+      "customer_name": { "type": "string", "required": true, "length": 100 },
+      "customer_email": { "type": "string", "length": 100 },
+      "status": { "type": "string", "required": true, "default": "pending", "index": true, "length": 20 }
+    }
+  }
+}
