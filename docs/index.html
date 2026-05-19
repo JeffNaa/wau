@@ -23,7 +23,12 @@
     .lang-switch { position: fixed; top: 16px; right: 24px; background: var(--code); border: 1px solid var(--border); border-radius: 6px; padding: 6px 14px; font-size: 0.85em; }
     .note { background: rgba(88,166,255,0.08); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; }
     .warn { background: rgba(210,153,34,0.08); border-left: 3px solid #d29922; }
+    .mermaid { background: var(--code); border-radius: 8px; padding: 16px; border: 1px solid var(--border); overflow-x: auto; margin: 16px 0; }
   </style>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+  </script>
 </head>
 <body>
   <a href="index.zh.html" class="lang-switch">中文</a>
@@ -43,40 +48,36 @@
   </table>
 
   <h2>System Architecture</h2>
-  <pre>
-+---------------------------------------------------------+
-|                       AppModule                           |
-|  +----------------+  +-------------------------------+  |
-|  | ConfigModule   |  | PrismaModule (Global)         |  |
-|  | (isGlobal)     |  |  - PrismaService              |  |
-|  +----------------+  +-------------------------------+  |
-|  +----------------+  +-------------------------------+  |
-|  | PluginLoaderModule   | PluginController            |  |
-|  | (DynamicModule)      | (REST API)                  |  |
-|  |  - Scans FS at boot  |  - /plugins/upload          |  |
-|  |  - Imports NestJS    |  - /plugins                 |  |
-|  |    plugin modules    |  - /plugins/:name           |  |
-|  +----------------+  +-------------------------------+  |
-|  +---------------------------------------------------+  |
-|  |     PluginManagerService                            |  |
-|  |  - Install / Update / Uninstall                     |  |
-|  |  - Triggers server restart to reload routes         |  |
-|  |  - Delegates DB to PluginRegistryService            |  |
-|  +---------------------------------------------------+  |
-|  +------------------+  +----------------------+        |  |
-|  | PluginRegistrySvc|  | PluginDataService    |        |  |
-|  |  - CRUD registry |  |  - KV store for      |        |  |
-|  |    table         |  |    plugin data       |        |  |
-|  +------------------+  +----------------------+        |  |
-|  +------------------+  +----------------------+        |  |
-|  | PluginMigration  |  | PluginSchemaService  |        |  |
-|  |  - SQL migrations|  |  - JSON schema CRUD  |        |  |
-|  +------------------+  +----------------------+        |  |
-+---------------------------------------------------------+
-|                PostgreSQL Database                        |
-|    plugin_registry  |  plugin_data                      |
-+---------------------------------------------------------+
-</pre>
+  <div class="mermaid">
+graph TB
+    subgraph AppModule["AppModule"]
+        Config["ConfigModule\n(Global)"]
+        Prisma["PrismaModule (Global)\nPrismaService"]
+        I18n["I18nModule (Global)\nI18nService · I18nMiddleware"]
+        PEF["PostgresExceptionFilter\nPG errors → i18n responses"]
+        subgraph Loader["PluginLoaderModule (Dynamic)"]
+            FS["Scans storage/plugins/ at boot\nAuto-registers plugin NestJS modules"]
+        end
+        Ctrl["PluginController\nPOST /plugins/upload\nGET · PUT · DELETE /plugins/:name"]
+        Mgr["PluginManagerService\nInstall · Update · Uninstall\nTriggers server restart"]
+        Reg["PluginRegistryService\nplugin_registry CRUD"]
+        Data["PluginDataService\nKV store · i18n"]
+        Mig["PluginMigrationService\nSQL migration runner"]
+        Sch["PluginSchemaService\nJSON schema CRUD · i18n"]
+    end
+    subgraph DB["PostgreSQL"]
+        R[("plugin_registry")]
+        D[("plugin_data")]
+        T[("plugin tables\ndynamic")]
+    end
+    Ctrl --> Mgr
+    Mgr --> Reg & Mig & Sch
+    Reg --> R
+    Data --> D
+    Mig --> T
+    Sch --> T
+    I18n -. locale context .-> Data & Sch & PEF
+  </div>
 
   <h2>Module Breakdown</h2>
 
@@ -141,14 +142,18 @@
   </table>
 
   <h3>5. PluginDataService <code>src/plugin-data/plugin-data.service.ts</code></h3>
-  <p>Key-value store for plugin runtime data. Wraps the <code>PluginData</code> model with a clean upsert-based API.</p>
+  <p>Key-value store for plugin runtime data. Wraps the <code>PluginData</code> model with an upsert-based API. All values are stored as JSONB. Fields can optionally carry i18n locale maps (<code>{"en":"Hello","zh-CN":"你好"}</code>) that are transparently resolved or merged on read/write.</p>
   <table>
-    <tr><th>Method</th><th>Description</th></tr>
-    <tr><td><code>get(plugin, key)</code></td><td>Read a single KV entry</td></tr>
-    <tr><td><code>set(plugin, key, data)</code></td><td>Create or overwrite a KV entry</td></tr>
-    <tr><td><code>remove(plugin, key)</code></td><td>Delete a KV entry</td></tr>
-    <tr><td><code>list(plugin)</code></td><td>List all KV entries for a plugin</td></tr>
+    <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+    <tr><td><code>get</code></td><td><code>get(plugin, key, options?)</code></td><td>Read a single KV entry. <code>options.resolveI18n</code> auto-flattens all locale maps to the current locale. <code>options.i18nPaths</code> (dot-notation array) resolves specific fields only. <code>options.lang</code> overrides the request locale.</td></tr>
+    <tr><td><code>set</code></td><td><code>set(plugin, key, data, options?)</code></td><td>Create or overwrite a KV entry. <code>options.i18nPaths</code> wraps string values at those paths into <code>{locale: value}</code> on create; merges the new locale into the existing JSONB on update.</td></tr>
+    <tr><td><code>remove</code></td><td><code>remove(plugin, key)</code></td><td>Delete a KV entry.</td></tr>
+    <tr><td><code>list</code></td><td><code>list(plugin, options?)</code></td><td>List all KV entries for a plugin. Accepts the same <code>resolveI18n</code> / <code>i18nPaths</code> / <code>lang</code> options as <code>get</code>.</td></tr>
+    <tr><td><code>resolveI18nValue</code></td><td><code>resolveI18nValue(jsonb, locale?)</code></td><td>Utility: resolve a JSONB locale map to a single string. Falls back to <code>en</code>, then first available key.</td></tr>
+    <tr><td><code>queryRaw</code></td><td><code>queryRaw&lt;T&gt;(query, params?)</code></td><td>Execute a raw SELECT query on plugin-owned tables (migration-mode plugins).</td></tr>
+    <tr><td><code>executeRaw</code></td><td><code>executeRaw(query, params?)</code></td><td>Execute a raw write query on plugin-owned tables (migration-mode plugins).</td></tr>
   </table>
+  <div class="note">i18n KV pattern: store <code>set(plugin, key, {title:"Hello"}, {i18nPaths:["title"]})</code> — saves <code>{title:{"en":"Hello"}}</code>. A second call with locale <code>zh-CN</code> merges: <code>{title:{"en":"Hello","zh-CN":"你好"}}</code>. Read with <code>get(..., {i18nPaths:["title"]})</code> returns <code>{title:"Hello"}</code> for English users.</div>
 
   <h3>6. PluginMigrationService <code>src/plugin-migration/plugin-migration.service.ts</code></h3>
   <p>Manages SQL migrations for plugins that declare a <code>migrations/</code> directory. Tracks applied migrations in the <code>PluginRegistry</code> DB record to avoid re-running.</p>
@@ -160,21 +165,96 @@
   </table>
 
   <h3>7. PluginSchemaService <code>src/plugin-schema/plugin-schema.service.ts</code></h3>
-  <p>Provides dynamic table creation and CRUD operations driven by a JSON schema declared in <code>manifest.json</code>. Table names are prefixed <code>plugin_{name}_{model}</code>.</p>
+  <p>Provides dynamic table creation and CRUD operations driven by a JSON schema declared in <code>manifest.json</code>. Table names are prefixed <code>plugin_{name}_{model}</code>. Every table automatically gets <code>id</code> (SERIAL PRIMARY KEY), <code>created_at</code>, and <code>updated_at</code> columns.</p>
+
+  <h4>Schema Methods</h4>
   <table>
     <tr><th>Method</th><th>Description</th></tr>
-    <tr><td><code>syncSchema(name, schema)</code></td><td>Creates tables or adds new columns based on the JSON schema definition</td></tr>
-    <tr><td><code>dropSchema(name, schema)</code></td><td>Drops all tables for the plugin's schema (used on uninstall)</td></tr>
-    <tr><td><code>create(name, model, data)</code></td><td>Insert a row</td></tr>
-    <tr><td><code>find(name, model, options)</code></td><td>Query with <code>where</code>, <code>orderBy</code>, <code>limit</code>, <code>offset</code></td></tr>
-    <tr><td><code>findOne(name, model, where)</code></td><td>Single row lookup</td></tr>
-    <tr><td><code>update(name, model, where, data)</code></td><td>Update rows matching the where clause</td></tr>
-    <tr><td><code>remove(name, model, where)</code></td><td>Delete rows matching the where clause</td></tr>
-    <tr><td><code>count(name, model, where)</code></td><td>Count matching rows</td></tr>
+    <tr><td><code>syncSchema(name, schema)</code></td><td>Creates tables or adds missing columns. Also calls <code>registerSchema</code> so CRUD can resolve i18n fields without a schema arg.</td></tr>
+    <tr><td><code>dropSchema(name, schema)</code></td><td>Drops all plugin tables in reverse order (respects FK deps). Calls <code>unregisterSchema</code>.</td></tr>
+    <tr><td><code>registerSchema(name, schema)</code></td><td>Caches the schema in memory so CRUD calls can omit the optional <code>schema</code> argument.</td></tr>
+    <tr><td><code>unregisterSchema(name)</code></td><td>Removes the cached schema (called by <code>dropSchema</code>).</td></tr>
   </table>
-  <p>Supported field types: <code>string</code>, <code>int</code>, <code>bigint</code>, <code>float</code>, <code>decimal</code>, <code>boolean</code>, <code>date</code>, <code>timestamp</code>, <code>json</code>, <code>text</code>. Supports <code>required</code>, <code>default</code>, <code>unique</code>, <code>index</code>, <code>primary</code>, <code>length</code>, <code>precision/scale</code>.</p>
 
-  <h3>8. PluginController <code>src/plugin.controller.ts</code></h3>
+  <h4>CRUD Methods</h4>
+  <table>
+    <tr><th>Method</th><th>Description</th></tr>
+    <tr><td><code>create(name, model, data, schema?)</code></td><td>Insert a row. i18n fields are wrapped as <code>{locale: value}</code> on insert.</td></tr>
+    <tr><td><code>find(name, model, options?, schema?)</code></td><td>Query rows. Options: <code>where</code>, <code>orderBy</code>, <code>limit</code>, <code>offset</code>, <code>lang</code>. i18n fields are flattened to the resolved locale in returned rows.</td></tr>
+    <tr><td><code>findOne(name, model, where?, schema?, lang?)</code></td><td>Single row lookup (delegates to <code>find</code> with <code>limit: 1</code>).</td></tr>
+    <tr><td><code>update(name, model, where, data, schema?)</code></td><td>Update matching rows. i18n fields are merged into the existing JSONB (adds/replaces the current locale without overwriting others).</td></tr>
+    <tr><td><code>remove(name, model, where)</code></td><td>Delete matching rows. Returns deleted row count.</td></tr>
+    <tr><td><code>count(name, model, where?)</code></td><td>Count matching rows.</td></tr>
+    <tr><td><code>resolveI18nValue(jsonb, locale?)</code></td><td>Utility: resolve a JSONB locale map to a string. Falls back to <code>en</code>, then first available key.</td></tr>
+  </table>
+
+  <h4>Field Definition (<code>FieldDef</code>)</h4>
+  <p>Supported <code>type</code> values: <code>string</code>, <code>int</code>, <code>bigint</code>, <code>float</code>, <code>decimal</code>, <code>boolean</code>, <code>date</code>, <code>timestamp</code>, <code>json</code>, <code>text</code>.</p>
+  <table>
+    <tr><th>Property</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>type</code></td><td>FieldType</td><td>SQL column type</td></tr>
+    <tr><td><code>i18n</code></td><td>boolean</td><td>If <code>true</code>, column is stored as JSONB with locale keys. Reads are auto-flattened to the request locale.</td></tr>
+    <tr><td><code>required</code></td><td>boolean</td><td>NOT NULL constraint</td></tr>
+    <tr><td><code>default</code></td><td>any</td><td>DEFAULT value; <code>"now()"</code> maps to <code>CURRENT_TIMESTAMP</code></td></tr>
+    <tr><td><code>unique</code></td><td>boolean</td><td>UNIQUE constraint (i18n fields: unique on default-locale value)</td></tr>
+    <tr><td><code>index</code></td><td>boolean</td><td>Index (i18n fields: GIN index)</td></tr>
+    <tr><td><code>primary</code></td><td>boolean</td><td>PRIMARY KEY override (skips auto <code>id</code>)</td></tr>
+    <tr><td><code>length</code></td><td>number</td><td>VARCHAR length for <code>string</code> type</td></tr>
+    <tr><td><code>precision</code> / <code>scale</code></td><td>number</td><td>For <code>decimal</code> type</td></tr>
+  </table>
+
+  <h4>WHERE Clause Operators</h4>
+  <p>The <code>where</code> object supports equality, array IN, null, and operator objects:</p>
+  <table>
+    <tr><th>Syntax</th><th>SQL equivalent</th></tr>
+    <tr><td><code>{field: value}</code></td><td><code>field = value</code></td></tr>
+    <tr><td><code>{field: null}</code></td><td><code>field IS NULL</code></td></tr>
+    <tr><td><code>{field: [a, b]}</code></td><td><code>field IN (a, b)</code></td></tr>
+    <tr><td><code>{field: {$gt: v}}</code></td><td><code>field &gt; v</code></td></tr>
+    <tr><td><code>{field: {$gte: v}}</code></td><td><code>field &gt;= v</code></td></tr>
+    <tr><td><code>{field: {$lt: v}}</code></td><td><code>field &lt; v</code></td></tr>
+    <tr><td><code>{field: {$lte: v}}</code></td><td><code>field &lt;= v</code></td></tr>
+    <tr><td><code>{field: {$ne: v}}</code></td><td><code>field &lt;&gt; v</code></td></tr>
+    <tr><td><code>{field: {$like: v}}</code></td><td><code>field LIKE v</code></td></tr>
+  </table>
+  <div class="note">For i18n fields, WHERE comparisons automatically target the <code>-&gt;&gt;'{locale}'</code> JSONB text extraction, so <code>{name: "Hello"}</code> filters on the current-locale value.</div>
+
+  <h3>8. I18nModule <code>src/i18n/</code></h3>
+  <p>Marked <code>@Global()</code> so <code>I18nService</code> is injectable everywhere. Applies <code>I18nMiddleware</code> to all routes, reading the <code>Accept-Language</code> request header and scoping the resolved locale to the current request via <code>AsyncLocalStorage</code>. The default locale is <code>en</code>.</p>
+  <p>Core locale files live under <code>locales/{locale}/*.json</code>. Plugins register additional translations at install time and deregister them on uninstall.</p>
+
+  <h4>I18nService Methods</h4>
+  <table>
+    <tr><th>Method</th><th>Description</th></tr>
+    <tr><td><code>t(key, args?)</code></td><td>Translate a dot-notation key for the current request locale; falls back to <code>en</code>. Supports <code>{placeholder}</code> interpolation.</td></tr>
+    <tr><td><code>tPlugin(pluginName, key, args?)</code></td><td>Shorthand for <code>t('{pluginName}.{key}')</code> — translates a plugin-namespaced key.</td></tr>
+    <tr><td><code>getLocale()</code></td><td>Returns the current request locale from <code>AsyncLocalStorage</code>, or <code>en</code> if none is set.</td></tr>
+    <tr><td><code>registerPluginLocale(name, dir)</code></td><td>Loads <code>{dir}/{locale}/*.json</code> and merges keys under the <code>{name}.*</code> namespace. Returns registered keys for cleanup.</td></tr>
+    <tr><td><code>unregisterPluginLocale(name)</code></td><td>Removes all translations registered for a plugin namespace.</td></tr>
+  </table>
+
+  <h4>Locale File Layout</h4>
+  <p>Core locale files (<code>locales/en/messages.json</code>, <code>locales/en/errors.json</code>, etc.) are flat JSON or nested objects. Plugin locale files follow the same convention but are placed inside the plugin zip under <code>locales/{locale}/{file}.json</code>:</p>
+  <pre>locales/
+├── en/
+│   ├── errors.json      # Postgres error messages, plugin error strings
+│   └── messages.json    # Success/status messages
+└── zh-CN/
+    ├── errors.json
+    └── messages.json</pre>
+  <p>Plugin translations are accessible as <code>{pluginName}.{file}.{key}</code>, e.g. <code>my-plugin.messages.welcome</code>.</p>
+
+  <h3>9. PostgresExceptionFilter <code>src/common/filters/postgres-exception.filter.ts</code></h3>
+  <p>A global <code>@Catch()</code> exception filter registered in <code>AppModule</code>. Intercepts PostgreSQL driver errors before they reach the default NestJS handler and returns structured, localized JSON responses.</p>
+  <table>
+    <tr><th>PG Error Code</th><th>HTTP Status</th><th>i18n Key</th></tr>
+    <tr><td><code>23505</code> — unique constraint</td><td>409 Conflict</td><td><code>errors.23505</code> / <code>errors.23505_fallback</code></td></tr>
+    <tr><td><code>23503</code> — foreign key violation</td><td>409 Conflict</td><td><code>errors.23503</code></td></tr>
+    <tr><td><code>42703</code> — undefined column</td><td>400 Bad Request</td><td><code>errors.42703</code></td></tr>
+    <tr><td>All others</td><td><code>exception.status</code> or 500</td><td><code>errors.500</code></td></tr>
+  </table>
+
+  <h3>10. PluginController <code>src/plugin.controller.ts</code></h3>
   <p>REST API surface for plugin management. Base path: <code>/plugins</code></p>
   <table>
     <tr><th>Method</th><th>Path</th><th>Body</th><th>Action</th></tr>
@@ -269,21 +349,12 @@
   <p>Prior to this migration, <code>PluginManagerService</code> relied solely on an in-memory <code>Map</code> and filesystem scanning of <code>manifest.json</code> files. The <code>PluginRegistry</code> Prisma model existed in the schema but was never used by application code.</p>
 
   <h3>New Data Flow</h3>
-  <pre>
-Install/Update/Uninstall
-        |
-        v
-+-------------------+       +------------------+
-| PluginManagerSvc  |&lt;----&gt;| plugin_registry  |
-|  - Validate ZIP   |  CRUD |  (PostgreSQL)    |
-|  - Extract to FS  |       +------------------+
-|  - Trigger restart|            |
-|  - Persist to DB  |              v
-+-------------------+       +------------------+
-                            | storage/plugins  |
-                            |  (Code files)    |
-                            +------------------+
-</pre>
+  <div class="mermaid">
+flowchart LR
+    Op["PluginController\nInstall / Update / Uninstall"] --> Mgr["PluginManagerService\nValidate ZIP\nExtract to FS\nTrigger restart\nPersist to DB"]
+    Mgr <--> PR[("plugin_registry\nPostgreSQL")]
+    Mgr --> FS["storage/plugins/\nCode files"]
+  </div>
 
   <h3>Consistency Strategy</h3>
   <table>
@@ -309,6 +380,14 @@ src/
 ├── bootstrap.ts                   # Server restart helper
 ├── plugin.controller.ts
 ├── plugin-manager.service.ts      # Plugin lifecycle; delegates DB to PluginRegistryService
+├── common/
+│   └── filters/
+│       └── postgres-exception.filter.ts  # Global Postgres error handler
+├── i18n/
+│   ├── i18n.constant.ts           # DEFAULT_LOCALE = 'en'
+│   ├── i18n.middleware.ts         # Accept-Language → AsyncLocalStorage
+│   ├── i18n.module.ts             # Global module + middleware wiring
+│   └── i18n.service.ts            # Translation engine + plugin locale registry
 ├── plugin-registry/
 │   ├── plugin-registry.module.ts
 │   └── plugin-registry.service.ts # CRUD for plugin_registry table
@@ -327,6 +406,14 @@ src/
 └── prisma/
     ├── prisma.module.ts          # Global Prisma module
     └── prisma.service.ts         # PrismaClient lifecycle management
+
+locales/                           # Core translation files
+├── en/
+│   ├── errors.json               # Postgres + plugin error messages
+│   └── messages.json             # Success/status messages
+└── zh-CN/
+    ├── errors.json
+    └── messages.json
 
 prisma/
 └── schema/

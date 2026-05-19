@@ -23,7 +23,12 @@
     .lang-switch { position: fixed; top: 16px; right: 24px; background: var(--code); border: 1px solid var(--border); border-radius: 6px; padding: 6px 14px; font-size: 0.85em; }
     .note { background: rgba(88,166,255,0.08); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; }
     .warn { background: rgba(210,153,34,0.08); border-left: 3px solid #d29922; }
+    .mermaid { background: var(--code); border-radius: 8px; padding: 16px; border: 1px solid var(--border); overflow-x: auto; margin: 16px 0; }
   </style>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+  </script>
 </head>
 <body>
   <a href="index.html" class="lang-switch">English</a>
@@ -43,39 +48,36 @@
   </table>
 
   <h2>系统架构</h2>
-  <pre>
-+---------------------------------------------------------+
-|                       AppModule                           |
-|  +----------------+  +-------------------------------+  |
-|  | ConfigModule   |  | PrismaModule (全局)           |  |
-|  | (isGlobal)     |  |  - PrismaService              |  |
-|  +----------------+  +-------------------------------+  |
-|  +----------------+  +-------------------------------+  |
-|  | PluginLoaderModule   | PluginController            |  |
-|  | (动态模块)           | (REST API)                  |  |
-|  |  - 启动时扫描文件    |  - /plugins/upload          |  |
-|  |  - 导入 NestJS       |  - /plugins                 |  |
-|  |    插件模块          |  - /plugins/:name           |  |
-|  +----------------+  +-------------------------------+  |
-|  +---------------------------------------------------+  |
-|  |     PluginManagerService                            |  |
-|  |  - 安装 / 更新 / 卸载                               |  |
-|  |  - 触发服务器重启重新加载路由                       |  |
-|  |  - DB 操作委托给 PluginRegistryService              |  |
-|  +---------------------------------------------------+  |
-|  +------------------+  +----------------------+        |  |
-|  | PluginRegistrySvc|  | PluginDataService    |        |  |
-|  |  - registry CRUD |  |  - 插件键值数据      |        |  |
-|  +------------------+  +----------------------+        |  |
-|  +------------------+  +----------------------+        |  |
-|  | PluginMigration  |  | PluginSchemaService  |        |  |
-|  |  - SQL 迁移管理  |  |  - JSON schema CRUD  |        |  |
-|  +------------------+  +----------------------+        |  |
-+---------------------------------------------------------+
-|                PostgreSQL 数据库                          |
-|    plugin_registry  |  plugin_data                      |
-+---------------------------------------------------------+
-  </pre>
+  <div class="mermaid">
+graph TB
+    subgraph AppModule["AppModule"]
+        Config["ConfigModule\n(全局)"]
+        Prisma["PrismaModule (全局)\nPrismaService"]
+        I18n["I18nModule (全局)\nI18nService · I18nMiddleware"]
+        PEF["PostgresExceptionFilter\nPG 错误 → 本地化响应"]
+        subgraph Loader["PluginLoaderModule (动态模块)"]
+            FS["启动时扫描 storage/plugins/\n自动注册插件 NestJS 模块"]
+        end
+        Ctrl["PluginController\nPOST /plugins/upload\nGET · PUT · DELETE /plugins/:name"]
+        Mgr["PluginManagerService\n安装 · 更新 · 卸载\n触发服务器重启"]
+        Reg["PluginRegistryService\nplugin_registry CRUD"]
+        Data["PluginDataService\nKV 存储 · i18n"]
+        Mig["PluginMigrationService\nSQL 迁移执行器"]
+        Sch["PluginSchemaService\nJSON schema CRUD · i18n"]
+    end
+    subgraph DB["PostgreSQL"]
+        R[("plugin_registry")]
+        D[("plugin_data")]
+        T[("插件动态表")]
+    end
+    Ctrl --> Mgr
+    Mgr --> Reg & Mig & Sch
+    Reg --> R
+    Data --> D
+    Mig --> T
+    Sch --> T
+    I18n -. locale 上下文 .-> Data & Sch & PEF
+  </div>
 
   <h2>模块详解</h2>
 
@@ -140,14 +142,18 @@
   </table>
 
   <h3>5. PluginDataService <code>src/plugin-data/plugin-data.service.ts</code></h3>
-  <p>插件运行时键值数据存储。通过简洁的 upsert API 包装 <code>PluginData</code> 模型。</p>
+  <p>插件运行时键值数据存储。通过 upsert API 包装 <code>PluginData</code> 模型。所有值以 JSONB 存储。字段可选择携带 i18n locale 映射（<code>{"en":"Hello","zh-CN":"你好"}</code>），在读写时自动解析或合并。</p>
   <table>
-    <tr><th>方法</th><th>说明</th></tr>
-    <tr><td><code>get(plugin, key)</code></td><td>读取单个键值条目</td></tr>
-    <tr><td><code>set(plugin, key, data)</code></td><td>创建或覆盖键值条目</td></tr>
-    <tr><td><code>remove(plugin, key)</code></td><td>删除键值条目</td></tr>
-    <tr><td><code>list(plugin)</code></td><td>列出某插件的所有键值条目</td></tr>
+    <tr><th>方法</th><th>签名</th><th>说明</th></tr>
+    <tr><td><code>get</code></td><td><code>get(plugin, key, options?)</code></td><td>读取单个键值条目。<code>options.resolveI18n</code> 自动将所有 locale 映射扁平化为当前 locale。<code>options.i18nPaths</code>（点分隔路径数组）仅解析指定字段。<code>options.lang</code> 覆盖请求 locale。</td></tr>
+    <tr><td><code>set</code></td><td><code>set(plugin, key, data, options?)</code></td><td>创建或覆盖键值条目。<code>options.i18nPaths</code> 在创建时将指定路径的字符串值包装为 <code>{locale: value}</code>；在更新时将新 locale 合并到已有 JSONB 中。</td></tr>
+    <tr><td><code>remove</code></td><td><code>remove(plugin, key)</code></td><td>删除键值条目。</td></tr>
+    <tr><td><code>list</code></td><td><code>list(plugin, options?)</code></td><td>列出某插件的所有键值条目。支持与 <code>get</code> 相同的 <code>resolveI18n</code> / <code>i18nPaths</code> / <code>lang</code> 选项。</td></tr>
+    <tr><td><code>resolveI18nValue</code></td><td><code>resolveI18nValue(jsonb, locale?)</code></td><td>工具方法：将 JSONB locale 映射解析为单一字符串，回退到 <code>en</code>，再回退到第一个可用键。</td></tr>
+    <tr><td><code>queryRaw</code></td><td><code>queryRaw&lt;T&gt;(query, params?)</code></td><td>对插件自有表执行原始 SELECT 查询（供迁移模式插件使用）。</td></tr>
+    <tr><td><code>executeRaw</code></td><td><code>executeRaw(query, params?)</code></td><td>对插件自有表执行原始写入查询（供迁移模式插件使用）。</td></tr>
   </table>
+  <div class="note">i18n KV 示例：<code>set(plugin, key, {title:"Hello"}, {i18nPaths:["title"]})</code> 存储 <code>{title:{"en":"Hello"}}</code>。在 <code>zh-CN</code> locale 下再次调用后合并为 <code>{title:{"en":"Hello","zh-CN":"你好"}}</code>。读取时使用 <code>get(..., {i18nPaths:["title"]})</code>，英文用户得到 <code>{title:"Hello"}</code>。</div>
 
   <h3>6. PluginMigrationService <code>src/plugin-migration/plugin-migration.service.ts</code></h3>
   <p>管理声明了 <code>migrations/</code> 目录的插件的 SQL 迁移。在 <code>PluginRegistry</code> 数据库记录中跟踪已应用的迁移，避免重复执行。</p>
@@ -159,21 +165,95 @@
   </table>
 
   <h3>7. PluginSchemaService <code>src/plugin-schema/plugin-schema.service.ts</code></h3>
-  <p>通过 <code>manifest.json</code> 中声明的 JSON schema 动态创建表并提供 CRUD 操作。表名前缀为 <code>plugin_{name}_{model}</code>。</p>
+  <p>通过 <code>manifest.json</code> 中声明的 JSON schema 动态创建表并提供 CRUD 操作。表名前缀为 <code>plugin_{name}_{model}</code>。每张表自动添加 <code>id</code>（SERIAL PRIMARY KEY）、<code>created_at</code>、<code>updated_at</code> 列。</p>
+
+  <h4>Schema 管理方法</h4>
   <table>
     <tr><th>方法</th><th>说明</th></tr>
-    <tr><td><code>syncSchema(name, schema)</code></td><td>根据 JSON schema 定义创建表或添加新列</td></tr>
-    <tr><td><code>dropSchema(name, schema)</code></td><td>删除插件 schema 对应的所有表（卸载时使用）</td></tr>
-    <tr><td><code>create(name, model, data)</code></td><td>插入一行数据</td></tr>
-    <tr><td><code>find(name, model, options)</code></td><td>支持 <code>where</code>、<code>orderBy</code>、<code>limit</code>、<code>offset</code> 的查询</td></tr>
-    <tr><td><code>findOne(name, model, where)</code></td><td>查询单行</td></tr>
-    <tr><td><code>update(name, model, where, data)</code></td><td>更新匹配 where 条件的行</td></tr>
-    <tr><td><code>remove(name, model, where)</code></td><td>删除匹配 where 条件的行</td></tr>
-    <tr><td><code>count(name, model, where)</code></td><td>统计匹配行数</td></tr>
+    <tr><td><code>syncSchema(name, schema)</code></td><td>根据 JSON schema 定义创建表或添加缺失列。同时调用 <code>registerSchema</code>，使 CRUD 调用可省略 <code>schema</code> 参数。</td></tr>
+    <tr><td><code>dropSchema(name, schema)</code></td><td>以逆序删除插件所有表（处理外键依赖）。调用 <code>unregisterSchema</code>。</td></tr>
+    <tr><td><code>registerSchema(name, schema)</code></td><td>将 schema 缓存到内存，使后续 CRUD 调用可省略 <code>schema</code> 参数。</td></tr>
+    <tr><td><code>unregisterSchema(name)</code></td><td>移除缓存的 schema（由 <code>dropSchema</code> 调用）。</td></tr>
   </table>
-  <p>支持的字段类型：<code>string</code>、<code>int</code>、<code>bigint</code>、<code>float</code>、<code>decimal</code>、<code>boolean</code>、<code>date</code>、<code>timestamp</code>、<code>json</code>、<code>text</code>。支持约束：<code>required</code>、<code>default</code>、<code>unique</code>、<code>index</code>、<code>primary</code>、<code>length</code>、<code>precision/scale</code>。</p>
 
-  <h3>8. PluginController <code>src/plugin.controller.ts</code></h3>
+  <h4>CRUD 方法</h4>
+  <table>
+    <tr><th>方法</th><th>说明</th></tr>
+    <tr><td><code>create(name, model, data, schema?)</code></td><td>插入一行。i18n 字段在写入时包装为 <code>{locale: value}</code>。</td></tr>
+    <tr><td><code>find(name, model, options?, schema?)</code></td><td>查询行。选项：<code>where</code>、<code>orderBy</code>、<code>limit</code>、<code>offset</code>、<code>lang</code>。返回行中 i18n 字段自动扁平化为解析后的 locale 值。</td></tr>
+    <tr><td><code>findOne(name, model, where?, schema?, lang?)</code></td><td>查询单行（内部调用 <code>find</code> 加 <code>limit: 1</code>）。</td></tr>
+    <tr><td><code>update(name, model, where, data, schema?)</code></td><td>更新匹配行。i18n 字段合并入已有 JSONB（添加/替换当前 locale，不影响其他语言）。</td></tr>
+    <tr><td><code>remove(name, model, where)</code></td><td>删除匹配行，返回删除行数。</td></tr>
+    <tr><td><code>count(name, model, where?)</code></td><td>统计匹配行数。</td></tr>
+    <tr><td><code>resolveI18nValue(jsonb, locale?)</code></td><td>工具方法：将 JSONB locale 映射解析为字符串，回退到 <code>en</code>，再回退到第一个可用键。</td></tr>
+  </table>
+
+  <h4>字段定义（<code>FieldDef</code>）</h4>
+  <p>支持的 <code>type</code> 值：<code>string</code>、<code>int</code>、<code>bigint</code>、<code>float</code>、<code>decimal</code>、<code>boolean</code>、<code>date</code>、<code>timestamp</code>、<code>json</code>、<code>text</code>。</p>
+  <table>
+    <tr><th>属性</th><th>类型</th><th>说明</th></tr>
+    <tr><td><code>type</code></td><td>FieldType</td><td>SQL 列类型</td></tr>
+    <tr><td><code>i18n</code></td><td>boolean</td><td>若为 <code>true</code>，列以 JSONB locale 键存储。读取时自动扁平化为请求 locale。</td></tr>
+    <tr><td><code>required</code></td><td>boolean</td><td>NOT NULL 约束</td></tr>
+    <tr><td><code>default</code></td><td>any</td><td>DEFAULT 值；<code>"now()"</code> 映射为 <code>CURRENT_TIMESTAMP</code></td></tr>
+    <tr><td><code>unique</code></td><td>boolean</td><td>UNIQUE 约束（i18n 字段：按默认 locale 值唯一）</td></tr>
+    <tr><td><code>index</code></td><td>boolean</td><td>索引（i18n 字段：GIN 索引）</td></tr>
+    <tr><td><code>primary</code></td><td>boolean</td><td>PRIMARY KEY 覆盖（跳过自动 <code>id</code> 列）</td></tr>
+    <tr><td><code>length</code></td><td>number</td><td><code>string</code> 类型的 VARCHAR 长度</td></tr>
+    <tr><td><code>precision</code> / <code>scale</code></td><td>number</td><td>用于 <code>decimal</code> 类型</td></tr>
+  </table>
+
+  <h4>WHERE 条件操作符</h4>
+  <table>
+    <tr><th>语法</th><th>SQL 等价</th></tr>
+    <tr><td><code>{field: value}</code></td><td><code>field = value</code></td></tr>
+    <tr><td><code>{field: null}</code></td><td><code>field IS NULL</code></td></tr>
+    <tr><td><code>{field: [a, b]}</code></td><td><code>field IN (a, b)</code></td></tr>
+    <tr><td><code>{field: {$gt: v}}</code></td><td><code>field &gt; v</code></td></tr>
+    <tr><td><code>{field: {$gte: v}}</code></td><td><code>field &gt;= v</code></td></tr>
+    <tr><td><code>{field: {$lt: v}}</code></td><td><code>field &lt; v</code></td></tr>
+    <tr><td><code>{field: {$lte: v}}</code></td><td><code>field &lt;= v</code></td></tr>
+    <tr><td><code>{field: {$ne: v}}</code></td><td><code>field &lt;&gt; v</code></td></tr>
+    <tr><td><code>{field: {$like: v}}</code></td><td><code>field LIKE v</code></td></tr>
+  </table>
+  <div class="note">对于 i18n 字段，WHERE 比较自动作用于 <code>->>'locale'</code> JSONB 文本提取，因此 <code>{name: "Hello"}</code> 会按当前 locale 值进行过滤。</div>
+
+  <h3>8. I18nModule <code>src/i18n/</code></h3>
+  <p>标记为 <code>@Global()</code>，<code>I18nService</code> 可在任何地方注入。对所有路由应用 <code>I18nMiddleware</code>，读取请求的 <code>Accept-Language</code> 头，通过 <code>AsyncLocalStorage</code> 将解析出的 locale 绑定到当前请求作用域。默认 locale 为 <code>en</code>。</p>
+  <p>核心 locale 文件存放在 <code>locales/{locale}/*.json</code>。插件在安装时注册各自的翻译，在卸载时注销。</p>
+
+  <h4>I18nService 方法</h4>
+  <table>
+    <tr><th>方法</th><th>说明</th></tr>
+    <tr><td><code>t(key, args?)</code></td><td>按点分隔键翻译当前请求的 locale；回退到 <code>en</code>。支持 <code>{placeholder}</code> 插值。</td></tr>
+    <tr><td><code>tPlugin(pluginName, key, args?)</code></td><td><code>t('{pluginName}.{key}')</code> 的快捷方式，翻译插件命名空间下的键。</td></tr>
+    <tr><td><code>getLocale()</code></td><td>从 <code>AsyncLocalStorage</code> 返回当前请求 locale，无则返回 <code>en</code>。</td></tr>
+    <tr><td><code>registerPluginLocale(name, dir)</code></td><td>加载 <code>{dir}/{locale}/*.json</code> 并将键合并到 <code>{name}.*</code> 命名空间下，返回已注册的键列表供清理使用。</td></tr>
+    <tr><td><code>unregisterPluginLocale(name)</code></td><td>移除该插件命名空间下的所有翻译。</td></tr>
+  </table>
+
+  <h4>Locale 文件结构</h4>
+  <p>核心 locale 文件（<code>locales/en/messages.json</code>、<code>locales/en/errors.json</code> 等）为平铺或嵌套 JSON。插件 locale 文件放在 ZIP 包内 <code>locales/{locale}/{file}.json</code>：</p>
+  <pre>locales/
+├── en/
+│   ├── errors.json      # Postgres 错误消息、插件错误字符串
+│   └── messages.json    # 成功/状态消息
+└── zh-CN/
+    ├── errors.json
+    └── messages.json</pre>
+  <p>插件翻译通过 <code>{pluginName}.{file}.{key}</code> 访问，例如 <code>my-plugin.messages.welcome</code>。</p>
+
+  <h3>9. PostgresExceptionFilter <code>src/common/filters/postgres-exception.filter.ts</code></h3>
+  <p>注册在 <code>AppModule</code> 中的全局 <code>@Catch()</code> 异常过滤器。在 PostgreSQL 驱动错误到达 NestJS 默认处理器之前将其拦截，返回结构化、本地化的 JSON 响应。</p>
+  <table>
+    <tr><th>PG 错误代码</th><th>HTTP 状态</th><th>i18n 键</th></tr>
+    <tr><td><code>23505</code> — 唯一约束冲突</td><td>409 Conflict</td><td><code>errors.23505</code> / <code>errors.23505_fallback</code></td></tr>
+    <tr><td><code>23503</code> — 外键约束冲突</td><td>409 Conflict</td><td><code>errors.23503</code></td></tr>
+    <tr><td><code>42703</code> — 未定义的列</td><td>400 Bad Request</td><td><code>errors.42703</code></td></tr>
+    <tr><td>其他错误</td><td><code>exception.status</code> 或 500</td><td><code>errors.500</code></td></tr>
+  </table>
+
+  <h3>10. PluginController <code>src/plugin.controller.ts</code></h3>
   <p>插件管理的 REST API 接口。基础路径：<code>/plugins</code></p>
   <table>
     <tr><th>方法</th><th>路径</th><th>请求体</th><th>操作</th></tr>
@@ -268,21 +348,12 @@
   <p>迁移前，<code>PluginManagerService</code> 仅依赖内存中的 <code>Map</code> 和文件系统扫描 <code>manifest.json</code>。虽然 <code>PluginRegistry</code> Prisma 模型已存在于 schema 中，但应用代码从未使用它。</p>
 
   <h3>新数据流</h3>
-  <pre>
-安装/更新/卸载
-        |
-        v
-+-------------------+       +------------------+
-| PluginManagerSvc  |&lt;----&gt;| plugin_registry  |
-|  - 验证 ZIP       |  CRUD |  (PostgreSQL)    |
-|  - 解压到文件系统 |       +------------------+
-|  - 触发重启加载路由 |            |
-|  - 持久化到数据库 |              v
-+-------------------+       +------------------+
-                            | storage/plugins  |
-                            |  (代码文件)      |
-                            +------------------+
-</pre>
+  <div class="mermaid">
+flowchart LR
+    Op["PluginController\n安装 / 更新 / 卸载"] --> Mgr["PluginManagerService\n验证 ZIP\n解压到文件系统\n触发重启\n持久化到数据库"]
+    Mgr <--> PR[("plugin_registry\nPostgreSQL")]
+    Mgr --> FS["storage/plugins/\n代码文件"]
+  </div>
 
   <h3>一致性策略</h3>
   <table>
@@ -308,6 +379,14 @@ src/
 ├── bootstrap.ts                   # 服务器重启辅助
 ├── plugin.controller.ts
 ├── plugin-manager.service.ts      # 插件生命周期；DB 委托给 PluginRegistryService
+├── common/
+│   └── filters/
+│       └── postgres-exception.filter.ts  # 全局 Postgres 错误处理器
+├── i18n/
+│   ├── i18n.constant.ts           # DEFAULT_LOCALE = 'en'
+│   ├── i18n.middleware.ts         # Accept-Language → AsyncLocalStorage
+│   ├── i18n.module.ts             # 全局模块 + 中间件绑定
+│   └── i18n.service.ts            # 翻译引擎 + 插件 locale 注册表
 ├── plugin-registry/
 │   ├── plugin-registry.module.ts
 │   └── plugin-registry.service.ts # plugin_registry 表 CRUD
@@ -326,6 +405,14 @@ src/
 └── prisma/
     ├── prisma.module.ts          # 全局 Prisma 模块
     └── prisma.service.ts         # PrismaClient 生命周期管理
+
+locales/                           # 核心翻译文件
+├── en/
+│   ├── errors.json               # Postgres + 插件错误消息
+│   └── messages.json             # 成功/状态消息
+└── zh-CN/
+    ├── errors.json
+    └── messages.json
 
 prisma/
 └── schema/
