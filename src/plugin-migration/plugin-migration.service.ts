@@ -2,12 +2,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
+import { I18nService } from '../i18n/i18n.service';
 
 @Injectable()
 export class PluginMigrationService {
   private readonly logger = new Logger(PluginMigrationService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly i18n: I18nService,
+  ) {}
 
   /**
    * Apply pending migrations for a plugin.
@@ -21,9 +25,7 @@ export class PluginMigrationService {
     const migrationsDir = path.join(pluginPath, 'migrations');
 
     if (!(await fs.pathExists(migrationsDir))) {
-      throw new Error(
-        `Migration mode plugin [${pluginName}] is missing migrations/ directory.`,
-      );
+      throw new Error(this.i18n.t('errors.migration.missing_dir', { pluginName }));
     }
 
     const files = await fs.readdir(migrationsDir);

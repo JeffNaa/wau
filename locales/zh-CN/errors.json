@@ -1,0 +1,31 @@
+{
+  "errors": {
+    "23503": "引用的资源不存在",
+    "23505": "{field} '{value}' 已存在",
+    "23505_fallback": "资源已存在",
+    "42703": "无效的列",
+    "500": "内部服务器错误",
+    "database": {
+      "connection_failed": "数据库连接失败"
+    },
+    "migration": {
+      "missing_dir": "迁移模式插件 [{pluginName}] 缺少 migrations/ 目录。"
+    },
+    "plugin": {
+      "already_installed": "插件 [{name}] v{version} 已安装。",
+      "cannot_downgrade": "插件 [{name}] v{installedVersion} 已安装，无法降级至 v{version}。",
+      "install_failed": "安装失败：{message}",
+      "manifest_missing": "无效的 Wau 插件：缺少 manifest.json。",
+      "method_not_found": "插件 {pluginName} 上未找到方法 {methodName}",
+      "name_required": "manifest 中必须提供插件名称。",
+      "not_installed": "插件 [{name}] 未安装。请先使用 POST /plugins/upload 安装。",
+      "route_conflict": "安装失败：检测到控制器路径冲突：{conflicts}",
+      "update_route_conflict": "更新失败：检测到控制器路径冲突：{conflicts}",
+      "update_version_rejected": "更新被拒绝：上传版本 v{newVersion} 必须大于已安装版本 v{installedVersion}。",
+      "version_required": "manifest 中必须提供插件版本。"
+    },
+    "system": {
+      "not_initialized": "无法重启：应用尚未初始化"
+    }
+  }
+}

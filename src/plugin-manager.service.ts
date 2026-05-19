@@ -9,6 +9,7 @@ import { PluginDataService } from './plugin-data/plugin-data.service';
 import { PluginSchemaService } from './plugin-schema/plugin-schema.service';
 import { PluginSchema } from './plugin-schema/plugin-schema.types';
 import { restart } from './bootstrap';
+import { I18nService } from './i18n/i18n.service';
 
 @Injectable()
 export class PluginManagerService implements OnModuleInit {
@@ -17,6 +18,7 @@ export class PluginManagerService implements OnModuleInit {
     private readonly pluginMigration: PluginMigrationService,
     private readonly pluginData: PluginDataService,
     private readonly pluginSchema: PluginSchemaService,
+    private readonly i18n: I18nService,
   ) { }
 
   private readonly registry = new Map<string, any>();
@@ -40,15 +42,15 @@ export class PluginManagerService implements OnModuleInit {
       console.log(zipEntries[0].entryName);
 
       if (!manifestEntry) {
-        throw new BadRequestException('Invalid Wau Plugin: manifest.json is missing.');
+        throw new BadRequestException(this.i18n.t('errors.plugin.manifest_missing'));
       }
 
       // 2. Parse configuration
       const manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
       const { name, version } = manifest;
 
-      if (!name) throw new BadRequestException('Plugin name is required in manifest.');
-      if (!version) throw new BadRequestException('Plugin version is required in manifest.');
+      if (!name) throw new BadRequestException(this.i18n.t('errors.plugin.name_required'));
+      if (!version) throw new BadRequestException(this.i18n.t('errors.plugin.version_required'));
 
       // 3. Determine installation path
       const targetPath = path.join(this.pluginsDir, name);
@@ -58,11 +60,11 @@ export class PluginManagerService implements OnModuleInit {
       if (dbPlugin) {
         const cmp = this.compareVersions(version, dbPlugin.version);
         if (cmp === 0) {
-          throw new BadRequestException(`Plugin [${name}] v${version} is already installed.`);
+          throw new BadRequestException(this.i18n.t('errors.plugin.already_installed', { name, version }));
         }
         if (cmp < 0) {
           throw new BadRequestException(
-            `Plugin [${name}] v${dbPlugin.version} is installed. Cannot downgrade to v${version}.`
+            this.i18n.t('errors.plugin.cannot_downgrade', { name, installedVersion: dbPlugin.version, version })
           );
         }
         // Higher version: perform update
@@ -75,11 +77,11 @@ export class PluginManagerService implements OnModuleInit {
         const cmp = this.compareVersions(version, installedVersion);
 
         if (cmp === 0) {
-          throw new BadRequestException(`Plugin [${name}] v${version} is already installed.`);
+          throw new BadRequestException(this.i18n.t('errors.plugin.already_installed', { name, version }));
         }
         if (cmp < 0) {
           throw new BadRequestException(
-            `Plugin [${name}] v${installedVersion} is installed. Cannot downgrade to v${version}.`
+            this.i18n.t('errors.plugin.cannot_downgrade', { name, installedVersion, version })
           );
         }
         // Higher version: perform update
@@ -98,7 +100,7 @@ export class PluginManagerService implements OnModuleInit {
       if (conflicts.length > 0) {
         // Rollback extraction
         await fs.remove(targetPath);
-        throw new BadRequestException(`Installation failed: Route conflict detected for controller paths: ${conflicts.join(', ')}`);
+        throw new BadRequestException(this.i18n.t('errors.plugin.route_conflict', { conflicts: conflicts.join(', ') }));
       }
 
       // Apply schema and/or migrations based on what the plugin provides
@@ -133,10 +135,10 @@ export class PluginManagerService implements OnModuleInit {
         plugin: name,
         version: version,
         path: targetPath,
-        message: 'Server will restart shortly to load the new plugin.',
+        message: this.i18n.t('messages.plugin.install_success'),
       };
     } catch (error) {
-      throw new BadRequestException(`Installation failed: ${error.message}`);
+      throw new BadRequestException(this.i18n.t('errors.plugin.install_failed', { message: error.message }));
     }
   }
 
@@ -201,21 +203,19 @@ export class PluginManagerService implements OnModuleInit {
 
       const dbPlugin = await this.pluginRegistry.findOne(name);
       if (!dbPlugin && !(await fs.pathExists(targetPath))) {
-        throw new BadRequestException(
-          `Plugin [${name}] is not installed. Use POST /plugins/upload to install it first.`
-        );
+        throw new BadRequestException(this.i18n.t('errors.plugin.not_installed', { name }));
       }
 
       const zip = new AdmZip(file.buffer);
       const manifestEntry = zip.getEntries().find((e) => e.entryName === 'manifest.json');
       if (!manifestEntry) {
-        throw new BadRequestException('Invalid Wau Plugin: manifest.json is missing.');
+        throw new BadRequestException(this.i18n.t('errors.plugin.manifest_missing'));
       }
 
       const manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
       const newVersion = manifest.version;
       if (!newVersion) {
-        throw new BadRequestException('Plugin version is required in manifest.');
+        throw new BadRequestException(this.i18n.t('errors.plugin.version_required'));
       }
 
       const installedVersion = dbPlugin?.version ?? (await fs.readJson(path.join(targetPath, 'manifest.json'))).version;
@@ -223,7 +223,7 @@ export class PluginManagerService implements OnModuleInit {
       const cmp = this.compareVersions(newVersion, installedVersion);
       if (cmp <= 0) {
         throw new BadRequestException(
-          `Update rejected: uploaded version v${newVersion} must be greater than installed v${installedVersion}.`
+          this.i18n.t('errors.plugin.update_version_rejected', { newVersion, installedVersion })
         );
       }
 
@@ -246,7 +246,7 @@ export class PluginManagerService implements OnModuleInit {
       if (conflicts.length > 0) {
         await fs.remove(targetPath);
         throw new BadRequestException(
-          `Update failed: Route conflict detected for controller paths: ${conflicts.join(', ')}`
+          this.i18n.t('errors.plugin.update_route_conflict', { conflicts: conflicts.join(', ') })
         );
       }
 
@@ -286,10 +286,10 @@ export class PluginManagerService implements OnModuleInit {
         previousVersion: installedVersion,
         version: newVersion,
         path: targetPath,
-        message: 'Server will restart shortly to apply the update.',
+        message: this.i18n.t('messages.plugin.update_success'),
       };
     } catch (error) {
-      throw new BadRequestException(`Installation failed: ${error.message}`);
+      throw new BadRequestException(this.i18n.t('errors.plugin.install_failed', { message: error.message }));
     }
   }
 
@@ -312,7 +312,7 @@ export class PluginManagerService implements OnModuleInit {
 
     const dbPlugin = await this.pluginRegistry.findOne(name);
     if (!dbPlugin && !(await fs.pathExists(targetPath))) {
-      throw new BadRequestException(`Plugin [${name}] is not installed.`);
+      throw new BadRequestException(this.i18n.t('errors.plugin.not_installed', { name }));
     }
 
     // 1. Remove from registry
@@ -357,7 +357,7 @@ export class PluginManagerService implements OnModuleInit {
     return {
       success: true,
       plugin: name,
-      message: 'Server will restart shortly to unload the plugin.',
+      message: this.i18n.t('messages.plugin.unload_success'),
     };
   }
 
@@ -380,6 +380,6 @@ export class PluginManagerService implements OnModuleInit {
     if (plugin && typeof plugin[methodName] === 'function') {
       return plugin[methodName](...args);
     }
-    throw new Error(`Method ${methodName} not found on plugin ${pluginName}`);
+    throw new Error(this.i18n.t('errors.plugin.method_not_found', { methodName, pluginName }));
   }
 }

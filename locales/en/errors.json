@@ -1,0 +1,31 @@
+{
+  "errors": {
+    "23503": "Referenced resource does not exist",
+    "23505": "{field} '{value}' already exists",
+    "23505_fallback": "Resource already exists",
+    "42703": "Invalid column",
+    "500": "Internal server error",
+    "database": {
+      "connection_failed": "Database connection failed"
+    },
+    "migration": {
+      "missing_dir": "Migration mode plugin [{pluginName}] is missing migrations/ directory."
+    },
+    "plugin": {
+      "already_installed": "Plugin [{name}] v{version} is already installed.",
+      "cannot_downgrade": "Plugin [{name}] v{installedVersion} is installed. Cannot downgrade to v{version}.",
+      "install_failed": "Installation failed: {message}",
+      "manifest_missing": "Invalid Wau Plugin: manifest.json is missing.",
+      "method_not_found": "Method {methodName} not found on plugin {pluginName}",
+      "name_required": "Plugin name is required in manifest.",
+      "not_installed": "Plugin [{name}] is not installed. Use POST /plugins/upload to install it first.",
+      "route_conflict": "Installation failed: Route conflict detected for controller paths: {conflicts}",
+      "update_route_conflict": "Update failed: Route conflict detected for controller paths: {conflicts}",
+      "update_version_rejected": "Update rejected: uploaded version v{newVersion} must be greater than installed v{installedVersion}.",
+      "version_required": "Plugin version is required in manifest."
+    },
+    "system": {
+      "not_initialized": "Cannot restart: app is not initialized"
+    }
+  }
+}

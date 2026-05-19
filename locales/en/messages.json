@@ -1,0 +1,9 @@
+{
+  "messages": {
+    "plugin": {
+      "install_success": "Server will restart shortly to load the new plugin.",
+      "unload_success": "Server will restart shortly to unload the plugin.",
+      "update_success": "Server will restart shortly to apply the update."
+    }
+  }
+}

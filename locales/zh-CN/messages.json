@@ -1,0 +1,9 @@
+{
+  "messages": {
+    "plugin": {
+      "install_success": "服务器即将重启以加载新插件。",
+      "unload_success": "服务器即将重启以卸载插件。",
+      "update_success": "服务器即将重启以应用更新。"
+    }
+  }
+}
