@@ -2,7 +2,7 @@
 
 [English](#english-version) | [中文](#中文版本)
 
-<a href="https://www.buymeacoffee.com/mamusum"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=mamusum&button_colour=FFDD00&font_colour=000000&font_family=Bree&outline_colour=000000&coffee_colour=ffffff" /></a>
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/mamusum)
 
 ---
 
@@ -44,12 +44,13 @@ In traditional development, every tiny UI adjustment or logic change requires mo
 | **PluginRegistry DB migration** | ✅ Done | Plugin metadata now persisted in `plugin_registry` table; DB is the source of truth |
 | **Plugin Schema** | ✅ Done | JSON schema-driven dynamic table creation via `PluginSchemaService` |
 | **Plugin Migrations** | ✅ Done | SQL migration support via `PluginMigrationService` |
+| **i18n Support** | ✅ Done | Plugin response messages, schema, KV store, and error handling fully localized |
 | Flutter client (`wau-flutter`) | ⏳ Planned | Dynamic JSON-driven UI rendering |
 | React Web admin (`wau-web`) | ⏳ Planned | Plugin management dashboard + user client |
 | Event Bus | ⏳ Planned | Cross-plugin & cross-platform communication |
 | SDUI Protocol | ⏳ Planned | Backend-driven layout engine |
 
-> 📚 **For technical details** (architecture, database schema, API specs, plugin format), see [`documentation/index.html`](documentation/index.html) (EN) or [`documentation/index.zh.html`](documentation/index.zh.html) (中文).
+> 📚 **For technical details** (architecture, database schema, API specs, plugin format), see the [📖 Online Documentation](https://jeffnaa.github.io/wau/).
 
 ### 🚀 Quick Start
 
@@ -337,12 +338,13 @@ This project is licensed under the [MIT License](LICENSE).
 | **PluginRegistry 数据库迁移** | ✅ 完成 | 插件元数据已持久化到 `plugin_registry` 表；数据库为权威来源 |
 | **Plugin Schema** | ✅ 完成 | 通过 `PluginSchemaService` 基于 JSON schema 动态建表 |
 | **Plugin Migrations** | ✅ 完成 | 通过 `PluginMigrationService` 支持 SQL 迁移 |
+| **i18n 国际化** | ✅ 完成 | 插件响应消息、Schema、KV 存储及错误处理已全面本地化 |
 | Flutter 客户端 (`wau-flutter`) | ⏳ 规划中 | JSON 驱动的动态 UI 渲染 |
 | React Web 管理端 (`wau-web`) | ⏳ 规划中 | 插件管理后台 + 用户端 |
 | 事件总线 | ⏳ 规划中 | 跨插件 & 跨平台通信 |
 | SDUI 协议 | ⏳ 规划中 | 后端驱动布局引擎 |
 
-> 📚 **详细技术文档**（架构图、数据库模型、API 规范、插件格式）见 [`documentation/index.html`](documentation/index.html)（英文）或 [`documentation/index.zh.html`](documentation/index.zh.html)（中文）。
+> 📚 **详细技术文档**（架构图、数据库模型、API 规范、插件格式）见 [📖 在线文档](https://jeffnaa.github.io/wau/)。
 
 ### 🚀 快速开始
 
