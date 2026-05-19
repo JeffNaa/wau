@@ -349,7 +349,84 @@ sample-plugins/                   # Sample plugin source code
     <tr><th>Variable</th><th>Required</th><th>Description</th></tr>
     <tr><td><code>DATABASE_URL</code></td><td>Yes</td><td>PostgreSQL connection string</td></tr>
     <tr><td><code>PORT</code></td><td>No</td><td>HTTP server port (default: 3000)</td></tr>
+    <tr><td><code>NODE_ENV</code></td><td>No</td><td><code>development</code> | <code>production</code></td></tr>
   </table>
+
+  <h2>Prisma Setup &amp; Deployment</h2>
+  <p>Wau Core uses <strong>Prisma 7</strong> with the <code>@prisma/adapter-pg</code> adapter against PostgreSQL. The schema is split across multiple files under <code>prisma/schema/</code> and migrations are stored in <code>prisma/migrations/</code>. The Prisma config is in <code>prisma.config.ts</code>:</p>
+  <pre>import { defineConfig, env } from 'prisma/config'
+import { config } from 'dotenv'
+import { resolve } from 'path'
+
+config({ path: resolve(__dirname, '.env') })
+
+export default defineConfig({
+  schema: './prisma/schema',
+  migrations: { path: './prisma/migrations' },
+  datasource: { url: env('DATABASE_URL') },
+})</pre>
+
+  <h3>Prerequisites</h3>
+  <ul>
+    <li>PostgreSQL 14+ running and reachable</li>
+    <li>Node.js 20+ and npm</li>
+    <li><code>.env</code> file with a valid <code>DATABASE_URL</code> (copy from <code>.env.example</code>)</li>
+  </ul>
+
+  <h3>Local Development</h3>
+  <pre># Install dependencies (runs prisma generate via postinstall if configured)
+npm install
+
+# Configure your database URL
+cp .env.example .env
+# edit .env -> DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DB_NAME?schema=public
+
+# Apply all migrations to the local database
+npx prisma migrate deploy
+
+# Generate the Prisma client
+npx prisma generate
+
+# Run the dev server
+npm run start:dev</pre>
+
+  <h3>Creating a New Migration</h3>
+  <p>When you change a model in <code>prisma/schema/plugin.prisma</code> (or add a new <code>.prisma</code> file), create a migration with:</p>
+  <pre>npx prisma migrate dev --name &lt;short_description&gt;</pre>
+  <p>This generates a new folder under <code>prisma/migrations/&lt;timestamp&gt;_&lt;name&gt;/</code> containing a single <code>migration.sql</code>. Commit both the schema change and the new migration folder.</p>
+
+  <h3>Production Deployment</h3>
+  <p>Production deploys should never use <code>migrate dev</code> (which is interactive and can drop data). Use <code>migrate deploy</code> instead:</p>
+  <pre># 1. Apply pending migrations (non-interactive, safe for prod / CI)
+npx prisma migrate deploy
+
+# 2. Generate the Prisma client (typically already part of postinstall)
+npx prisma generate
+
+# 3. Build and start
+npm run build
+npm run start:prod</pre>
+
+  <h3>Useful Commands</h3>
+  <table>
+    <tr><th>Command</th><th>Purpose</th></tr>
+    <tr><td><code>npx prisma migrate dev --name &lt;n&gt;</code></td><td>Create + apply a new migration locally</td></tr>
+    <tr><td><code>npx prisma migrate deploy</code></td><td>Apply pending migrations (production / CI)</td></tr>
+    <tr><td><code>npx prisma migrate status</code></td><td>Show which migrations are applied vs. pending</td></tr>
+    <tr><td><code>npx prisma generate</code></td><td>Regenerate the Prisma client</td></tr>
+    <tr><td><code>npx prisma studio</code></td><td>Browse data via local GUI</td></tr>
+    <tr><td><code>npx prisma migrate reset</code></td><td>Drop DB and re-apply all migrations (destructive)</td></tr>
+  </table>
+
+  <div class="note">The core Prisma migrations only manage the <code>plugin_registry</code> and <code>plugin_data</code> tables. Plugin-owned tables are created at <em>plugin install time</em> by <code>PluginSchemaService</code> (from <code>manifest.json</code> schema) and <code>PluginMigrationService</code> (from <code>migrations/*.sql</code>). These two systems are independent and tracked separately in <code>plugin_registry.migrations_applied</code>.</div>
+
+  <h3>Migration History</h3>
+  <p>Migrations currently shipped in this repo (under <code>prisma/migrations/</code>):</p>
+  <ul>
+    <li><code>20260511164328_init</code> — initial <code>plugin_data</code> and <code>plugin_registry</code> tables</li>
+    <li><code>20260519072740_update_plugin_registry</code> — additions to <code>plugin_registry</code></li>
+    <li><code>20260519080440_remove_i18n_keys_from_plugin_registry</code> — i18n keys moved out of the registry</li>
+  </ul>
 
 </body>
 </html>

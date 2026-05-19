@@ -2,6 +2,8 @@
 
 [English](#english-version) | [中文](#中文版本)
 
+<a href="https://www.buymeacoffee.com/mamusum"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=mamusum&button_colour=FFDD00&font_colour=000000&font_family=Bree&outline_colour=000000&coffee_colour=ffffff" /></a>
+
 ---
 
 <a name="english-version"></a>
@@ -51,16 +53,57 @@ In traditional development, every tiny UI adjustment or logic change requires mo
 
 ### 🚀 Quick Start
 
+**Prerequisites**: PostgreSQL 14+ and Node.js 20+.
+
 ```bash
 # 1. Install Core
 npm install
 
-# 2. Start Service
+# 2. Configure environment
+cp .env.example .env
+# Edit .env and set DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DB_NAME?schema=public
+
+# 3. Initialize the database (creates tables defined in prisma/schema/)
+npx prisma migrate deploy
+
+# 4. Generate the Prisma client
+npx prisma generate
+
+# 5. Start Service
 npm run start:dev
 
-# 3. The server starts at http://localhost:3000
+# 6. The server starts at http://localhost:3000
 #    Plugins are stored in ./storage/plugins/
 ```
+
+### 🗄️ Prisma & Database
+
+Wau uses **Prisma 7** with the `pg` adapter against PostgreSQL. The schema lives under `prisma/schema/` and migrations under `prisma/migrations/`.
+
+| Command | Purpose |
+|---------|---------|
+| `npx prisma migrate dev --name <name>` | Create a new migration during development and apply it locally |
+| `npx prisma migrate deploy` | Apply all pending migrations (use in production / CI) |
+| `npx prisma migrate status` | Show migration history vs. database state |
+| `npx prisma generate` | Regenerate the Prisma client after schema changes |
+| `npx prisma studio` | Open a local GUI for browsing data |
+| `npx prisma migrate reset` | ⚠️ Drop the DB and re-apply all migrations (destructive) |
+
+**Production deployment** (no interactive prompts):
+
+```bash
+# 1. Apply pending migrations
+npx prisma migrate deploy
+
+# 2. Generate client (typically already part of postinstall)
+npx prisma generate
+
+# 3. Build and run
+npm run build
+npm run start:prod
+```
+
+> 💡 Two tables ship with the core: `plugin_registry` (installed plugin metadata) and `plugin_data` (KV store for plugin runtime data). Plugins can additionally declare their own tables via `manifest.json` schema or ship `migrations/*.sql` files — those are applied by `PluginSchemaService` / `PluginMigrationService` at install time, independent of the core Prisma migrations above.
 
 ### 🧪 Test with the Sample Plugin
 
@@ -303,16 +346,57 @@ This project is licensed under the [MIT License](LICENSE).
 
 ### 🚀 快速开始
 
+**前置要求**：PostgreSQL 14+ 与 Node.js 20+。
+
 ```bash
 # 1. 安装内核
 npm install
 
-# 2. 启动服务
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env，设置 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DB_NAME?schema=public
+
+# 3. 初始化数据库（创建 prisma/schema/ 中定义的表）
+npx prisma migrate deploy
+
+# 4. 生成 Prisma 客户端
+npx prisma generate
+
+# 5. 启动服务
 npm run start:dev
 
-# 3. 服务器运行在 http://localhost:3000
+# 6. 服务器运行在 http://localhost:3000
 #    插件存储在 ./storage/plugins/
 ```
+
+### 🗄️ Prisma 与数据库
+
+Wau 基于 **Prisma 7**（使用 `pg` 适配器）连接 PostgreSQL。Schema 位于 `prisma/schema/`，迁移文件位于 `prisma/migrations/`。
+
+| 命令 | 用途 |
+|------|------|
+| `npx prisma migrate dev --name <name>` | 开发时创建新的迁移并在本地应用 |
+| `npx prisma migrate deploy` | 应用所有待执行的迁移（生产 / CI 使用） |
+| `npx prisma migrate status` | 查看迁移历史与数据库状态 |
+| `npx prisma generate` | Schema 变更后重新生成 Prisma 客户端 |
+| `npx prisma studio` | 打开本地 GUI 浏览数据 |
+| `npx prisma migrate reset` | ⚠️ 删除数据库并重新应用所有迁移（破坏性） |
+
+**生产部署**（无交互提示）：
+
+```bash
+# 1. 应用待执行的迁移
+npx prisma migrate deploy
+
+# 2. 生成客户端（通常已包含在 postinstall 中）
+npx prisma generate
+
+# 3. 构建并运行
+npm run build
+npm run start:prod
+```
+
+> 💡 核心系统自带两张表：`plugin_registry`（已安装插件元数据）和 `plugin_data`（插件运行时键值数据）。插件还可以通过 `manifest.json` 中的 schema 声明自己的表，或者携带 `migrations/*.sql` 文件 —— 这些会在插件安装时由 `PluginSchemaService` / `PluginMigrationService` 处理，与上述核心 Prisma 迁移相互独立。
 
 ### 🧪 使用示例插件测试
 
