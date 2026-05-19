@@ -1,6 +1,5 @@
 import { NestFactory } from '@nestjs/core';
 import * as path from 'path';
-import { PostgresExceptionFilter } from './common/filters/postgres-exception.filter';
 
 // Store app reference on global so it survives module cache clears during restart
 const g = global as any;
@@ -11,7 +10,8 @@ export async function bootstrap() {
   // Dynamically require AppModule so it picks up fresh code after cache clear
   const { AppModule } = require('./app.module');
   g.__wauApp = await NestFactory.create(AppModule);
-  g.__wauApp.useGlobalFilters(new PostgresExceptionFilter());
+  const { PostgresExceptionFilter } = require('./common/filters/postgres-exception.filter');
+  g.__wauApp.useGlobalFilters(g.__wauApp.get(PostgresExceptionFilter));
   await g.__wauApp.listen(process.env.PORT ?? 3000);
   console.log(`🚀 Server running on port ${process.env.PORT ?? 3000}`);
 }

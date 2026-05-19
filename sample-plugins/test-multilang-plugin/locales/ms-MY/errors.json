@@ -1,0 +1,6 @@
+{
+  "errors": {
+    "not_found": "Sumber '{key}' tidak dijumpai",
+    "invalid_locale": "Bahasa tidak disokong: '{locale}'"
+  }
+}

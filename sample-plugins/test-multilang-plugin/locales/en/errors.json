@@ -1,0 +1,6 @@
+{
+  "errors": {
+    "not_found": "Resource '{key}' not found",
+    "invalid_locale": "Unsupported locale: '{locale}'"
+  }
+}

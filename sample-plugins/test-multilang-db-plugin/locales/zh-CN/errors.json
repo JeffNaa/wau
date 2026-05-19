@@ -1,0 +1,5 @@
+{
+  "not_found": "资源不存在。",
+  "slug_exists": "此别名已存在。",
+  "name_exists": "此名称已存在。"
+}

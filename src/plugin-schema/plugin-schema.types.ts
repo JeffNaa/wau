@@ -12,6 +12,7 @@ export type FieldType =
 
 export interface FieldDef {
   type: FieldType;
+  i18n?: boolean;        // true: store as JSONB with locale keys
   required?: boolean;
   default?: any;
   unique?: boolean;

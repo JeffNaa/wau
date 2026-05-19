@@ -1,0 +1,7 @@
+{
+  "messages": {
+    "welcome": "欢迎来到多语言博客！",
+    "status_ok": "插件运行正常。",
+    "hello": "你好，{name}！"
+  }
+}

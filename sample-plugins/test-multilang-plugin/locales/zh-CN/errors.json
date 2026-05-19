@@ -1,0 +1,6 @@
+{
+  "errors": {
+    "not_found": "资源 '{key}' 未找到",
+    "invalid_locale": "不支持的语言: '{locale}'"
+  }
+}

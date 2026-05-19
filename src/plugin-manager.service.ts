@@ -9,6 +9,7 @@ import { PluginDataService } from './plugin-data/plugin-data.service';
 import { PluginSchemaService } from './plugin-schema/plugin-schema.service';
 import { PluginSchema } from './plugin-schema/plugin-schema.types';
 import { restart } from './bootstrap';
+import { I18nService } from './i18n/i18n.service';
 
 @Injectable()
 export class PluginManagerService implements OnModuleInit {
@@ -17,6 +18,7 @@ export class PluginManagerService implements OnModuleInit {
     private readonly pluginMigration: PluginMigrationService,
     private readonly pluginData: PluginDataService,
     private readonly pluginSchema: PluginSchemaService,
+    private readonly i18n: I18nService,
   ) { }
 
   private readonly registry = new Map<string, any>();
@@ -28,6 +30,33 @@ export class PluginManagerService implements OnModuleInit {
     // Ensure directory exists at startup
     await fs.ensureDir(this.pluginsDir);
     console.log('🚀 Wau Core: Plugin directory initialized at', this.pluginsDir);
+
+    // Register translations for already-installed plugins (server restart scenario)
+    const dirs = await fs.readdir(this.pluginsDir);
+    for (const dir of dirs) {
+      const pluginPath = path.join(this.pluginsDir, dir);
+      const stat = await fs.stat(pluginPath);
+      if (!stat.isDirectory()) continue;
+
+      const manifestPath = path.join(pluginPath, 'manifest.json');
+      let pluginName = dir;
+      let manifest: any = null;
+      if (await fs.pathExists(manifestPath)) {
+        manifest = await fs.readJson(manifestPath);
+        pluginName = manifest.name || dir;
+      }
+
+      const pluginLocalesDir = path.join(pluginPath, 'locales');
+      if (await fs.pathExists(pluginLocalesDir)) {
+        await this.registerPluginTranslations(pluginName, pluginPath);
+      }
+
+      // Re-populate the schema cache so CRUD calls can resolve i18n fields
+      // after a server restart (tables already exist; no DB sync needed).
+      if (manifest?.schema) {
+        this.pluginSchema.registerSchema(pluginName, manifest.schema as PluginSchema);
+      }
+    }
   }
 
   async install(file: Express.Multer.File) {
@@ -40,15 +69,15 @@ export class PluginManagerService implements OnModuleInit {
       console.log(zipEntries[0].entryName);
 
       if (!manifestEntry) {
-        throw new BadRequestException('Invalid Wau Plugin: manifest.json is missing.');
+        throw new BadRequestException(this.i18n.t('errors.plugin.manifest_missing'));
       }
 
       // 2. Parse configuration
       const manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
       const { name, version } = manifest;
 
-      if (!name) throw new BadRequestException('Plugin name is required in manifest.');
-      if (!version) throw new BadRequestException('Plugin version is required in manifest.');
+      if (!name) throw new BadRequestException(this.i18n.t('errors.plugin.name_required'));
+      if (!version) throw new BadRequestException(this.i18n.t('errors.plugin.version_required'));
 
       // 3. Determine installation path
       const targetPath = path.join(this.pluginsDir, name);
@@ -58,11 +87,11 @@ export class PluginManagerService implements OnModuleInit {
       if (dbPlugin) {
         const cmp = this.compareVersions(version, dbPlugin.version);
         if (cmp === 0) {
-          throw new BadRequestException(`Plugin [${name}] v${version} is already installed.`);
+          throw new BadRequestException(this.i18n.t('errors.plugin.already_installed', { name, version }));
         }
         if (cmp < 0) {
           throw new BadRequestException(
-            `Plugin [${name}] v${dbPlugin.version} is installed. Cannot downgrade to v${version}.`
+            this.i18n.t('errors.plugin.cannot_downgrade', { name, installedVersion: dbPlugin.version, version })
           );
         }
         // Higher version: perform update
@@ -75,11 +104,11 @@ export class PluginManagerService implements OnModuleInit {
         const cmp = this.compareVersions(version, installedVersion);
 
         if (cmp === 0) {
-          throw new BadRequestException(`Plugin [${name}] v${version} is already installed.`);
+          throw new BadRequestException(this.i18n.t('errors.plugin.already_installed', { name, version }));
         }
         if (cmp < 0) {
           throw new BadRequestException(
-            `Plugin [${name}] v${installedVersion} is installed. Cannot downgrade to v${version}.`
+            this.i18n.t('errors.plugin.cannot_downgrade', { name, installedVersion, version })
           );
         }
         // Higher version: perform update
@@ -98,7 +127,7 @@ export class PluginManagerService implements OnModuleInit {
       if (conflicts.length > 0) {
         // Rollback extraction
         await fs.remove(targetPath);
-        throw new BadRequestException(`Installation failed: Route conflict detected for controller paths: ${conflicts.join(', ')}`);
+        throw new BadRequestException(this.i18n.t('errors.plugin.route_conflict', { conflicts: conflicts.join(', ') }));
       }
 
       // Apply schema and/or migrations based on what the plugin provides
@@ -119,6 +148,9 @@ export class PluginManagerService implements OnModuleInit {
         }
       }
 
+      // Register plugin translations
+      await this.registerPluginTranslations(name, targetPath);
+
       // Persist to database
       await this.pluginRegistry.create({ name, version, manifest, migrationsApplied });
 
@@ -133,10 +165,10 @@ export class PluginManagerService implements OnModuleInit {
         plugin: name,
         version: version,
         path: targetPath,
-        message: 'Server will restart shortly to load the new plugin.',
+        message: this.i18n.t('messages.plugin.install_success'),
       };
     } catch (error) {
-      throw new BadRequestException(`Installation failed: ${error.message}`);
+      throw new BadRequestException(this.i18n.t('errors.plugin.install_failed', { message: error.message }));
     }
   }
 
@@ -201,21 +233,19 @@ export class PluginManagerService implements OnModuleInit {
 
       const dbPlugin = await this.pluginRegistry.findOne(name);
       if (!dbPlugin && !(await fs.pathExists(targetPath))) {
-        throw new BadRequestException(
-          `Plugin [${name}] is not installed. Use POST /plugins/upload to install it first.`
-        );
+        throw new BadRequestException(this.i18n.t('errors.plugin.not_installed', { name }));
       }
 
       const zip = new AdmZip(file.buffer);
       const manifestEntry = zip.getEntries().find((e) => e.entryName === 'manifest.json');
       if (!manifestEntry) {
-        throw new BadRequestException('Invalid Wau Plugin: manifest.json is missing.');
+        throw new BadRequestException(this.i18n.t('errors.plugin.manifest_missing'));
       }
 
       const manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
       const newVersion = manifest.version;
       if (!newVersion) {
-        throw new BadRequestException('Plugin version is required in manifest.');
+        throw new BadRequestException(this.i18n.t('errors.plugin.version_required'));
       }
 
       const installedVersion = dbPlugin?.version ?? (await fs.readJson(path.join(targetPath, 'manifest.json'))).version;
@@ -223,7 +253,7 @@ export class PluginManagerService implements OnModuleInit {
       const cmp = this.compareVersions(newVersion, installedVersion);
       if (cmp <= 0) {
         throw new BadRequestException(
-          `Update rejected: uploaded version v${newVersion} must be greater than installed v${installedVersion}.`
+          this.i18n.t('errors.plugin.update_version_rejected', { newVersion, installedVersion })
         );
       }
 
@@ -231,6 +261,9 @@ export class PluginManagerService implements OnModuleInit {
       const existingRoutes = (await this.getAllExistingPluginRoutes()).filter(
         (r) => !this.getPluginControllerRoutes(targetPath).includes(r)
       );
+
+      // Unregister old translations
+      this.unregisterPluginTranslations(name);
 
       // Remove old cache and directory
       this.registry.delete(name);
@@ -246,7 +279,7 @@ export class PluginManagerService implements OnModuleInit {
       if (conflicts.length > 0) {
         await fs.remove(targetPath);
         throw new BadRequestException(
-          `Update failed: Route conflict detected for controller paths: ${conflicts.join(', ')}`
+          this.i18n.t('errors.plugin.update_route_conflict', { conflicts: conflicts.join(', ') })
         );
       }
 
@@ -272,6 +305,9 @@ export class PluginManagerService implements OnModuleInit {
         }
       }
 
+      // Register new translations
+      await this.registerPluginTranslations(name, targetPath);
+
       // Persist to database
       await this.pluginRegistry.upsert(name, { version: newVersion, manifest, migrationsApplied });
 
@@ -286,10 +322,26 @@ export class PluginManagerService implements OnModuleInit {
         previousVersion: installedVersion,
         version: newVersion,
         path: targetPath,
-        message: 'Server will restart shortly to apply the update.',
+        message: this.i18n.t('messages.plugin.update_success'),
       };
     } catch (error) {
-      throw new BadRequestException(`Installation failed: ${error.message}`);
+      throw new BadRequestException(this.i18n.t('errors.plugin.install_failed', { message: error.message }));
+    }
+  }
+
+  private async registerPluginTranslations(name: string, targetPath: string): Promise<string[]> {
+    const pluginLocalesDir = path.join(targetPath, 'locales');
+    if (await fs.pathExists(pluginLocalesDir)) {
+      return this.i18n.registerPluginLocale(name, pluginLocalesDir);
+    }
+    return [];
+  }
+
+  private unregisterPluginTranslations(name: string) {
+    try {
+      this.i18n.unregisterPluginLocale(name);
+    } catch {
+      // Gracefully ignore if plugin had no translations registered
     }
   }
 
@@ -312,13 +364,16 @@ export class PluginManagerService implements OnModuleInit {
 
     const dbPlugin = await this.pluginRegistry.findOne(name);
     if (!dbPlugin && !(await fs.pathExists(targetPath))) {
-      throw new BadRequestException(`Plugin [${name}] is not installed.`);
+      throw new BadRequestException(this.i18n.t('errors.plugin.not_installed', { name }));
     }
 
     // 1. Remove from registry
     this.registry.delete(name);
 
-    // 2. Clear require cache for this plugin
+    // 2. Unregister plugin translations
+    this.unregisterPluginTranslations(name);
+
+    // 3. Clear require cache for this plugin
     this.clearRequireCache(targetPath);
 
     // 3. Handle data cleanup
@@ -357,7 +412,7 @@ export class PluginManagerService implements OnModuleInit {
     return {
       success: true,
       plugin: name,
-      message: 'Server will restart shortly to unload the plugin.',
+      message: this.i18n.t('messages.plugin.unload_success'),
     };
   }
 
@@ -380,6 +435,6 @@ export class PluginManagerService implements OnModuleInit {
     if (plugin && typeof plugin[methodName] === 'function') {
       return plugin[methodName](...args);
     }
-    throw new Error(`Method ${methodName} not found on plugin ${pluginName}`);
+    throw new Error(this.i18n.t('errors.plugin.method_not_found', { methodName, pluginName }));
   }
 }
