@@ -305,43 +305,93 @@ graph TB
 }</pre>
 
   <h2>Plugin Format Specification</h2>
-  <p>A valid Wau plugin is a ZIP archive containing:</p>
+  <p>A valid Wau plugin is a ZIP archive. The minimum structure is <code>manifest.json</code> + compiled <code>dist/</code>. Add <code>locales/</code> for i18n and <code>migrations/</code> for SQL migrations:</p>
   <pre>myplugin.zip
-├── manifest.json          # Required
-├── package.json           # Required (peerDependency: @nestjs/common)
-├── tsconfig.json          # Required
-├── index.ts               # Entry point: exports the NestJS Module class
-├── myplugin.module.ts     # NestJS @Module()
-├── myplugin.controller.ts # NestJS @Controller() with routes
-├── myplugin.service.ts    # Injectable services
-└── migrations/            # Optional: SQL migration files (.sql)
-</pre>
+├── manifest.json               # Required — plugin metadata
+├── dist/
+│   └── index.js                # Required — compiled entry point (exports NestJS Module)
+├── locales/                    # Optional — i18n translation files
+│   ├── en/
+│   │   ├── messages.json       # Success / status messages
+│   │   └── errors.json         # Error messages
+│   └── zh-CN/
+│       ├── messages.json
+│       └── errors.json
+└── migrations/                 # Optional — SQL migration files (.sql)
+    └── 20260101000000_init.sql</pre>
+  <p>If <code>dist/</code> is absent, the core falls back to <code>index.js</code> at the ZIP root.</p>
 
   <h3>manifest.json</h3>
+  <p>Required fields: <code>name</code>, <code>version</code>. All others are optional.</p>
   <pre>{
-  "name": "test-plugin",
-  "version": "1.0.1",
-  "description": "Test Plugin",
-  "author": "Jeff",
+  "name": "my-plugin",
+  "version": "1.0.0",
+  "description": "What this plugin does",
+  "author": "Your Name"
+}</pre>
+
+  <p>With i18n support and a JSON schema:</p>
+  <pre>{
+  "name": "my-plugin",
+  "version": "1.0.0",
+  "description": "Multilingual plugin with dynamic tables",
+  "author": "Your Name",
+  "i18n": {
+    "defaultLocale": "en",
+    "locales": ["en", "zh-CN", "ms-MY"],
+    "path": "./locales"
+  },
   "schema": {
-    "products": {
-      "sku": { "type": "string", "required": true, "unique": true },
-      "name": { "type": "string", "required": true },
-      "price": { "type": "decimal", "required": true, "precision": 10, "scale": 2 }
+    "articles": {
+      "title":   { "type": "string", "required": true, "i18n": true },
+      "content": { "type": "text",   "i18n": true },
+      "slug":    { "type": "string", "required": true, "unique": true, "length": 100 },
+      "status":  { "type": "string", "required": true, "default": "draft", "index": true }
     }
   }
 }</pre>
-  <p>Required fields: <code>name</code>, <code>version</code>. Optional: <code>schema</code> (JSON schema for dynamic tables), <code>description</code>, <code>author</code>.</p>
+
+  <table>
+    <tr><th>Field</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>name</code></td><td>Yes</td><td>Unique plugin identifier. Used as the route prefix and table name prefix.</td></tr>
+    <tr><td><code>version</code></td><td>Yes</td><td>Semver string. Install rejects same-version or downgrade uploads.</td></tr>
+    <tr><td><code>description</code></td><td>No</td><td>Human-readable description.</td></tr>
+    <tr><td><code>author</code></td><td>No</td><td>Author name.</td></tr>
+    <tr><td><code>i18n</code></td><td>No</td><td>Declares i18n support. <code>defaultLocale</code>, <code>locales</code> (array), <code>path</code> (relative to ZIP root, default <code>./locales</code>).</td></tr>
+    <tr><td><code>schema</code></td><td>No</td><td>JSON schema for dynamic table creation via <code>PluginSchemaService</code>.</td></tr>
+  </table>
+
+  <h3>i18n (Translations)</h3>
+  <p>If the extracted plugin contains a <code>locales/</code> directory, the core automatically calls <code>I18nService.registerPluginLocale()</code> at install/update time and <code>unregisterPluginLocale()</code> on uninstall.</p>
+  <p>Locale files are plain JSON under <code>locales/{locale}/{file}.json</code>. Two layouts are supported:</p>
+  <pre>// Flat layout — locales/en/messages.json
+{
+  "welcome": "Welcome!",
+  "created": "Record created."
+}
+
+// Wrapped layout — locales/en/messages.json
+// (sole top-level key matches filename, so it is auto-unwrapped)
+{
+  "messages": {
+    "welcome": "Welcome!",
+    "created": "Record created."
+  }
+}</pre>
+  <p>Both are accessible in the plugin as <code>i18n.tPlugin(pluginName, 'messages.welcome')</code> or from core code as <code>i18n.t('{pluginName}.messages.welcome')</code>. Placeholder interpolation uses <code>{key}</code> syntax: <code>i18n.tPlugin(name, 'messages.hello', { name: 'Alice' })</code>.</p>
 
   <h3>JSON Schema</h3>
-  <p>Plugins can declare a <code>schema</code> object in <code>manifest.json</code> to have the core automatically create PostgreSQL tables. Table names are prefixed <code>plugin_{name}_{model}</code>. Each field supports <code>type</code>, <code>required</code>, <code>default</code>, <code>unique</code>, <code>index</code>, <code>primary</code>, <code>length</code>, <code>precision</code>, <code>scale</code>.</p>
+  <p>Declare a <code>schema</code> object in <code>manifest.json</code> to have <code>PluginSchemaService</code> automatically create and sync PostgreSQL tables. Table names are prefixed <code>plugin_{name}_{model}</code>. Supported field types: <code>string</code>, <code>int</code>, <code>bigint</code>, <code>float</code>, <code>decimal</code>, <code>boolean</code>, <code>date</code>, <code>timestamp</code>, <code>json</code>, <code>text</code>.</p>
+  <p>Add <code>"i18n": true</code> to any field to store it as a JSONB locale map (<code>{"en":"Hello","zh-CN":"你好"}</code>). Reads via <code>find()</code> / <code>findOne()</code> automatically return the flattened value for the request locale.</p>
 
   <h3>SQL Migrations</h3>
-  <p>Plugins can include a <code>migrations/</code> directory with <code>.sql</code> files. Files are executed in alphabetical order on install/update and tracked in <code>plugin_registry.migrations_applied</code>. On uninstall, tables prefixed <code>plugin_{name}_*</code> are dropped automatically.</p>
+  <p>Plugins can include a <code>migrations/</code> directory with <code>.sql</code> files named with a sortable timestamp prefix (e.g. <code>20260101000000_create_table.sql</code>). Files are executed in alphabetical order on install/update. Applied filenames are tracked in <code>plugin_registry.migrations_applied</code> to prevent re-runs. On uninstall, tables prefixed <code>plugin_{name}_*</code> are dropped automatically.</p>
 
   <h3>Built Output</h3>
-  <p>After TypeScript compilation, the plugin should expose <code>dist/index.js</code> as its entry point; if <code>dist/</code> is absent, it falls back to root-level <code>index.js</code>. This file must export the NestJS module class:</p>
-  <pre>export { TestPluginModule } from './test-plugin.module';</pre>
+  <p>Compile TypeScript to <code>dist/</code> and export the NestJS module class from the entry point:</p>
+  <pre>// dist/index.js  (compiled from index.ts)
+export { MyPluginModule } from './src/my-plugin.module';</pre>
+  <p>The ZIP should contain <code>manifest.json</code>, <code>dist/</code>, and optionally <code>locales/</code> and <code>migrations/</code>. Do <strong>not</strong> include TypeScript source, <code>node_modules</code>, or build config files.</p>
 
   <h2>PluginRegistry Database Migration</h2>
 

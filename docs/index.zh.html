@@ -304,43 +304,93 @@ graph TB
 }</pre>
 
   <h2>插件格式规范</h2>
-  <p>一个有效的 Wau 插件是一个 ZIP 压缩包，包含以下结构：</p>
+  <p>一个有效的 Wau 插件是一个 ZIP 压缩包。最小结构为 <code>manifest.json</code> + 编译后的 <code>dist/</code>。可选添加 <code>locales/</code> 支持 i18n，或 <code>migrations/</code> 支持 SQL 迁移：</p>
   <pre>myplugin.zip
-├── manifest.json          # 必需
-├── package.json           # 必需（peerDependency: @nestjs/common）
-├── tsconfig.json          # 必需
-├── index.ts               # 入口文件：导出 NestJS 模块类
-├── myplugin.module.ts     # NestJS @Module()
-├── myplugin.controller.ts # NestJS @Controller() 路由
-├── myplugin.service.ts    # 可注入服务
-└── migrations/            # 可选：SQL 迁移文件（.sql）
-</pre>
+├── manifest.json               # 必需 — 插件元数据
+├── dist/
+│   └── index.js                # 必需 — 编译后入口文件（导出 NestJS 模块）
+├── locales/                    # 可选 — i18n 翻译文件
+│   ├── en/
+│   │   ├── messages.json       # 成功 / 状态消息
+│   │   └── errors.json         # 错误消息
+│   └── zh-CN/
+│       ├── messages.json
+│       └── errors.json
+└── migrations/                 # 可选 — SQL 迁移文件
+    └── 20260101000000_init.sql</pre>
+  <p>若不存在 <code>dist/</code>，核心回退到 ZIP 根目录的 <code>index.js</code>。</p>
 
   <h3>manifest.json</h3>
+  <p>必需字段：<code>name</code>、<code>version</code>。其余均为可选。</p>
   <pre>{
-  "name": "test-plugin",
-  "version": "1.0.1",
-  "description": "Test Plugin",
-  "author": "Jeff",
+  "name": "my-plugin",
+  "version": "1.0.0",
+  "description": "插件描述",
+  "author": "作者名称"
+}</pre>
+
+  <p>带 i18n 支持与 JSON schema 的完整示例：</p>
+  <pre>{
+  "name": "my-plugin",
+  "version": "1.0.0",
+  "description": "多语言插件，含动态数据表",
+  "author": "作者名称",
+  "i18n": {
+    "defaultLocale": "en",
+    "locales": ["en", "zh-CN", "ms-MY"],
+    "path": "./locales"
+  },
   "schema": {
-    "products": {
-      "sku": { "type": "string", "required": true, "unique": true },
-      "name": { "type": "string", "required": true },
-      "price": { "type": "decimal", "required": true, "precision": 10, "scale": 2 }
+    "articles": {
+      "title":   { "type": "string", "required": true, "i18n": true },
+      "content": { "type": "text",   "i18n": true },
+      "slug":    { "type": "string", "required": true, "unique": true, "length": 100 },
+      "status":  { "type": "string", "required": true, "default": "draft", "index": true }
     }
   }
 }</pre>
-  <p>必需字段：<code>name</code>、<code>version</code>。可选字段：<code>schema</code>（JSON schema 动态建表）、<code>description</code>、<code>author</code>。</p>
+
+  <table>
+    <tr><th>字段</th><th>必需</th><th>说明</th></tr>
+    <tr><td><code>name</code></td><td>是</td><td>插件唯一标识符，用作路由前缀和表名前缀。</td></tr>
+    <tr><td><code>version</code></td><td>是</td><td>语义化版本号。安装时拒绝相同版本或降级上传。</td></tr>
+    <tr><td><code>description</code></td><td>否</td><td>可读描述。</td></tr>
+    <tr><td><code>author</code></td><td>否</td><td>作者名称。</td></tr>
+    <tr><td><code>i18n</code></td><td>否</td><td>声明 i18n 支持。<code>defaultLocale</code>、<code>locales</code>（数组）、<code>path</code>（相对 ZIP 根目录，默认 <code>./locales</code>）。</td></tr>
+    <tr><td><code>schema</code></td><td>否</td><td>JSON schema，用于通过 <code>PluginSchemaService</code> 动态建表。</td></tr>
+  </table>
+
+  <h3>i18n（多语言翻译）</h3>
+  <p>若解压后的插件包含 <code>locales/</code> 目录，核心会在安装/更新时自动调用 <code>I18nService.registerPluginLocale()</code>，在卸载时调用 <code>unregisterPluginLocale()</code>。</p>
+  <p>Locale 文件为纯 JSON，路径格式为 <code>locales/{locale}/{file}.json</code>。支持两种布局：</p>
+  <pre>// 平铺布局 — locales/zh-CN/messages.json
+{
+  "welcome": "欢迎！",
+  "created": "创建成功。"
+}
+
+// 包裹布局 — locales/zh-CN/messages.json
+// （唯一顶层 key 与文件名一致时自动展开）
+{
+  "messages": {
+    "welcome": "欢迎！",
+    "created": "创建成功。"
+  }
+}</pre>
+  <p>两种方式均可通过 <code>i18n.tPlugin(pluginName, 'messages.welcome')</code> 访问，或从核心代码使用 <code>i18n.t('{pluginName}.messages.welcome')</code>。占位符插值使用 <code>{key}</code> 语法：<code>i18n.tPlugin(name, 'messages.hello', { name: 'Alice' })</code>。</p>
 
   <h3>JSON Schema</h3>
-  <p>插件可在 <code>manifest.json</code> 中声明 <code>schema</code> 对象，由核心自动创建 PostgreSQL 表。表名前缀为 <code>plugin_{name}_{model}</code>。每个字段支持 <code>type</code>、<code>required</code>、<code>default</code>、<code>unique</code>、<code>index</code>、<code>primary</code>、<code>length</code>、<code>precision</code>、<code>scale</code>。</p>
+  <p>在 <code>manifest.json</code> 中声明 <code>schema</code> 对象，由 <code>PluginSchemaService</code> 自动创建并同步 PostgreSQL 表。表名前缀为 <code>plugin_{name}_{model}</code>。支持字段类型：<code>string</code>、<code>int</code>、<code>bigint</code>、<code>float</code>、<code>decimal</code>、<code>boolean</code>、<code>date</code>、<code>timestamp</code>、<code>json</code>、<code>text</code>。</p>
+  <p>在任意字段上添加 <code>"i18n": true</code> 可将其存储为 JSONB locale 映射（<code>{"en":"Hello","zh-CN":"你好"}</code>）。通过 <code>find()</code> / <code>findOne()</code> 读取时，自动返回当前请求 locale 对应的扁平值。</p>
 
   <h3>SQL 迁移</h3>
-  <p>插件可包含 <code>migrations/</code> 目录存放 <code>.sql</code> 文件。安装/更新时按字母顺序执行，执行记录在 <code>plugin_registry.migrations_applied</code> 中。卸载时自动删除前缀为 <code>plugin_{name}_*</code> 的表。</p>
+  <p>插件可包含 <code>migrations/</code> 目录，存放以可排序时间戳前缀命名的 <code>.sql</code> 文件（如 <code>20260101000000_create_table.sql</code>）。安装/更新时按字母顺序执行，执行记录在 <code>plugin_registry.migrations_applied</code> 中防止重复执行。卸载时自动删除前缀为 <code>plugin_{name}_*</code> 的表。</p>
 
   <h3>构建输出</h3>
-  <p>TypeScript 编译后，插件优先暴露 <code>dist/index.js</code> 作为入口文件；若 <code>dist/</code> 目录不存在，则回退到根目录的 <code>index.js</code>。该文件必须导出 NestJS 模块类：</p>
-  <pre>export { TestPluginModule } from './test-plugin.module';</pre>
+  <p>将 TypeScript 编译到 <code>dist/</code>，并从入口文件导出 NestJS 模块类：</p>
+  <pre>// dist/index.js（由 index.ts 编译生成）
+export { MyPluginModule } from './src/my-plugin.module';</pre>
+  <p>ZIP 中应包含 <code>manifest.json</code>、<code>dist/</code>，以及可选的 <code>locales/</code> 和 <code>migrations/</code>。<strong>不要</strong>打包 TypeScript 源文件、<code>node_modules</code> 或构建配置文件。</p>
 
   <h2>PluginRegistry 数据库迁移</h2>
 
