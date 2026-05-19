@@ -1,0 +1,5 @@
+{
+  "not_found": "Resource not found.",
+  "slug_exists": "This slug already exists.",
+  "name_exists": "This name already exists."
+}

@@ -1,12 +1,30 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { I18nService } from '../i18n/i18n.service';
+import { DEFAULT_LOCALE } from '../i18n/i18n.constant';
 import { FieldDef, FieldType, PluginSchema, SchemaDef, WhereClause } from './plugin-schema.types';
 
 @Injectable()
 export class PluginSchemaService {
   private readonly logger = new Logger(PluginSchemaService.name);
+  private readonly schemas = new Map<string, PluginSchema>();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly i18n: I18nService,
+  ) {}
+
+  /**
+   * Cache a plugin's schema so subsequent CRUD calls can resolve i18n fields
+   * without the caller having to pass it explicitly.
+   */
+  registerSchema(pluginName: string, schema: PluginSchema): void {
+    this.schemas.set(pluginName, schema);
+  }
+
+  unregisterSchema(pluginName: string): void {
+    this.schemas.delete(pluginName);
+  }
 
   private normalizeName(name: string): string {
     return name.replace(/-/g, '_');
@@ -17,6 +35,9 @@ export class PluginSchemaService {
   }
 
   private mapTypeToSql(field: FieldDef): string {
+    if (field.i18n) {
+      return 'JSONB';
+    }
     switch (field.type) {
       case 'string':
         return field.length ? `VARCHAR(${field.length})` : 'TEXT';
@@ -49,11 +70,44 @@ export class PluginSchemaService {
     if (typeof field.default === 'boolean') return field.default ? 'TRUE' : 'FALSE';
     if (typeof field.default === 'number') return String(field.default);
     if (typeof field.default === 'string') {
-      // JSON default values like '[]' or '{}'
       if (field.type === 'json') return `'${field.default}'`;
+      if (field.i18n) return `'{"${DEFAULT_LOCALE}":"${field.default.replace(/"/g, '\\"')}"}'`;
       return `'${field.default.replace(/'/g, "''")}'`;
     }
     return undefined;
+  }
+
+  /**
+   * Resolve a JSONB i18n value to a single locale string.
+   */
+  resolveI18nValue(jsonb: any, locale: string = this.i18n.getLocale()): any {
+    if (jsonb === null || jsonb === undefined) return undefined;
+    if (typeof jsonb !== 'object' || Array.isArray(jsonb)) return jsonb;
+
+    const val = jsonb[locale];
+    if (val !== undefined && val !== null) return val;
+
+    const fallback = jsonb[DEFAULT_LOCALE];
+    if (fallback !== undefined && fallback !== null) return fallback;
+
+    const firstKey = Object.keys(jsonb).find((k) => jsonb[k] !== undefined && jsonb[k] !== null);
+    if (firstKey !== undefined) return jsonb[firstKey];
+
+    return undefined;
+  }
+
+  /**
+   * Flatten i18n fields in a row object to single locale values.
+   */
+  private flattenRow(row: Record<string, any>, i18nFields: Set<string>): Record<string, any> {
+    const result = { ...row };
+    const locale = this.i18n.getLocale();
+    for (const field of i18nFields) {
+      if (result[field] !== undefined) {
+        result[field] = this.resolveI18nValue(result[field], locale);
+      }
+    }
+    return result;
   }
 
   /**
@@ -78,12 +132,24 @@ export class PluginSchemaService {
           parts.push(`DEFAULT ${def}`);
         }
         if (field.unique) {
-          constraints.push(`CONSTRAINT "${tableName}_${fieldName}_uniq" UNIQUE ("${fieldName}")`);
+          if (field.i18n) {
+            indexes.push(
+              `CREATE UNIQUE INDEX IF NOT EXISTS "${tableName}_${fieldName}_uniq" ON "${tableName}" (("${fieldName}"->>'${DEFAULT_LOCALE}'));`,
+            );
+          } else {
+            constraints.push(`CONSTRAINT "${tableName}_${fieldName}_uniq" UNIQUE ("${fieldName}")`);
+          }
         }
         if (field.index) {
-          indexes.push(
-            `CREATE INDEX IF NOT EXISTS "${tableName}_${fieldName}_idx" ON "${tableName}"("${fieldName}");`,
-          );
+          if (field.i18n) {
+            indexes.push(
+              `CREATE INDEX IF NOT EXISTS "${tableName}_${fieldName}_idx" ON "${tableName}" USING GIN ("${fieldName}");`,
+            );
+          } else {
+            indexes.push(
+              `CREATE INDEX IF NOT EXISTS "${tableName}_${fieldName}_idx" ON "${tableName}"("${fieldName}");`,
+            );
+          }
         }
       }
 
@@ -130,6 +196,7 @@ export class PluginSchemaService {
    * Sync schema for a plugin. Creates tables or adds new columns.
    */
   async syncSchema(pluginName: string, schema: PluginSchema): Promise<void> {
+    this.registerSchema(pluginName, schema);
     for (const [modelName, modelSchema] of Object.entries(schema)) {
       const tableName = this.getTableName(pluginName, modelName);
 
@@ -152,6 +219,20 @@ export class PluginSchemaService {
             this.logger.log(`Adding column [${fieldName}] to table [${tableName}]...`);
             await this.prisma.query(alterSql);
             this.logger.log(`Column [${fieldName}] added.`);
+
+            // Add unique/index for new i18n columns if needed
+            if (fieldDef.i18n) {
+              if (fieldDef.unique) {
+                await this.prisma.query(
+                  `CREATE UNIQUE INDEX IF NOT EXISTS "${tableName}_${fieldName}_uniq" ON "${tableName}" (("${fieldName}"->>'${DEFAULT_LOCALE}'));`,
+                );
+              }
+              if (fieldDef.index) {
+                await this.prisma.query(
+                  `CREATE INDEX IF NOT EXISTS "${tableName}_${fieldName}_idx" ON "${tableName}" USING GIN ("${fieldName}");`,
+                );
+              }
+            }
           }
         }
 
@@ -179,12 +260,54 @@ export class PluginSchemaService {
       this.logger.log(`Dropping table [${tableName}]...`);
       await this.prisma.query(`DROP TABLE IF EXISTS "${tableName}" CASCADE`);
     }
+    this.unregisterSchema(pluginName);
+  }
+
+  private getI18nFields(schema: SchemaDef): Set<string> {
+    const fields = new Set<string>();
+    for (const [name, def] of Object.entries(schema)) {
+      if (def.i18n) fields.add(name);
+    }
+    return fields;
+  }
+
+  /**
+   * Wrap a value for an i18n field: string becomes {locale: value}, object stored as-is.
+   */
+  private wrapI18nValue(value: any, locale: string): any {
+    if (value === null || value === undefined) return value;
+    if (typeof value === 'string') {
+      return { [locale]: value };
+    }
+    return value;
+  }
+
+  /**
+   * Merge a new i18n value into the existing JSONB object, mirroring the KV
+   * (PluginDataService) behavior: wrap strings to {locale: value}, then merge
+   * with old. Returns the value to store.
+   */
+  private mergeI18nValue(oldValue: any, newValue: any, locale: string): any {
+    const wrapped = this.wrapI18nValue(newValue, locale);
+    if (wrapped !== null && typeof wrapped === 'object' && !Array.isArray(wrapped)) {
+      const oldObj =
+        oldValue !== null && typeof oldValue === 'object' && !Array.isArray(oldValue)
+          ? oldValue
+          : {};
+      return { ...oldObj, ...wrapped };
+    }
+    return wrapped;
   }
 
   /**
    * Build WHERE clause SQL and parameters.
    */
-  private buildWhere(tableName: string, where?: WhereClause): { clause: string; params: any[] } {
+  private buildWhere(
+    tableName: string,
+    where?: WhereClause,
+    i18nFields?: Set<string>,
+    locale?: string,
+  ): { clause: string; params: any[] } {
     if (!where || Object.keys(where).length === 0) {
       return { clause: '', params: [] };
     }
@@ -193,43 +316,46 @@ export class PluginSchemaService {
     let idx = 1;
 
     for (const [key, value] of Object.entries(where)) {
+      const isI18n = i18nFields?.has(key);
+      const columnRef = isI18n ? `"${key}"->>'${locale ?? DEFAULT_LOCALE}'` : `"${key}"`;
+
       if (value === null || value === undefined) {
-        conditions.push(`"${key}" IS NULL`);
+        conditions.push(`${columnRef} IS NULL`);
       } else if (Array.isArray(value)) {
-        conditions.push(`"${key}" IN (${value.map(() => `$${idx++}`).join(', ')})`);
+        conditions.push(`${columnRef} IN (${value.map(() => `$${idx++}`).join(', ')})`);
         params.push(...value);
       } else if (typeof value === 'object' && value !== null) {
         // Support operators: $gt, $gte, $lt, $lte, $ne, $like
         for (const [op, opVal] of Object.entries(value)) {
           switch (op) {
             case '$gt':
-              conditions.push(`"${key}" > $${idx++}`);
+              conditions.push(`${columnRef} > $${idx++}`);
               params.push(opVal);
               break;
             case '$gte':
-              conditions.push(`"${key}" >= $${idx++}`);
+              conditions.push(`${columnRef} >= $${idx++}`);
               params.push(opVal);
               break;
             case '$lt':
-              conditions.push(`"${key}" < $${idx++}`);
+              conditions.push(`${columnRef} < $${idx++}`);
               params.push(opVal);
               break;
             case '$lte':
-              conditions.push(`"${key}" <= $${idx++}`);
+              conditions.push(`${columnRef} <= $${idx++}`);
               params.push(opVal);
               break;
             case '$ne':
-              conditions.push(`"${key}" <> $${idx++}`);
+              conditions.push(`${columnRef} <> $${idx++}`);
               params.push(opVal);
               break;
             case '$like':
-              conditions.push(`"${key}" LIKE $${idx++}`);
+              conditions.push(`${columnRef} LIKE $${idx++}`);
               params.push(opVal);
               break;
           }
         }
       } else {
-        conditions.push(`"${key}" = $${idx++}`);
+        conditions.push(`${columnRef} = $${idx++}`);
         params.push(value);
       }
     }
@@ -240,21 +366,43 @@ export class PluginSchemaService {
   // ========== CRUD Operations ==========
 
   private normalizeValues(values: any[]): any[] {
+    // Pass objects (including Date, JSONB) directly to pg — it handles serialization natively.
+    // Do NOT pre-stringify: pg sends objects as JSONB with correct type OID.
     return values.map((v) => {
       if (v === null || v === undefined) return v;
-      if (typeof v === 'object') return JSON.stringify(v);
       return v;
     });
   }
 
-  async create(pluginName: string, modelName: string, data: Record<string, any>): Promise<any> {
+  private getModelSchema(pluginName: string, modelName: string, schema?: PluginSchema): SchemaDef | undefined {
+    if (schema) return schema[modelName];
+    const cached = this.schemas.get(pluginName);
+    return cached ? cached[modelName] : undefined;
+  }
+
+  async create(
+    pluginName: string,
+    modelName: string,
+    data: Record<string, any>,
+    schema?: PluginSchema,
+  ): Promise<any> {
     const tableName = this.getTableName(pluginName, modelName);
-    const keys = Object.keys(data);
-    const values = this.normalizeValues(Object.values(data));
+    const modelSchema = this.getModelSchema(pluginName, modelName, schema);
+    const i18nFields = modelSchema ? this.getI18nFields(modelSchema) : new Set<string>();
+    const locale = this.i18n.getLocale();
+
+    const processedData: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      processedData[key] = i18nFields.has(key) ? this.wrapI18nValue(value, locale) : value;
+    }
+
+    const keys = Object.keys(processedData);
+    const values = this.normalizeValues(Object.values(processedData));
     const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
 
     const sql = `INSERT INTO "${tableName}" (${keys.map((k) => `"${k}"`).join(', ')}) VALUES (${placeholders}) RETURNING *`;
     const result = await this.prisma.query(sql, values);
+    // Return the raw row (all locales in JSONB) to match KV (PluginDataService.set) behavior.
     return result.rows[0];
   }
 
@@ -266,15 +414,25 @@ export class PluginSchemaService {
       orderBy?: { field: string; direction?: 'asc' | 'desc' };
       limit?: number;
       offset?: number;
+      lang?: string;
     },
+    schema?: PluginSchema,
   ): Promise<any[]> {
     const tableName = this.getTableName(pluginName, modelName);
-    const { clause, params } = this.buildWhere(tableName, options?.where);
+    const modelSchema = this.getModelSchema(pluginName, modelName, schema);
+    const i18nFields = modelSchema ? this.getI18nFields(modelSchema) : new Set<string>();
+    const locale = options?.lang ?? this.i18n.getLocale();
+
+    const { clause, params } = this.buildWhere(tableName, options?.where, i18nFields, locale);
 
     let sql = `SELECT * FROM "${tableName}" ${clause}`;
 
     if (options?.orderBy) {
-      sql += ` ORDER BY "${options.orderBy.field}" ${options.orderBy.direction?.toUpperCase() ?? 'ASC'}`;
+      const isI18nOrder = i18nFields.has(options.orderBy.field);
+      const orderCol = isI18nOrder
+        ? `"${options.orderBy.field}"->>'${locale}'`
+        : `"${options.orderBy.field}"`;
+      sql += ` ORDER BY ${orderCol} ${options.orderBy.direction?.toUpperCase() ?? 'ASC'}`;
     }
     if (options?.limit) {
       sql += ` LIMIT ${options.limit}`;
@@ -284,15 +442,19 @@ export class PluginSchemaService {
     }
 
     const result = await this.prisma.query(sql, params);
-    return result.rows;
+    return modelSchema
+      ? result.rows.map((row: any) => this.flattenRow(row, i18nFields))
+      : result.rows;
   }
 
   async findOne(
     pluginName: string,
     modelName: string,
     where?: WhereClause,
+    schema?: PluginSchema,
+    lang?: string,
   ): Promise<any | null> {
-    const rows = await this.find(pluginName, modelName, { where, limit: 1 });
+    const rows = await this.find(pluginName, modelName, { where, limit: 1, lang }, schema);
     return rows[0] ?? null;
   }
 
@@ -301,8 +463,34 @@ export class PluginSchemaService {
     modelName: string,
     where: WhereClause,
     data: Record<string, any>,
+    schema?: PluginSchema,
   ): Promise<any[]> {
     const tableName = this.getTableName(pluginName, modelName);
+    const modelSchema = this.getModelSchema(pluginName, modelName, schema);
+    const i18nFields = modelSchema ? this.getI18nFields(modelSchema) : new Set<string>();
+    const locale = this.i18n.getLocale();
+
+    // For i18n fields, merge with the EXISTING JSONB (not the flattened row that
+    // `find` returns — spreading a string old value would yield {0:'F', 1:'i', ...}).
+    const i18nKeysToMerge = Object.keys(data).filter((k) => i18nFields.has(k));
+    if (i18nKeysToMerge.length > 0) {
+      const { clause: rawClause, params: rawParams } = this.buildWhere(
+        tableName,
+        where,
+        i18nFields,
+        locale,
+      );
+      const rawResult = await this.prisma.query(
+        `SELECT ${i18nKeysToMerge.map((k) => `"${k}"`).join(', ')} FROM "${tableName}" ${rawClause} LIMIT 1`,
+        rawParams,
+      );
+      const existing = rawResult.rows[0];
+      for (const key of i18nKeysToMerge) {
+        const oldValue = existing ? existing[key] : undefined;
+        data[key] = this.mergeI18nValue(oldValue, data[key], locale);
+      }
+    }
+
     const keys = Object.keys(data);
     const values = this.normalizeValues(Object.values(data));
 
@@ -315,7 +503,7 @@ export class PluginSchemaService {
 
     const setClause = setParts.join(', ');
 
-    const { clause, params: whereParams } = this.buildWhere(tableName, where);
+    const { clause, params: whereParams } = this.buildWhere(tableName, where, i18nFields, locale);
     const allParams = [...values, ...whereParams];
     const offset = values.length;
     const adjustedClause = clause
@@ -324,6 +512,7 @@ export class PluginSchemaService {
 
     const sql = `UPDATE "${tableName}" SET ${setClause} ${adjustedClause} RETURNING *`;
     const result = await this.prisma.query(sql, allParams);
+    // Return raw rows (all locales in JSONB) to match KV behavior.
     return result.rows;
   }
 

@@ -40,14 +40,21 @@ export class PluginManagerService implements OnModuleInit {
 
       const manifestPath = path.join(pluginPath, 'manifest.json');
       let pluginName = dir;
+      let manifest: any = null;
       if (await fs.pathExists(manifestPath)) {
-        const manifest = await fs.readJson(manifestPath);
+        manifest = await fs.readJson(manifestPath);
         pluginName = manifest.name || dir;
       }
 
       const pluginLocalesDir = path.join(pluginPath, 'locales');
       if (await fs.pathExists(pluginLocalesDir)) {
         await this.registerPluginTranslations(pluginName, pluginPath);
+      }
+
+      // Re-populate the schema cache so CRUD calls can resolve i18n fields
+      // after a server restart (tables already exist; no DB sync needed).
+      if (manifest?.schema) {
+        this.pluginSchema.registerSchema(pluginName, manifest.schema as PluginSchema);
       }
     }
   }

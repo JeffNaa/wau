@@ -54,7 +54,8 @@ export class I18nService {
 
       for (const file of files) {
         const content: Record<string, any> = fs.readJsonSync(path.join(localePath, file));
-        this.mergeWithPrefix(pluginName, locale, content, '', registeredKeys);
+        const prefix = file.replace(/\.json$/i, '');
+        this.mergeWithPrefix(pluginName, locale, content, prefix, registeredKeys);
       }
     }
 
@@ -78,28 +79,49 @@ export class I18nService {
     }
     const pluginTarget = target[pluginName];
 
-    for (const [key, value] of Object.entries(obj)) {
-      const fullKey = prefix ? `${prefix}.${key}` : key;
-      const namespacedKey = `${pluginName}.${fullKey}`;
+    // Accept both flat (`{welcome: "..."}`) and pre-wrapped (`{messages: {welcome: "..."}}`)
+    // file layouts: if the file's sole top-level key matches its filename prefix, unwrap it
+    // so we don't end up with `plugin.messages.messages.welcome`.
+    let content = obj;
+    if (
+      prefix &&
+      obj[prefix] !== undefined &&
+      obj[prefix] !== null &&
+      typeof obj[prefix] === 'object' &&
+      !Array.isArray(obj[prefix]) &&
+      Object.keys(obj).length === 1
+    ) {
+      content = obj[prefix];
+    }
 
-      let nestedTarget = pluginTarget;
-      const parts = prefix ? prefix.split('.') : [];
-      for (const part of parts) {
-        if (!nestedTarget[part]) {
-          nestedTarget[part] = {};
-        }
-        nestedTarget = nestedTarget[part];
+    if (prefix) {
+      if (!pluginTarget[prefix] || typeof pluginTarget[prefix] !== 'object' || Array.isArray(pluginTarget[prefix])) {
+        pluginTarget[prefix] = {};
       }
+    }
+    const root = prefix ? pluginTarget[prefix] : pluginTarget;
+    const keyPrefix = `${pluginName}${prefix ? `.${prefix}` : ''}`;
 
-      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-        if (!nestedTarget[key]) {
-          nestedTarget[key] = {};
+    this.deepMergeAndCollect(content, root, keyPrefix, keys);
+  }
+
+  private deepMergeAndCollect(
+    source: Record<string, any>,
+    target: Record<string, any>,
+    keyPrefix: string,
+    keys: string[],
+  ) {
+    for (const [k, v] of Object.entries(source)) {
+      const fullKey = `${keyPrefix}.${k}`;
+      if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+        if (!target[k] || typeof target[k] !== 'object' || Array.isArray(target[k])) {
+          target[k] = {};
         }
-        this.mergeWithPrefix(pluginName, locale, value, fullKey, keys);
+        this.deepMergeAndCollect(v, target[k], fullKey, keys);
       } else {
-        nestedTarget[key] = value;
-        if (!keys.includes(namespacedKey)) {
-          keys.push(namespacedKey);
+        target[k] = v;
+        if (!keys.includes(fullKey)) {
+          keys.push(fullKey);
         }
       }
     }
