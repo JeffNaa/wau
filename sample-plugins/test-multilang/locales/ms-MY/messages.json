@@ -1,0 +1,7 @@
+{
+  "messages": {
+    "welcome": "Selamat datang ke blog dwibahasa!",
+    "status_ok": "Plugin berjalan dengan normal.",
+    "hello": "Hai, {name}!"
+  }
+}

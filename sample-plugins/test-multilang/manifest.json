@@ -1,0 +1,11 @@
+{
+  "name": "test-multilang",
+  "version": "1.0.0",
+  "description": "Multilingual Sample Plugin for i18n Demo",
+  "author": "Jeff",
+  "i18n": {
+    "defaultLocale": "en",
+    "locales": ["en", "zh-CN", "ms-MY"],
+    "path": "./locales"
+  }
+}

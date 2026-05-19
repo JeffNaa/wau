@@ -1,0 +1,7 @@
+{
+  "messages": {
+    "welcome": "Welcome to the multilingual blog!",
+    "status_ok": "Plugin is running normally.",
+    "hello": "Hello, {name}!"
+  }
+}

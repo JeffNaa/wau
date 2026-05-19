@@ -30,6 +30,26 @@ export class PluginManagerService implements OnModuleInit {
     // Ensure directory exists at startup
     await fs.ensureDir(this.pluginsDir);
     console.log('🚀 Wau Core: Plugin directory initialized at', this.pluginsDir);
+
+    // Register translations for already-installed plugins (server restart scenario)
+    const dirs = await fs.readdir(this.pluginsDir);
+    for (const dir of dirs) {
+      const pluginPath = path.join(this.pluginsDir, dir);
+      const stat = await fs.stat(pluginPath);
+      if (!stat.isDirectory()) continue;
+
+      const manifestPath = path.join(pluginPath, 'manifest.json');
+      let pluginName = dir;
+      if (await fs.pathExists(manifestPath)) {
+        const manifest = await fs.readJson(manifestPath);
+        pluginName = manifest.name || dir;
+      }
+
+      const pluginLocalesDir = path.join(pluginPath, 'locales');
+      if (await fs.pathExists(pluginLocalesDir)) {
+        await this.registerPluginTranslations(pluginName, pluginPath);
+      }
+    }
   }
 
   async install(file: Express.Multer.File) {
@@ -120,6 +140,9 @@ export class PluginManagerService implements OnModuleInit {
           migrationsApplied = applied;
         }
       }
+
+      // Register plugin translations
+      await this.registerPluginTranslations(name, targetPath);
 
       // Persist to database
       await this.pluginRegistry.create({ name, version, manifest, migrationsApplied });
@@ -232,6 +255,9 @@ export class PluginManagerService implements OnModuleInit {
         (r) => !this.getPluginControllerRoutes(targetPath).includes(r)
       );
 
+      // Unregister old translations
+      this.unregisterPluginTranslations(name);
+
       // Remove old cache and directory
       this.registry.delete(name);
       this.clearRequireCache(targetPath);
@@ -272,6 +298,9 @@ export class PluginManagerService implements OnModuleInit {
         }
       }
 
+      // Register new translations
+      await this.registerPluginTranslations(name, targetPath);
+
       // Persist to database
       await this.pluginRegistry.upsert(name, { version: newVersion, manifest, migrationsApplied });
 
@@ -290,6 +319,22 @@ export class PluginManagerService implements OnModuleInit {
       };
     } catch (error) {
       throw new BadRequestException(this.i18n.t('errors.plugin.install_failed', { message: error.message }));
+    }
+  }
+
+  private async registerPluginTranslations(name: string, targetPath: string): Promise<string[]> {
+    const pluginLocalesDir = path.join(targetPath, 'locales');
+    if (await fs.pathExists(pluginLocalesDir)) {
+      return this.i18n.registerPluginLocale(name, pluginLocalesDir);
+    }
+    return [];
+  }
+
+  private unregisterPluginTranslations(name: string) {
+    try {
+      this.i18n.unregisterPluginLocale(name);
+    } catch {
+      // Gracefully ignore if plugin had no translations registered
     }
   }
 
@@ -318,7 +363,10 @@ export class PluginManagerService implements OnModuleInit {
     // 1. Remove from registry
     this.registry.delete(name);
 
-    // 2. Clear require cache for this plugin
+    // 2. Unregister plugin translations
+    this.unregisterPluginTranslations(name);
+
+    // 3. Clear require cache for this plugin
     this.clearRequireCache(targetPath);
 
     // 3. Handle data cleanup
