@@ -16,9 +16,16 @@ export class TestMultilangDbPluginController {
 
   private readonly pluginName = 'test-multilang-db-plugin';
 
+  private t(key: string, args?: Record<string, any>) {
+    return this.i18n.tPlugin(this.pluginName, key, args);
+  }
+
   @Get('status')
   getStatus() {
-    return this.service.getStatus();
+    return {
+      ...this.service.getStatus(),
+      message: this.t('messages.welcome'),
+    };
   }
 
   // ========== KV Store: Multilingual Config ==========
@@ -37,7 +44,7 @@ export class TestMultilangDbPluginController {
     const row = await this.data.set(this.pluginName, 'config:site', body, {
       i18nPaths: ['siteName', 'welcomeMessage'],
     });
-    return row.data;
+    return { data: row.data, message: this.t('messages.config_saved') };
   }
 
   @Get('kv/announcement')
@@ -54,7 +61,7 @@ export class TestMultilangDbPluginController {
     const row = await this.data.set(this.pluginName, 'config:announcement', body, {
       i18nPaths: ['title', 'body'],
     });
-    return row.data;
+    return { data: row.data, message: this.t('messages.config_saved') };
   }
 
   @Get('kv/all')
@@ -65,7 +72,7 @@ export class TestMultilangDbPluginController {
   @Delete('kv/:key')
   async deleteKv(@Param('key') key: string) {
     await this.data.remove(this.pluginName, `config:${key}`);
-    return { removed: true };
+    return { removed: true, message: this.t('messages.config_saved') };
   }
 
   // ========== DataTable: Articles (with i18n fields) ==========
@@ -89,7 +96,8 @@ export class TestMultilangDbPluginController {
 
   @Post('articles')
   async createArticle(@Body() body: any) {
-    return this.schema.create(this.pluginName, 'articles', body);
+    const article = await this.schema.create(this.pluginName, 'articles', body);
+    return { data: article, message: this.t('messages.article_created') };
   }
 
   @Get('articles/:id')
@@ -101,7 +109,7 @@ export class TestMultilangDbPluginController {
       undefined,
       lang,
     );
-    if (!article) throw new NotFoundException('Article not found');
+    if (!article) throw new NotFoundException(this.t('errors.not_found'));
     return article;
   }
 
@@ -114,8 +122,8 @@ export class TestMultilangDbPluginController {
       { id: parseInt(id, 10) },
       data,
     );
-    if (updated.length === 0) throw new NotFoundException('Article not found');
-    return updated[0];
+    if (updated.length === 0) throw new NotFoundException(this.t('errors.not_found'));
+    return { data: updated[0], message: this.t('messages.article_updated') };
   }
 
   @Delete('articles/:id')
@@ -123,7 +131,8 @@ export class TestMultilangDbPluginController {
     const removed = await this.schema.remove(this.pluginName, 'articles', {
       id: parseInt(id, 10),
     });
-    return { removed: removed > 0 };
+    if (removed === 0) throw new NotFoundException(this.t('errors.not_found'));
+    return { removed: true };
   }
 
   // ========== DataTable: Categories (with i18n fields) ==========
@@ -139,7 +148,8 @@ export class TestMultilangDbPluginController {
 
   @Post('categories')
   async createCategory(@Body() body: any) {
-    return this.schema.create(this.pluginName, 'categories', body);
+    const category = await this.schema.create(this.pluginName, 'categories', body);
+    return { data: category, message: this.t('messages.category_created') };
   }
 
   @Get('categories/:id')
@@ -151,7 +161,7 @@ export class TestMultilangDbPluginController {
       undefined,
       lang,
     );
-    if (!category) throw new NotFoundException('Category not found');
+    if (!category) throw new NotFoundException(this.t('errors.not_found'));
     return category;
   }
 
@@ -164,8 +174,8 @@ export class TestMultilangDbPluginController {
       { id: parseInt(id, 10) },
       data,
     );
-    if (updated.length === 0) throw new NotFoundException('Category not found');
-    return updated[0];
+    if (updated.length === 0) throw new NotFoundException(this.t('errors.not_found'));
+    return { data: updated[0], message: this.t('messages.category_updated') };
   }
 
   @Delete('categories/:id')
@@ -173,7 +183,8 @@ export class TestMultilangDbPluginController {
     const removed = await this.schema.remove(this.pluginName, 'categories', {
       id: parseInt(id, 10),
     });
-    return { removed: removed > 0 };
+    if (removed === 0) throw new NotFoundException(this.t('errors.not_found'));
+    return { removed: true };
   }
 
   // ========== Translation Demo ==========
@@ -182,7 +193,7 @@ export class TestMultilangDbPluginController {
   translate(@Param('key') key: string) {
     return {
       key,
-      message: this.i18n.tPlugin(this.pluginName, `messages.${key}`),
+      message: this.t(`messages.${key}`),
     };
   }
 }
