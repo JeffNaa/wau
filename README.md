@@ -2,7 +2,7 @@
 
 [English](#english-version) | [中文](#中文版本)
 
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/mamusum)
+[![Buy Me A Coffee](https://buymeacoffee.com/assets/img/custom_images/yellow_img.png)](https://www.buymeacoffee.com/mamusum)
 
 ---
 
