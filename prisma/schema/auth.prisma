@@ -1,0 +1,51 @@
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  permissions Json?    @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users User[]
+  @@map("roles")
+}
+
+model User {
+  id          String     @id @default(cuid())
+  email       String     @unique
+  password    String
+  name        String?
+  avatar      String?
+  status      UserStatus @default(ACTIVE)
+  roleId      String     @map("role_id")
+  role        Role       @relation(fields: [roleId], references: [id])
+  profile     Json?      @default("{}")
+  lastLoginAt DateTime?  @map("last_login_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  tokens UserToken[]
+  @@map("users")
+}
+
+model UserToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  ip        String?
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("user_tokens")
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+  PENDING
+
+  @@map("user_status")
+}

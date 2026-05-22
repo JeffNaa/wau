@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { PluginManagerService } from './plugin-manager.service';
 import { PluginController } from './plugin.controller';
 import { PluginLoaderModule } from './plugins/plugin-loader.module';
@@ -10,6 +11,9 @@ import { PluginMigrationModule } from './plugin-migration/plugin-migration.modul
 import { PluginSchemaModule } from './plugin-schema/plugin-schema.module';
 import { I18nModule } from './i18n/i18n.module';
 import { PostgresExceptionFilter } from './common/filters/postgres-exception.filter';
+import { AuthModule } from './auth/auth.module';
+import { AuthGuard } from './auth/auth.guard';
+import { PermissionGuard } from './auth/permission.guard';
 import * as path from 'path';
 
 const pluginsDir = path.join(process.cwd(), 'storage/plugins');
@@ -17,6 +21,7 @@ const pluginsDir = path.join(process.cwd(), 'storage/plugins');
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    AuthModule,
     I18nModule,
     PrismaModule,
     PluginRegistryModule,
@@ -26,6 +31,11 @@ const pluginsDir = path.join(process.cwd(), 'storage/plugins');
     PluginLoaderModule.forRoot(pluginsDir),
   ],
   controllers: [PluginController],
-  providers: [PluginManagerService, PostgresExceptionFilter],
+  providers: [
+    PluginManagerService,
+    PostgresExceptionFilter,
+    { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_GUARD, useClass: PermissionGuard },
+  ],
 })
 export class AppModule {}

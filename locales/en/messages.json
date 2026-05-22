@@ -4,6 +4,14 @@
       "install_success": "Server will restart shortly to load the new plugin.",
       "unload_success": "Server will restart shortly to unload the plugin.",
       "update_success": "Server will restart shortly to apply the update."
+    },
+    "auth": {
+      "logout_success": "Logged out successfully",
+      "logout_all_success": "All sessions logged out",
+      "password_changed": "Password changed successfully. Please log in again.",
+      "forgot_password_sent": "If the email exists, a reset link has been sent",
+      "password_reset_success": "Password reset successfully. Please log in again.",
+      "tokens_cleaned": "Cleaned up {count} expired/revoked tokens"
     }
   }
 }
