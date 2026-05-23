@@ -1,0 +1,10 @@
+{
+  "name": "test-auth-plugin",
+  "version": "1.0.0",
+  "description": "Authentication demo plugin for Wau Core",
+  "author": "Jeff",
+  "auth": {
+    "required": true,
+    "permissions": ["test-auth:access", "test-auth:admin"]
+  }
+}
