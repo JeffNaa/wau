@@ -1,25 +1,11 @@
 {
   "name": "test-multilang-db-plugin",
-  "version": "1.0.0",
-  "description": "Demo plugin for i18n database fields (KV + DataTable)",
+  "version": "1.0.1",
+  "description": "Demo plugin for i18n database fields using migrations (KV + raw SQL tables)",
   "author": "Jeff",
   "i18n": {
     "defaultLocale": "en",
     "locales": ["en", "zh-CN", "ms-MY"],
     "path": "./locales"
-  },
-  "schema": {
-    "articles": {
-      "title": { "type": "string", "required": true, "i18n": true },
-      "content": { "type": "text", "i18n": true },
-      "slug": { "type": "string", "required": true, "unique": true, "length": 100 },
-      "author": { "type": "string", "required": true, "length": 100 },
-      "status": { "type": "string", "required": true, "default": "draft", "index": true, "length": 20 }
-    },
-    "categories": {
-      "name": { "type": "string", "required": true, "i18n": true, "unique": true, "length": 100 },
-      "description": { "type": "text", "i18n": true },
-      "sort_order": { "type": "int", "default": 0 }
-    }
   }
 }

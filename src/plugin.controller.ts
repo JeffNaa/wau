@@ -21,10 +21,10 @@ export class PluginController {
   }
 
   @RequirePermissions('plugin:update')
-  @Put(':name')
+  @Put()
   @UseInterceptors(FileInterceptor('file'))
-  async update(@Param('name') name: string, @UploadedFile() file: Express.Multer.File) {
-    return this.pluginService.update(name, file);
+  async update(@UploadedFile() file: Express.Multer.File) {
+    return this.pluginService.update(file);
   }
 
   @RequirePermissions('plugin:delete')

@@ -30,6 +30,7 @@ In traditional development, every tiny UI adjustment or logic change requires mo
 - **🗄️ Extensible Data Model**: Uses PostgreSQL + JSONB, allowing plugins to store private metadata without altering core table structures.
 - **📊 JSON Schema**: Plugins declare tables via `manifest.json` schema — the core auto-creates and syncs PostgreSQL tables.
 - **🔄 SQL Migrations**: Plugins ship `.sql` migration files; the core tracks and applies them incrementally.
+- **🔐 Authentication & Authorization**: Built-in token-based auth with role-based permission guards and wildcard matching (`*`, `prefix:*`).
 - **📱 Cross-Platform Protocol**: A unified JSON protocol drives rendering for both Flutter and Web clients.
 
 ### 📊 Progress
@@ -45,6 +46,7 @@ In traditional development, every tiny UI adjustment or logic change requires mo
 | **Plugin Schema** | ✅ Done | JSON schema-driven dynamic table creation via `PluginSchemaService` |
 | **Plugin Migrations** | ✅ Done | SQL migration support via `PluginMigrationService` |
 | **i18n Support** | ✅ Done | Plugin response messages, schema, KV store, and error handling fully localized |
+| **Authentication & Authorization** | ✅ Done | Token-based auth, roles, RBAC with wildcard permissions |
 | Flutter client (`wau-flutter`) | ⏳ Planned | Dynamic JSON-driven UI rendering |
 | React Web admin (`wau-web`) | ⏳ Planned | Plugin management dashboard + user client |
 | Event Bus | ⏳ Planned | Cross-plugin & cross-platform communication |
@@ -104,14 +106,14 @@ npm run build
 npm run start:prod
 ```
 
-> 💡 Two tables ship with the core: `plugin_registry` (installed plugin metadata) and `plugin_data` (KV store for plugin runtime data). Plugins can additionally declare their own tables via `manifest.json` schema or ship `migrations/*.sql` files — those are applied by `PluginSchemaService` / `PluginMigrationService` at install time, independent of the core Prisma migrations above.
+> 💡 Core ships with five tables: `plugin_registry` (installed plugin metadata), `plugin_data` (KV store for plugin runtime data), `users`, `roles`, and `user_tokens` (auth system). Plugins can additionally declare their own tables via `manifest.json` schema or ship `migrations/*.sql` files — those are applied by `PluginSchemaService` / `PluginMigrationService` at install time, independent of the core Prisma migrations above.
 
 ### 🧪 Test with the Sample Plugin
 
 A sample plugin (`sample-plugins/test-plugin/`) is included in the repo. You can test the install flow immediately:
 
 ```bash
-# ZIP the sample plugin
+# ZIP the sample plugin (include manifest.json, dist/, and optional locales/ / migrations/)
 cd sample-plugins/test-plugin && zip -r ../../test-plugin.zip manifest.json dist/
 
 # Install it via API
@@ -124,6 +126,13 @@ curl http://localhost:3000/plugins
 curl http://localhost:3000/test-plugin/status
 ```
 
+> **Packaging plugins with `locales/` or `migrations/`:**
+> ```bash
+> # Example: test-multilang-db-plugin has both locales/ and migrations/
+> cd sample-plugins/test-multilang-db-plugin
+> zip -r ../../test-multilang-db-plugin.zip manifest.json dist/ locales/ migrations/
+> ```
+
 ### 📦 Plugin Structure
 
 A valid Wau plugin is a ZIP archive with this structure:
@@ -133,6 +142,13 @@ my-plugin.zip
 ├── manifest.json          # Plugin metadata
 ├── dist/
 │   └── index.js           # Plugin entry point (fallback: index.js at root)
+├── locales/               # Optional: i18n translation files
+│   ├── en/
+│   │   ├── messages.json
+│   │   └── errors.json
+│   └── zh-CN/
+│       ├── messages.json
+│       └── errors.json
 └── migrations/            # Optional: SQL migration files
 ```
 
@@ -144,6 +160,15 @@ my-plugin.zip
   "version": "1.0.0",
   "description": "What this plugin does",
   "author": "Your Name",
+  "auth": {
+    "required": false,
+    "permissions": ["plugin:read"]
+  },
+  "i18n": {
+    "defaultLocale": "en",
+    "locales": ["en", "zh-CN", "ms-MY"],
+    "path": "./locales"
+  },
   "schema": {
     "products": {
       "sku": { "type": "string", "required": true, "unique": true },
@@ -230,13 +255,30 @@ Response:
 }
 ```
 
+#### Authentication
+
+All plugin management routes require permissions. The auth system is token-based (no JWT library — uses `crypto.randomBytes` + `bcrypt`).
+
+```
+POST /auth/register          # Public — first user becomes ADMIN
+POST /auth/login             # Public
+POST /auth/logout            # Revoke current token
+POST /auth/logout-all        # Revoke all user tokens
+GET  /auth/me                # Current user details
+PUT  /auth/password          # Change password (revokes all tokens)
+POST /auth/forgot-password   # Public — request reset token (SMTP not yet implemented; token is returned in response)
+POST /auth/reset-password    # Public — reset with token
+```
+
+The first registered user automatically gets the `ADMIN` role with `["*"]` (all) permissions. Subsequent users get the `USER` role with no permissions. Both `AuthGuard` and `PermissionGuard` are registered as global `APP_GUARD` providers.
+
 ### 🛠️ Creating a Plugin
 
 1. Create a new directory for your plugin
 2. Write a NestJS module with controllers and services
 3. Add `manifest.json` with `name`, `version`, `description`, `author`
 4. Build to `dist/` (`tsc` or `nest build`)
-5. ZIP the `manifest.json` and `dist/` folder
+5. ZIP the `manifest.json` and `dist/` folder (plus `locales/` and `migrations/` if your plugin has them)
 6. Upload via `POST /plugins/upload`
 
 ### 📂 Project Structure
@@ -248,6 +290,17 @@ wau-core/
 │   ├── bootstrap.ts               # Server restart helper
 │   ├── plugin-manager.service.ts  # Plugin lifecycle (delegates DB to PluginRegistryService)
 │   ├── plugin.controller.ts       # Plugin HTTP API
+│   ├── auth/                      # Authentication & authorization
+│   │   ├── auth.module.ts         # Global auth module
+│   │   ├── auth.service.ts        # Register, login, token management
+│   │   ├── auth.controller.ts     # /auth REST endpoints
+│   │   ├── auth.guard.ts          # Bearer token validation (APP_GUARD)
+│   │   ├── permission.guard.ts    # Permission enforcement (APP_GUARD)
+│   │   ├── auth-context.service.ts # Helper: getCurrentUser, hasPermission
+│   │   ├── public.decorator.ts    # @Public() — bypass auth
+│   │   ├── current-user.decorator.ts # @CurrentUser() — inject UserPayload
+│   │   ├── permissions.decorator.ts  # @RequirePermissions() — RBAC
+│   │   └── dto/                   # RegisterDto, LoginDto, etc.
 │   ├── plugin-registry/
 │   │   ├── plugin-registry.module.ts
 │   │   └── plugin-registry.service.ts  # CRUD for plugin_registry table
@@ -270,12 +323,17 @@ wau-core/
 │   ├── config.ts
 │   └── schema/
 │       ├── schema.prisma          # Generator + datasource
-│       └── plugin.prisma          # PluginData + PluginRegistry models
+│       ├── plugin.prisma          # PluginData + PluginRegistry models
+│       └── auth.prisma            # Role + User + UserToken models
 ├── sample-plugins/                # Sample plugin source code
 │   ├── test-plugin/
 │   ├── test-kv-plugin/
 │   ├── test-migration-plugin/
-│   └── test-hybrid-plugin/
+│   ├── test-hybrid-plugin/
+│   ├── test-multilang-plugin/
+│   ├── test-multilang-db-plugin/
+│   ├── test-auth-plugin/
+│   └── installer/                 # Pre-built ZIPs
 ├── storage/plugins/               # Installed plugins directory
 └── dist/                          # Compiled output
 ```
@@ -324,6 +382,7 @@ This project is licensed under the [MIT License](LICENSE).
 - **🗄️ 扩展性数据模型**: 采用 PostgreSQL + JSONB 架构，允许插件存储私有的元数据（Metadata）。
 - **📊 JSON Schema**: 插件通过 `manifest.json` 声明表结构，核心自动创建并同步 PostgreSQL 表。
 - **🔄 SQL 迁移**: 插件可携带 `.sql` 迁移文件，核心跟踪并增量应用。
+- **🔐 认证与授权**: 内置基于令牌的认证系统，支持角色权限控制与通配符匹配（`*`、`前缀:*`）。
 - **📱 跨端组件协议**: 核心系统通过统一的 JSON 协议驱动 Flutter 和 Web 端渲染。
 
 ### 📊 项目进展
@@ -339,6 +398,7 @@ This project is licensed under the [MIT License](LICENSE).
 | **Plugin Schema** | ✅ 完成 | 通过 `PluginSchemaService` 基于 JSON schema 动态建表 |
 | **Plugin Migrations** | ✅ 完成 | 通过 `PluginMigrationService` 支持 SQL 迁移 |
 | **i18n 国际化** | ✅ 完成 | 插件响应消息、Schema、KV 存储及错误处理已全面本地化 |
+| **认证与授权** | ✅ 完成 | 令牌认证、角色、RBAC 通配符权限 |
 | Flutter 客户端 (`wau-flutter`) | ⏳ 规划中 | JSON 驱动的动态 UI 渲染 |
 | React Web 管理端 (`wau-web`) | ⏳ 规划中 | 插件管理后台 + 用户端 |
 | 事件总线 | ⏳ 规划中 | 跨插件 & 跨平台通信 |
@@ -398,14 +458,14 @@ npm run build
 npm run start:prod
 ```
 
-> 💡 核心系统自带两张表：`plugin_registry`（已安装插件元数据）和 `plugin_data`（插件运行时键值数据）。插件还可以通过 `manifest.json` 中的 schema 声明自己的表，或者携带 `migrations/*.sql` 文件 —— 这些会在插件安装时由 `PluginSchemaService` / `PluginMigrationService` 处理，与上述核心 Prisma 迁移相互独立。
+> 💡 核心系统自带五张表：`plugin_registry`（已安装插件元数据）、`plugin_data`（插件运行时键值数据）、`users`（用户）、`roles`（角色）和 `user_tokens`（认证令牌）。插件还可以通过 `manifest.json` 中的 schema 声明自己的表，或者携带 `migrations/*.sql` 文件 —— 这些会在插件安装时由 `PluginSchemaService` / `PluginMigrationService` 处理，与上述核心 Prisma 迁移相互独立。
 
 ### 🧪 使用示例插件测试
 
 项目中包含一个示例插件 (`sample-plugins/test-plugin/`)，你可以立即测试安装流程：
 
 ```bash
-# 打包示例插件
+# 打包示例插件（包含 manifest.json、dist/，以及可选的 locales/ / migrations/）
 cd sample-plugins/test-plugin && zip -r ../../test-plugin.zip manifest.json dist/
 
 # 通过 API 安装
@@ -418,6 +478,13 @@ curl http://localhost:3000/plugins
 curl http://localhost:3000/test-plugin/status
 ```
 
+> **打包包含 `locales/` 或 `migrations/` 的插件：**
+> ```bash
+> # 示例：test-multilang-db-plugin 同时包含 locales/ 和 migrations/
+> cd sample-plugins/test-multilang-db-plugin
+> zip -r ../../test-multilang-db-plugin.zip manifest.json dist/ locales/ migrations/
+> ```
+
 ### 📦 插件结构
 
 一个有效的 Wau 插件是一个 ZIP 压缩包，结构如下：
@@ -427,6 +494,13 @@ my-plugin.zip
 ├── manifest.json          # 插件元数据
 ├── dist/
 │   └── index.js           # 插件入口文件（若不存在则回退到根目录 index.js）
+├── locales/               # 可选：i18n 翻译文件
+│   ├── en/
+│   │   ├── messages.json
+│   │   └── errors.json
+│   └── zh-CN/
+│       ├── messages.json
+│       └── errors.json
 └── migrations/            # 可选：SQL 迁移文件
 ```
 
@@ -438,6 +512,15 @@ my-plugin.zip
   "version": "1.0.0",
   "description": "插件描述",
   "author": "作者名称",
+  "auth": {
+    "required": false,
+    "permissions": ["plugin:read"]
+  },
+  "i18n": {
+    "defaultLocale": "en",
+    "locales": ["en", "zh-CN", "ms-MY"],
+    "path": "./locales"
+  },
   "schema": {
     "products": {
       "sku": { "type": "string", "required": true, "unique": true },
@@ -508,13 +591,30 @@ DELETE /plugins/:name
 }
 ```
 
+#### 认证接口
+
+所有插件管理路由都需要权限。认证系统基于令牌（不使用 JWT 库 —— 使用 `crypto.randomBytes` + `bcrypt`）。
+
+```
+POST /auth/register          # 公开 — 首个用户成为管理员
+POST /auth/login             # 公开
+POST /auth/logout            # 撤销当前令牌
+POST /auth/logout-all        # 撤销用户所有令牌
+GET  /auth/me                # 当前用户详情
+PUT  /auth/password          # 修改密码（撤销所有令牌）
+POST /auth/forgot-password   # 公开 — 请求重置令牌（SMTP 尚未实现；令牌直接在响应中返回）
+POST /auth/reset-password    # 公开 — 使用令牌重置密码
+```
+
+第一个注册的用户自动获得 `ADMIN` 角色和 `["*"]`（全部）权限。后续用户获得 `USER` 角色，默认无权限。`AuthGuard` 和 `PermissionGuard` 均作为全局 `APP_GUARD` 注册。
+
 ### 🛠️ 创建插件
 
 1. 创建插件目录
 2. 编写 NestJS 模块（含控制器和服务）
 3. 添加 `manifest.json`，包含 `name`、`version`、`description`、`author`
 4. 构建到 `dist/` 目录（使用 `tsc` 或 `nest build`）
-5. 将 `manifest.json` 和 `dist/` 文件夹打包为 ZIP
+5. 将 `manifest.json` 和 `dist/` 文件夹打包为 ZIP（如有 `locales/` 和 `migrations/` 也需包含）
 6. 通过 `POST /plugins/upload` 上传
 
 ### 📂 项目结构
@@ -526,6 +626,17 @@ wau-core/
 │   ├── bootstrap.ts               # 服务器重启辅助
 │   ├── plugin-manager.service.ts  # 插件生命周期（DB 委托给 PluginRegistryService）
 │   ├── plugin.controller.ts       # 插件 HTTP API
+│   ├── auth/                      # 认证与授权
+│   │   ├── auth.module.ts         # 全局认证模块
+│   │   ├── auth.service.ts        # 注册、登录、令牌管理
+│   │   ├── auth.controller.ts     # /auth REST 接口
+│   │   ├── auth.guard.ts          # Bearer 令牌验证 (APP_GUARD)
+│   │   ├── permission.guard.ts    # 权限执行 (APP_GUARD)
+│   │   ├── auth-context.service.ts # 辅助：getCurrentUser, hasPermission
+│   │   ├── public.decorator.ts    # @Public() — 绕过认证
+│   │   ├── current-user.decorator.ts # @CurrentUser() — 注入 UserPayload
+│   │   ├── permissions.decorator.ts  # @RequirePermissions() — RBAC
+│   │   └── dto/                   # RegisterDto, LoginDto 等
 │   ├── plugin-registry/
 │   │   ├── plugin-registry.module.ts
 │   │   └── plugin-registry.service.ts  # plugin_registry 表 CRUD
@@ -548,12 +659,17 @@ wau-core/
 │   ├── config.ts
 │   └── schema/
 │       ├── schema.prisma          # Generator + datasource
-│       └── plugin.prisma          # PluginData + PluginRegistry 模型
+│       ├── plugin.prisma          # PluginData + PluginRegistry 模型
+│       └── auth.prisma            # Role + User + UserToken 模型
 ├── sample-plugins/                # 示例插件源码
 │   ├── test-plugin/
 │   ├── test-kv-plugin/
 │   ├── test-migration-plugin/
-│   └── test-hybrid-plugin/
+│   ├── test-hybrid-plugin/
+│   ├── test-multilang-plugin/
+│   ├── test-multilang-db-plugin/
+│   ├── test-auth-plugin/
+│   └── installer/                 # 预构建 ZIP
 ├── storage/plugins/               # 已安装插件目录
 └── dist/                          # 编译输出
 ```
