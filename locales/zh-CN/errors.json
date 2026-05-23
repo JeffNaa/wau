@@ -26,6 +26,16 @@
     },
     "system": {
       "not_initialized": "无法重启：应用尚未初始化"
+    },
+    "auth": {
+      "email_already_registered": "邮箱已被注册",
+      "invalid_credentials": "凭据无效",
+      "account_not_active": "账户未激活",
+      "user_not_found": "用户不存在",
+      "old_password_incorrect": "旧密码不正确",
+      "invalid_reset_token": "重置令牌无效或已过期",
+      "unauthorized": "未授权",
+      "forbidden": "禁止访问：权限不足"
     }
   }
 }

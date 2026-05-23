@@ -4,70 +4,930 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Wau Core 文档</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --code: #161b22; }
-    * { box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--fg); line-height: 1.7; max-width: 920px; margin: 0 auto; padding: 40px 24px; }
-    h1 { color: #f0f6fc; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
-    h2 { color: #f0f6fc; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
-    h3 { color: #e6edf3; margin-top: 32px; }
-    a { color: var(--accent); text-decoration: none; }
+    :root {
+      --bg: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #21262d;
+      --bg-hover: rgba(177,186,196,0.08);
+      --fg: #c9d1d9;
+      --fg-muted: #8b949e;
+      --fg-subtle: #6e7681;
+      --fg-heading: #f0f6fc;
+      --accent: #58a6ff;
+      --accent-dim: #388bfd;
+      --accent-glow: rgba(88,166,255,0.15);
+      --border: #30363d;
+      --border-subtle: #21262d;
+      --code-bg: #161b22;
+      --code-border: #30363d;
+      --success: #3fb950;
+      --warning: #d29922;
+      --danger: #f85149;
+      --sidebar-width: 280px;
+      --navbar-height: 64px;
+      --radius: 8px;
+      --radius-sm: 6px;
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: calc(var(--navbar-height) + 20px);
+    }
+
+    body {
+      font-family: 'Noto Sans SC', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.75;
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--fg-subtle); }
+
+    .navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--navbar-height);
+      background: rgba(13,17,23,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+    }
+
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--fg-heading);
+      text-decoration: none;
+    }
+
+    .navbar-brand .logo-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .search-box {
+      position: relative;
+    }
+
+    .search-box input {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 14px 8px 36px;
+      color: var(--fg);
+      font-size: 0.85rem;
+      width: 240px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .search-box input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .search-box input::placeholder { color: var(--fg-subtle); }
+
+    .search-box .search-icon {
+      position: absolute;
+      left: 12px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--fg-subtle);
+      font-size: 0.85rem;
+    }
+
+    .lang-switch {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 14px;
+      color: var(--fg-muted);
+      font-size: 0.85rem;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .lang-switch:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--fg-muted);
+      font-size: 1.3rem;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .layout {
+      display: flex;
+      margin-top: var(--navbar-height);
+      min-height: calc(100vh - var(--navbar-height));
+    }
+
+    .sidebar {
+      position: fixed;
+      top: var(--navbar-height);
+      left: 0;
+      width: var(--sidebar-width);
+      height: calc(100vh - var(--navbar-height));
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      z-index: 900;
+      padding: 16px 0;
+    }
+
+    .sidebar-section {
+      margin-bottom: 4px;
+    }
+
+    .sidebar-section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 20px;
+      color: var(--fg-muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.2s;
+    }
+
+    .sidebar-section-title:hover { color: var(--fg); }
+
+    .sidebar-section-title .chevron {
+      transition: transform 0.2s;
+      font-size: 0.7rem;
+    }
+
+    .sidebar-section.collapsed .chevron { transform: rotate(-90deg); }
+    .sidebar-section.collapsed .sidebar-links { display: none; }
+
+    .sidebar-links { padding: 2px 0; }
+
+    .sidebar-link {
+      display: block;
+      padding: 6px 20px 6px 28px;
+      color: var(--fg-muted);
+      font-size: 0.875rem;
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      transition: all 0.15s;
+      line-height: 1.5;
+    }
+
+    .sidebar-link:hover {
+      color: var(--fg);
+      background: var(--bg-hover);
+    }
+
+    .sidebar-link.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: var(--accent-glow);
+    }
+
+    .main-content {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      max-width: 900px;
+      padding: 40px 48px 80px;
+    }
+
+    h1 {
+      color: var(--fg-heading);
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    h2 {
+      color: var(--fg-heading);
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-top: 48px;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      letter-spacing: -0.01em;
+    }
+
+    h3 {
+      color: var(--fg-heading);
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-top: 32px;
+      margin-bottom: 12px;
+    }
+
+    h4 {
+      color: var(--fg);
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-top: 24px;
+      margin-bottom: 10px;
+    }
+
+    p { margin-bottom: 14px; }
+
+    a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
     a:hover { text-decoration: underline; }
-    code, pre { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', 'Noto Sans Mono', monospace; font-size: 0.9em; }
-    code { background: var(--code); padding: 2px 6px; border-radius: 4px; }
-    pre { background: var(--code); padding: 16px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); }
-    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-    th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; }
-    th { background: var(--code); color: #f0f6fc; }
+
+    code, pre {
+      font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Noto Sans Mono', monospace;
+      font-size: 0.85em;
+    }
+
+    code {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      padding: 2px 7px;
+      border-radius: 4px;
+      color: var(--accent);
+      word-break: break-word;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      padding: 18px 20px;
+      border-radius: var(--radius);
+      overflow-x: auto;
+      margin: 16px 0 20px;
+      line-height: 1.6;
+    }
+
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--fg);
+      font-size: 0.82rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 20px;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      text-align: left;
+    }
+
+    th {
+      background: var(--bg-tertiary);
+      color: var(--fg-heading);
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
     tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-    .lang-switch { position: fixed; top: 16px; right: 24px; background: var(--code); border: 1px solid var(--border); border-radius: 6px; padding: 6px 14px; font-size: 0.85em; }
-    .note { background: rgba(88,166,255,0.08); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; }
-    .warn { background: rgba(210,153,34,0.08); border-left: 3px solid #d29922; }
-    .mermaid { background: var(--code); border-radius: 8px; padding: 16px; border: 1px solid var(--border); overflow-x: auto; margin: 16px 0; }
+    tr:hover { background: var(--bg-hover); }
+
+    ul, ol { margin: 12px 0 16px 20px; }
+    li { margin-bottom: 6px; }
+    li > ul, li > ol { margin: 6px 0 6px 16px; }
+
+    .note, .warn, .tip, .danger {
+      padding: 14px 18px;
+      border-radius: 0 var(--radius) var(--radius) 0;
+      margin: 16px 0 20px;
+      font-size: 0.92rem;
+      line-height: 1.65;
+    }
+
+    .note {
+      background: var(--accent-glow);
+      border-left: 3px solid var(--accent);
+    }
+
+    .warn {
+      background: rgba(210,153,34,0.08);
+      border-left: 3px solid var(--warning);
+    }
+
+    .tip {
+      background: rgba(63,185,80,0.08);
+      border-left: 3px solid var(--success);
+    }
+
+    .danger {
+      background: rgba(248,81,73,0.08);
+      border-left: 3px solid var(--danger);
+    }
+
+    .note-title, .warn-title, .tip-title, .danger-title {
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .note .note-title { color: var(--accent); }
+    .warn .warn-title { color: var(--warning); }
+    .tip .tip-title { color: var(--success); }
+    .danger .danger-title { color: var(--danger); }
+
+    .mermaid {
+      background: var(--code-bg);
+      border-radius: var(--radius);
+      padding: 28px 20px;
+      border: 1px solid var(--border);
+      overflow-x: auto;
+      margin: 20px 0 24px;
+      text-align: center;
+      font-size: 1.05rem;
+    }
+    .mermaid svg {
+      max-width: 100%;
+      height: auto;
+    }
+    .mermaid .node rect,
+    .mermaid .node circle,
+    .mermaid .node polygon {
+      stroke-width: 2px;
+    }
+    .mermaid .edgeLabel {
+      font-size: 0.95rem;
+    }
+
+    .hero {
+      padding: 32px 0 24px;
+      margin-bottom: 16px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(88,166,255,0.2);
+      color: var(--accent);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      font-size: 2.4rem;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, var(--fg-heading), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: 1.1rem;
+      color: var(--fg-muted);
+      max-width: 600px;
+      line-height: 1.8;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    .feature-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: all 0.2s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .feature-icon {
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+    }
+
+    .feature-card h4 {
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+
+    .feature-card p {
+      color: var(--fg-muted);
+      font-size: 0.88rem;
+      margin-bottom: 0;
+      line-height: 1.6;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-done {
+      background: rgba(63,185,80,0.15);
+      color: var(--success);
+    }
+
+    .badge-planned {
+      background: rgba(139,148,158,0.15);
+      color: var(--fg-muted);
+    }
+
+    .badge-wip {
+      background: rgba(210,153,34,0.15);
+      color: var(--warning);
+    }
+
+    .api-block {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin: 16px 0 20px;
+      overflow: hidden;
+    }
+
+    .api-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .api-method {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .method-get { background: rgba(63,185,80,0.15); color: var(--success); }
+    .method-post { background: rgba(88,166,255,0.15); color: var(--accent); }
+    .method-put { background: rgba(210,153,34,0.15); color: var(--warning); }
+    .method-delete { background: rgba(248,81,73,0.15); color: var(--danger); }
+
+    .api-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      color: var(--fg-heading);
+    }
+
+    .api-body {
+      padding: 16px 18px;
+    }
+
+    .api-body p { margin-bottom: 8px; font-size: 0.9rem; }
+    .api-body p:last-child { margin-bottom: 0; }
+
+    .back-to-top {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 44px; height: 44px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--fg-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s;
+      z-index: 800;
+      font-size: 1.1rem;
+    }
+
+    .back-to-top.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .back-to-top:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 850;
+    }
+
+    .search-results {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      right: 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      max-height: 320px;
+      overflow-y: auto;
+      z-index: 1100;
+      display: none;
+    }
+
+    .search-results.visible { display: block; }
+
+    .search-result-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background 0.15s;
+    }
+
+    .search-result-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .search-result-item:last-child { border-bottom: none; }
+
+    .search-result-title {
+      font-size: 0.85rem;
+      color: var(--fg-heading);
+      font-weight: 500;
+    }
+
+    .search-result-section {
+      font-size: 0.75rem;
+      color: var(--fg-subtle);
+      margin-top: 2px;
+    }
+
+    .no-results {
+      padding: 16px;
+      text-align: center;
+      color: var(--fg-subtle);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 1024px) {
+      .search-box input { width: 180px; }
+    }
+
+    @media (max-width: 768px) {
+      .menu-toggle { display: block; }
+      .search-box { display: none; }
+      .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s;
+      }
+      .sidebar.open { transform: translateX(0); }
+      .main-content {
+        margin-left: 0;
+        padding: 24px 20px 60px;
+        max-width: 100%;
+      }
+      .sidebar-overlay.show { display: block; }
+      h1 { font-size: 1.8rem; }
+      .hero h1 { font-size: 2rem; }
+      h2 { font-size: 1.3rem; }
+      .feature-grid { grid-template-columns: 1fr; }
+    }
+
+    .toc-sidebar {
+      position: fixed;
+      top: calc(var(--navbar-height) + 40px);
+      right: 24px;
+      width: 200px;
+      display: none;
+    }
+
+    @media (min-width: 1400px) {
+      .toc-sidebar { display: block; }
+      .main-content { max-width: 800px; }
+    }
+
+    .toc-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--fg-subtle);
+      margin-bottom: 10px;
+    }
+
+    .toc-link {
+      display: block;
+      padding: 4px 0;
+      color: var(--fg-subtle);
+      font-size: 0.8rem;
+      text-decoration: none;
+      border-left: 1px solid var(--border);
+      padding-left: 12px;
+      transition: all 0.15s;
+    }
+
+    .toc-link:hover, .toc-link.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+    }
+
+    .toc-link.l2 { padding-left: 20px; }
+    .toc-link.l3 { padding-left: 28px; }
   </style>
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-    mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        fontSize: '16px',
+        nodeBorder: '2px',
+        primaryColor: '#21262d',
+        primaryTextColor: '#f0f6fc',
+        primaryBorderColor: '#58a6ff',
+        lineColor: '#8b949e',
+        secondaryColor: '#161b22',
+        tertiaryColor: '#0d1117',
+      },
+    });
   </script>
 </head>
 <body>
-  <a href="index.html" class="lang-switch">English</a>
+  <nav class="navbar">
+    <a href="#" class="navbar-brand">
+      <span>Wau Core 文档</span>
+    </a>
+    <div class="navbar-right">
+      <div class="search-box">
+        <span class="search-icon">&#128269;</span>
+        <input type="text" id="searchInput" placeholder="搜索文档..." autocomplete="off">
+        <div class="search-results" id="searchResults"></div>
+      </div>
+      <a href="index.html" class="lang-switch">
+        <span>&#127759;</span> English
+      </a>
+      <button class="menu-toggle" id="menuToggle">&#9776;</button>
+    </div>
+  </nav>
 
-  <h1>Wau Core 文档</h1>
-  <p>Wau Core 是一个基于 NestJS 的插件运行时引擎。它通过 PluginLoaderModule 在启动时扫描并加载第三方插件模块，同时通过 Prisma 将插件元数据持久化到 PostgreSQL 数据库。插件安装/更新/卸载后，服务器自动重启以重新加载路由。</p>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <h2>技术栈</h2>
-  <table>
-    <tr><th>层级</th><th>技术</th></tr>
-    <tr><td>框架</td><td>NestJS 11</td></tr>
-    <tr><td>数据库</td><td>PostgreSQL</td></tr>
-    <tr><td>ORM</td><td>Prisma 7 + @prisma/adapter-pg</td></tr>
-    <tr><td>HTTP</td><td>Express（通过 NestJS platform-express）</td></tr>
-    <tr><td>配置</td><td>@nestjs/config</td></tr>
-    <tr><td>工具库</td><td>fs-extra, adm-zip</td></tr>
-  </table>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>概览</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#intro" class="sidebar-link">项目介绍</a>
+        <a href="#features" class="sidebar-link">核心特性</a>
+        <a href="#architecture" class="sidebar-link">系统架构</a>
+        <a href="#tech-stack" class="sidebar-link">技术栈</a>
+        <a href="#progress" class="sidebar-link">项目进展</a>
+      </div>
+    </div>
 
-  <h2>系统架构</h2>
-  <div class="mermaid">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>快速开始</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#prerequisites" class="sidebar-link">前置要求</a>
+        <a href="#quick-start" class="sidebar-link">快速上手</a>
+        <a href="#env-vars" class="sidebar-link">环境变量</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>核心模块</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#prismamodule" class="sidebar-link">PrismaModule</a>
+        <a href="#pluginloader" class="sidebar-link">PluginLoaderModule</a>
+        <a href="#pluginmanager" class="sidebar-link">PluginManagerService</a>
+        <a href="#plugincontroller" class="sidebar-link">PluginController</a>
+        <a href="#pluginregistry" class="sidebar-link">PluginRegistryService</a>
+        <a href="#plugindata" class="sidebar-link">PluginDataService</a>
+        <a href="#pluginschema" class="sidebar-link">PluginSchemaService</a>
+        <a href="#pluginmigration" class="sidebar-link">PluginMigrationService</a>
+        <a href="#i18n" class="sidebar-link">I18nModule</a>
+        <a href="#exceptionfilter" class="sidebar-link">PostgresExceptionFilter</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>认证与授权</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#auth-overview" class="sidebar-link">概述</a>
+        <a href="#authservice" class="sidebar-link">AuthService</a>
+        <a href="#auth-api" class="sidebar-link">认证 API</a>
+        <a href="#guards" class="sidebar-link">守卫与装饰器</a>
+        <a href="#permissions" class="sidebar-link">权限系统</a>
+        <a href="#plugin-auth" class="sidebar-link">插件 Auth 元数据</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>插件开发</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#plugin-structure" class="sidebar-link">插件结构</a>
+        <a href="#manifest" class="sidebar-link">manifest.json</a>
+        <a href="#plugin-i18n" class="sidebar-link">i18n 多语言</a>
+        <a href="#json-schema" class="sidebar-link">JSON Schema</a>
+        <a href="#sql-migrations" class="sidebar-link">SQL 迁移</a>
+        <a href="#building" class="sidebar-link">构建与打包</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>API 参考</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#plugin-api" class="sidebar-link">插件管理</a>
+        <a href="#auth-endpoints" class="sidebar-link">认证接口</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>数据库</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#db-schema" class="sidebar-link">数据模型</a>
+        <a href="#prisma-setup" class="sidebar-link">Prisma 配置</a>
+        <a href="#migration-history" class="sidebar-link">迁移历史</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>其他</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#samples" class="sidebar-link">示例插件</a>
+        <a href="#roadmap" class="sidebar-link">路线图</a>
+        <a href="#file-structure" class="sidebar-link">项目结构</a>
+      </div>
+    </div>
+  </aside>
+
+  <div class="toc-sidebar" id="tocSidebar">
+    <div class="toc-title">当前页面</div>
+    <div id="tocContent"></div>
+  </div>
+
+  <main class="main-content" id="mainContent">
+    <div class="hero">
+      <div class="hero-badge">
+        <span>&#128640;</span> NestJS 11 + PostgreSQL 插件运行时引擎
+      </div>
+      <h1>Wau Core 文档</h1>
+      <p class="hero-subtitle">高灵活度、插件化开发平台。内核稳固，业务动态。</p>
+    </div>
+
+    <h2 id="intro">项目介绍</h2>
+    <p><strong>Wau</strong>（月亮风筝）是一个基于 <strong>NestJS</strong> 构建的高灵活度、插件化开发平台。核心理念是 <strong>"内核稳固，业务动态"</strong>：</p>
+    <ul>
+      <li><strong>隔离变更</strong>：所有业务逻辑封装在插件中，核心系统永不为特定需求做硬编码。</li>
+      <li><strong>即插即用</strong>：通过 <code>.zip</code> 动态加载，实现功能的秒级安装与卸载。</li>
+      <li><strong>SDUI Ready</strong>：UI 布局由后端协议驱动，修改界面元素仅需调整 JSON，无需重新发布 App。</li>
+      <li><strong>原子化解耦</strong>：插件之间通过事件总线通信，既能协同工作，也能彻底拆分。</li>
+    </ul>
+
+    <h2 id="features">核心特性</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">&#128268;</div>
+        <h4>插件管理</h4>
+        <p>支持通过 Dashboard 动态上传并解压缩插件包，服务器自动重启加载新插件路由。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128260;</div>
+        <h4>动态路由注入</h4>
+        <p>插件包解压缩后，内核自动扫描并注册其定义的 API 路由，并自动添加路由前缀。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128451;</div>
+        <h4>扩展性数据模型</h4>
+        <p>采用 PostgreSQL + JSONB 架构，允许插件存储私有的元数据而不改动核心表结构。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128203;</div>
+        <h4>JSON Schema</h4>
+        <p>插件通过 <code>manifest.json</code> 声明表结构，核心自动创建并同步 PostgreSQL 表。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128259;</div>
+        <h4>SQL 迁移</h4>
+        <p>插件可携带 <code>.sql</code> 迁移文件，核心跟踪并增量应用，支持回滚。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128483;</div>
+        <h4>i18n 国际化</h4>
+        <p>插件响应消息、Schema、KV 存储及错误处理已全面本地化，支持自动语言回退。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128274;</div>
+        <h4>认证与授权</h4>
+        <p>内置基于令牌的认证系统，支持角色权限控制与通配符匹配。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128241;</div>
+        <h4>跨端协议</h4>
+        <p>通过统一的 JSON 协议驱动 Flutter 和 Web 端渲染，一套后端多端适配。</p>
+      </div>
+    </div>
+
+    <h2 id="architecture">系统架构</h2>
+    <div class="mermaid">
 graph TB
     subgraph AppModule["AppModule"]
-        Config["ConfigModule\n(全局)"]
-        Prisma["PrismaModule (全局)\nPrismaService"]
-        I18n["I18nModule (全局)\nI18nService · I18nMiddleware"]
-        PEF["PostgresExceptionFilter\nPG 错误 → 本地化响应"]
+        Config["ConfigModule (全局)"]
+        Prisma["PrismaModule (全局)"]
+        I18n["I18nModule (全局)"]
+        Auth["AuthModule (全局)"]
+        PEF["PostgresExceptionFilter"]
+        AG["AuthGuard (APP_GUARD)"]
+        PG["PermissionGuard (APP_GUARD)"]
         subgraph Loader["PluginLoaderModule (动态模块)"]
-            FS["启动时扫描 storage/plugins/\n自动注册插件 NestJS 模块"]
+            FS["启动时扫描 storage/plugins/"]
         end
-        Ctrl["PluginController\nPOST /plugins/upload\nGET · PUT · DELETE /plugins/:name"]
-        Mgr["PluginManagerService\n安装 · 更新 · 卸载\n触发服务器重启"]
-        Reg["PluginRegistryService\nplugin_registry CRUD"]
-        Data["PluginDataService\nKV 存储 · i18n"]
-        Mig["PluginMigrationService\nSQL 迁移执行器"]
-        Sch["PluginSchemaService\nJSON schema CRUD · i18n"]
+        Ctrl["PluginController"]
+        Mgr["PluginManagerService"]
+        Reg["PluginRegistryService"]
+        Data["PluginDataService"]
+        Mig["PluginMigrationService"]
+        Sch["PluginSchemaService"]
     end
     subgraph DB["PostgreSQL"]
         R[("plugin_registry")]
         D[("plugin_data")]
+        U[("users / roles / user_tokens")]
         T[("插件动态表")]
     end
     Ctrl --> Mgr
@@ -76,265 +936,542 @@ graph TB
     Data --> D
     Mig --> T
     Sch --> T
-    I18n -. locale 上下文 .-> Data & Sch & PEF
-  </div>
+    Auth --> U
+    I18n -. locale .-> Data & Sch & PEF
+    AG --> Auth
+    PG --> Auth
+    </div>
 
-  <h2>模块详解</h2>
+    <h2 id="tech-stack">技术栈</h2>
+    <table>
+      <tr><th>层级</th><th>技术</th></tr>
+      <tr><td>框架</td><td>NestJS 11</td></tr>
+      <tr><td>数据库</td><td>PostgreSQL 14+</td></tr>
+      <tr><td>ORM</td><td>Prisma 7 + @prisma/adapter-pg</td></tr>
+      <tr><td>HTTP</td><td>Express（通过 NestJS platform-express）</td></tr>
+      <tr><td>配置</td><td>@nestjs/config</td></tr>
+      <tr><td>认证</td><td>bcrypt, crypto（基于令牌）</td></tr>
+      <tr><td>定时任务</td><td>@nestjs/schedule</td></tr>
+      <tr><td>工具库</td><td>fs-extra, adm-zip</td></tr>
+    </table>
 
-  <h3>1. PrismaModule <code>src/prisma/</code></h3>
-  <p>标记为 <code>@Global()</code>，因此 <code>PrismaService</code> 可以在任何地方注入，无需显式导入。</p>
-  <ul>
-    <li><code>PrismaService</code> 通过 <code>pg.Pool</code> 从 <code>DATABASE_URL</code> 创建 <code>PrismaClient</code>。</li>
-    <li>实现 <code>OnModuleDestroy</code>，在关闭时优雅断开连接。</li>
-    <li>暴露 <code>client</code> 属性直接访问模型（无仓库模式）。</li>
-  </ul>
+    <h2 id="progress">项目进展</h2>
+    <table>
+      <tr><th>里程碑</th><th>状态</th><th>说明</th></tr>
+      <tr><td>NestJS Core 框架搭建</td><td><span class="badge badge-done">完成</span></td><td>AppModule, main.ts</td></tr>
+      <tr><td>Prisma + PostgreSQL 配置</td><td><span class="badge badge-done">完成</span></td><td>全局 PrismaModule，pg 适配器</td></tr>
+      <tr><td>动态插件加载器</td><td><span class="badge badge-done">完成</span></td><td>PluginLoaderModule 启动时扫描 storage/plugins/</td></tr>
+      <tr><td>插件生命周期 API</td><td><span class="badge badge-done">完成</span></td><td>POST/GET/PUT/DELETE /plugins</td></tr>
+      <tr><td>插件路由挂载</td><td><span class="badge badge-done">完成</span></td><td>以 manifest name 为前缀自动拼接路由</td></tr>
+      <tr><td>PluginRegistry 数据库迁移</td><td><span class="badge badge-done">完成</span></td><td>插件元数据已持久化到 plugin_registry 表</td></tr>
+      <tr><td>Plugin Schema</td><td><span class="badge badge-done">完成</span></td><td>基于 JSON schema 动态建表</td></tr>
+      <tr><td>Plugin Migrations</td><td><span class="badge badge-done">完成</span></td><td>支持 SQL 迁移</td></tr>
+      <tr><td>i18n 国际化</td><td><span class="badge badge-done">完成</span></td><td>所有服务全面本地化</td></tr>
+      <tr><td>认证与授权</td><td><span class="badge badge-done">完成</span></td><td>令牌认证、角色、RBAC 通配符权限</td></tr>
+      <tr><td>Flutter 客户端</td><td><span class="badge badge-planned">规划中</span></td><td>JSON 驱动的动态 UI 渲染</td></tr>
+      <tr><td>React Web 管理端</td><td><span class="badge badge-planned">规划中</span></td><td>插件管理后台 + 用户端</td></tr>
+      <tr><td>事件总线</td><td><span class="badge badge-planned">规划中</span></td><td>跨插件 &amp; 跨平台通信</td></tr>
+      <tr><td>SDUI 协议</td><td><span class="badge badge-planned">规划中</span></td><td>后端驱动布局引擎</td></tr>
+    </table>
 
-  <h3>2. PluginLoaderModule <code>src/plugins/plugin-loader.module.ts</code></h3>
-  <p>一个带有静态 <code>forRoot(pluginsDir)</code> 工厂方法的<strong>动态模块</strong>。它在应用启动时运行（此时依赖注入尚未完全就绪），因此<strong>扫描文件系统</strong>。</p>
-  <p>职责：</p>
-  <ul>
-    <li>枚举 <code>storage/plugins/&lt;name&gt;/dist/index.js</code>，若不存在则回退到 <code>storage/plugins/&lt;name&gt;/index.js</code></li>
-    <li>使用 <code>Reflect.getMetadata('controllers', PluginModule)</code> 检测控制器路径</li>
-    <li>以 manifest name 为前缀自动拼接路由（如 <code>/test-plugin/status</code>）</li>
-    <li>检测并拦截跨插件重复的控制器路由</li>
-    <li>将有效插件模块导入 NestJS 模块图</li>
-  </ul>
-  <div class="note warn">由于该模块在静态工厂中运行，无法以数据库作为数据源。它保持基于文件系统的实现。插件安装/更新/卸载后，服务器会自动重启以重新加载路由。</div>
+    <h2 id="prerequisites">前置要求</h2>
+    <ul>
+      <li><strong>PostgreSQL 14+</strong> 正在运行且可访问</li>
+      <li><strong>Node.js 20+</strong> 与 npm</li>
+      <li><code>.env</code> 文件包含有效的 <code>DATABASE_URL</code></li>
+    </ul>
 
-  <h3>3. PluginManagerService <code>src/plugin-manager.service.ts</code></h3>
-  <p>插件生命周期和运行时路由的核心引擎。</p>
+    <h2 id="quick-start">快速上手</h2>
+<pre><code># 1. 安装依赖
+npm install
 
-  <h4>构造依赖</h4>
-  <pre>constructor(
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env 设置 DATABASE_URL
+
+# 3. 初始化数据库
+npx prisma migrate deploy
+
+# 4. 生成 Prisma 客户端
+npx prisma generate
+
+# 5. 启动开发服务器
+npm run start:dev
+
+# 6. 服务器运行在 http://localhost:3000
+#    插件存储在 ./storage/plugins/</code></pre>
+
+    <div class="note">
+      <div class="note-title">&#128161; 首个用户 = 管理员</div>
+      第一个注册的用户自动获得 <code>ADMIN</code> 角色与 <code>["*"]</code>（全部）权限。后续用户获得 <code>USER</code> 角色，默认无权限。
+    </div>
+
+    <h3>使用示例插件测试</h3>
+<pre><code># 打包示例插件（包含 manifest.json、dist/，以及可选的 locales/ / migrations/）
+cd sample-plugins/test-plugin &amp;&amp; zip -r ../../test-plugin.zip manifest.json dist/
+
+# 通过 API 安装
+curl -X POST -F "file=@test-plugin.zip" http://localhost:3000/plugins/upload
+
+# 验证已安装
+curl http://localhost:3000/plugins
+
+# 测试插件路由
+curl http://localhost:3000/test-plugin/status</code></pre>
+
+    <div class="note note-info">
+      <div class="note-title">&#128230; 打包包含 locales/ 或 migrations/ 的插件</div>
+      如果你的插件包含 i18n 翻译文件或 SQL 迁移文件，打包时请一并包含这些目录：
+      <pre style="margin:0.5rem 0 0"><code>cd sample-plugins/test-multilang-db-plugin
+zip -r ../../test-multilang-db-plugin.zip manifest.json dist/ locales/ migrations/</code></pre>
+    </div>
+
+    <h2 id="env-vars">环境变量</h2>
+    <table>
+      <tr><th>变量</th><th>必需</th><th>默认值</th><th>说明</th></tr>
+      <tr><td><code>DATABASE_URL</code></td><td>是</td><td>&mdash;</td><td>PostgreSQL 连接字符串</td></tr>
+      <tr><td><code>PORT</code></td><td>否</td><td>3000</td><td>HTTP 服务端口</td></tr>
+      <tr><td><code>NODE_ENV</code></td><td>否</td><td>development</td><td>development | production</td></tr>
+      <tr><td><code>TOKEN_TTL</code></td><td>否</td><td>7d</td><td>令牌有效期（如 1h, 7d, 30d）</td></tr>
+      <tr><td><code>BCRYPT_ROUNDS</code></td><td>否</td><td>12</td><td>bcrypt 哈希轮数</td></tr>
+    </table>
+
+    <h2 id="prismamodule">1. PrismaModule <code>src/prisma/</code></h2>
+    <p>标记为 <code>@Global()</code>，因此 <code>PrismaService</code> 可以在任何地方注入，无需显式导入。</p>
+    <ul>
+      <li>通过 <code>pg.Pool</code> 从 <code>DATABASE_URL</code> 创建 <code>PrismaClient</code>，使用 <code>@prisma/adapter-pg</code> 适配器。</li>
+      <li>实现 <code>OnModuleDestroy</code>，在关闭时优雅断开连接。</li>
+      <li>暴露 <code>client</code> 属性直接访问模型（无仓库模式）。</li>
+      <li>提供 <code>query(sql, params?)</code> 方法通过 pg pool 执行原始 SQL。</li>
+    </ul>
+
+    <h2 id="pluginloader">2. PluginLoaderModule <code>src/plugins/</code></h2>
+    <p>一个带有静态 <code>forRoot(pluginsDir)</code> 工厂方法的<strong>动态模块</strong>。在应用启动时运行，扫描文件系统。</p>
+    <ul>
+      <li>枚举 <code>storage/plugins/&lt;name&gt;/dist/index.js</code>，若不存在则回退到 <code>index.js</code></li>
+      <li>使用 <code>Reflect.getMetadata('controllers', PluginModule)</code> 检测控制器路径</li>
+      <li>以 manifest name 为前缀自动拼接路由（如 <code>/test-plugin/status</code>）</li>
+      <li>检测并拦截跨插件重复的控制器路由</li>
+      <li>读取 <code>manifest.auth</code>，当 <code>auth.required === false</code> 时应用 <code>isPublic</code> 元数据</li>
+      <li>将有效插件模块导入 NestJS 模块图</li>
+    </ul>
+    <div class="warn">
+      <div class="warn-title">&#9888;&#65039; 基于文件系统</div>
+      由于该模块在静态工厂中运行，无法以数据库作为数据源。插件安装/更新/卸载后，服务器会自动重启以重新加载路由。
+    </div>
+
+    <h2 id="pluginmanager">3. PluginManagerService <code>src/plugin-manager.service.ts</code></h2>
+    <p>插件生命周期和运行时路由的核心引擎。</p>
+
+    <h4>构造依赖</h4>
+<pre><code>constructor(
   private readonly pluginRegistry: PluginRegistryService,
-)</pre>
+  private readonly pluginMigration: PluginMigrationService,
+  private readonly pluginData: PluginDataService,
+  private readonly pluginSchema: PluginSchemaService,
+  private readonly i18n: I18nService,
+)</code></pre>
 
-  <h4>内部状态</h4>
-  <table>
-    <tr><th>属性</th><th>类型</th><th>用途</th></tr>
-    <tr><td><code>registry</code></td><td><code>Map&lt;string, any&gt;</code></td><td>运行时缓存已加载的插件模块对象（供 <code>invoke()</code> 使用）</td></tr>
-    <tr><td><code>pluginsDir</code></td><td><code>string</code></td><td><code>process.cwd() + '/storage/plugins'</code></td></tr>
-  </table>
+    <h4>内部状态</h4>
+    <table>
+      <tr><th>属性</th><th>类型</th><th>用途</th></tr>
+      <tr><td><code>registry</code></td><td><code>Map&lt;string, any&gt;</code></td><td>运行时缓存已加载的插件模块对象（供 <code>invoke()</code> 使用）</td></tr>
+      <tr><td><code>pluginsDir</code></td><td><code>string</code></td><td><code>process.cwd() + '/storage/plugins'</code></td></tr>
+    </table>
 
-  <h4>方法列表</h4>
-  <table>
-    <tr><th>方法</th><th>说明</th></tr>
-    <tr><td><code>onModuleInit()</code></td><td>确保插件目录存在</td></tr>
-    <tr><td><code>install(file)</code></td><td>验证 ZIP manifest，检查数据库是否已有该插件，解压 ZIP，检测路由冲突，写入 <code>PluginRegistry</code> 数据库记录，触发服务器重启</td></tr>
-    <tr><td><code>update(name, file)</code></td><td>验证新版本 > 已安装版本，删除旧代码，解压新 ZIP，检测冲突，通过 <code>upsert</code> 更新数据库，触发服务器重启</td></tr>
-    <tr><td><code>uninstall(name)</code></td><td>清空 registry 和 require 缓存，删除数据库记录，删除插件目录，触发服务器重启</td></tr>
-    <tr><td><code>listPlugins()</code></td><td>从 <code>pluginRegistry</code> 数据库表返回所有记录</td></tr>
-    <tr><td><code>getPluginControllerRoutes(pluginPath)</code></td><td>扫描插件入口文件，提取控制器路由（用于安装前冲突检测）</td></tr>
-    <tr><td><code>invoke(pluginName, methodName, ...args)</code></td><td>调用缓存插件模块上的方法（插件间通信）</td></tr>
-    <tr><td><code>registerPluginMethods(name, module)</code></td><td>将插件模块存入运行时 registry Map</td></tr>
-  </table>
+    <h4>方法列表</h4>
+    <table>
+      <tr><th>方法</th><th>说明</th></tr>
+      <tr><td><code>onModuleInit()</code></td><td>确保插件目录存在；为已有插件注册翻译和 Schema 缓存</td></tr>
+      <tr><td><code>install(file)</code></td><td>验证 ZIP manifest，检查数据库，解压 ZIP，检测路由冲突，应用 schema/迁移，注册翻译，写入数据库记录，触发重启</td></tr>
+      <tr><td><code>update(file)</code></td><td>从 ZIP manifest 读取插件名称，验证新版本 &gt; 已安装版本，删除旧代码，解压新 ZIP，检测冲突，更新数据库，触发重启</td></tr>
+      <tr><td><code>uninstall(name)</code></td><td>清空 registry 和 require 缓存，注销翻译，删除 schema 表，回滚迁移，清理 plugin_data，删除数据库记录，删除目录，触发重启</td></tr>
+      <tr><td><code>listPlugins()</code></td><td>从 <code>pluginRegistry</code> 数据库表返回所有记录</td></tr>
+      <tr><td><code>invoke(pluginName, methodName, ...args)</code></td><td>调用缓存插件模块上的方法（插件间通信）</td></tr>
+      <tr><td><code>registerPluginMethods(name, module)</code></td><td>将插件模块存入运行时 registry Map</td></tr>
+    </table>
 
-  <h3>4. PluginRegistryService <code>src/plugin-registry/plugin-registry.service.ts</code></h3>
-  <p>封装 <code>PluginRegistry</code> 模型的所有数据库操作。注入到 <code>PluginManagerService</code> 中，使生命周期逻辑不直接依赖 <code>PrismaService</code>。</p>
-  <table>
-    <tr><th>方法</th><th>说明</th></tr>
-    <tr><td><code>findAll()</code></td><td>列出所有插件注册表记录</td></tr>
-    <tr><td><code>findOne(name)</code><td>按唯一名称查找单个插件</td></tr>
-    <tr><td><code>create(data)</code></td><td>插入新插件记录</td></tr>
-    <tr><td><code>update(name, data)</code></td><td>更新版本和/或 manifest</td></tr>
-    <tr><td><code>upsert(name, data)</code></td><td>存在则更新，不存在则创建</td></tr>
-    <tr><td><code>remove(name)</code></td><td>删除插件记录</td></tr>
-  </table>
+    <h2 id="plugincontroller">4. PluginController <code>src/plugin.controller.ts</code></h2>
+    <p>插件管理的 REST API 接口。基础路径：<code>/plugins</code>。所有路由都需要特定权限。</p>
+    <table>
+      <tr><th>方法</th><th>路径</th><th>权限</th><th>操作</th></tr>
+      <tr><td><code>POST</code></td><td><code>/plugins/upload</code></td><td><code>plugin:create</code></td><td>安装插件</td></tr>
+      <tr><td><code>GET</code></td><td><code>/plugins</code></td><td><code>plugin:read</code></td><td>列出已安装插件</td></tr>
+      <tr><td><code>PUT</code></td><td><code>/plugins</code></td><td><code>plugin:update</code></td><td>更新插件（名称从 ZIP manifest 自动检测）</td></tr>
+      <tr><td><code>DELETE</code></td><td><code>/plugins/:name</code></td><td><code>plugin:delete</code></td><td>按名称卸载插件</td></tr>
+    </table>
 
-  <h3>5. PluginDataService <code>src/plugin-data/plugin-data.service.ts</code></h3>
-  <p>插件运行时键值数据存储。通过 upsert API 包装 <code>PluginData</code> 模型。所有值以 JSONB 存储。字段可选择携带 i18n locale 映射（<code>{"en":"Hello","zh-CN":"你好"}</code>），在读写时自动解析或合并。</p>
-  <table>
-    <tr><th>方法</th><th>签名</th><th>说明</th></tr>
-    <tr><td><code>get</code></td><td><code>get(plugin, key, options?)</code></td><td>读取单个键值条目。<code>options.resolveI18n</code> 自动将所有 locale 映射扁平化为当前 locale。<code>options.i18nPaths</code>（点分隔路径数组）仅解析指定字段。<code>options.lang</code> 覆盖请求 locale。</td></tr>
-    <tr><td><code>set</code></td><td><code>set(plugin, key, data, options?)</code></td><td>创建或覆盖键值条目。<code>options.i18nPaths</code> 在创建时将指定路径的字符串值包装为 <code>{locale: value}</code>；在更新时将新 locale 合并到已有 JSONB 中。</td></tr>
-    <tr><td><code>remove</code></td><td><code>remove(plugin, key)</code></td><td>删除键值条目。</td></tr>
-    <tr><td><code>list</code></td><td><code>list(plugin, options?)</code></td><td>列出某插件的所有键值条目。支持与 <code>get</code> 相同的 <code>resolveI18n</code> / <code>i18nPaths</code> / <code>lang</code> 选项。</td></tr>
-    <tr><td><code>resolveI18nValue</code></td><td><code>resolveI18nValue(jsonb, locale?)</code></td><td>工具方法：将 JSONB locale 映射解析为单一字符串，回退到 <code>en</code>，再回退到第一个可用键。</td></tr>
-    <tr><td><code>queryRaw</code></td><td><code>queryRaw&lt;T&gt;(query, params?)</code></td><td>对插件自有表执行原始 SELECT 查询（供迁移模式插件使用）。</td></tr>
-    <tr><td><code>executeRaw</code></td><td><code>executeRaw(query, params?)</code></td><td>对插件自有表执行原始写入查询（供迁移模式插件使用）。</td></tr>
-  </table>
-  <div class="note">i18n KV 示例：<code>set(plugin, key, {title:"Hello"}, {i18nPaths:["title"]})</code> 存储 <code>{title:{"en":"Hello"}}</code>。在 <code>zh-CN</code> locale 下再次调用后合并为 <code>{title:{"en":"Hello","zh-CN":"你好"}}</code>。读取时使用 <code>get(..., {i18nPaths:["title"]})</code>，英文用户得到 <code>{title:"Hello"}</code>。</div>
+    <h2 id="pluginregistry">5. PluginRegistryService <code>src/plugin-registry/</code></h2>
+    <p>封装 <code>PluginRegistry</code> 模型的所有数据库操作。注入到 <code>PluginManagerService</code> 中，使生命周期逻辑不直接依赖 <code>PrismaService</code>。</p>
+    <table>
+      <tr><th>方法</th><th>说明</th></tr>
+      <tr><td><code>findAll()</code></td><td>列出所有插件注册表记录</td></tr>
+      <tr><td><code>findOne(name)</code></td><td>按唯一名称查找单个插件</td></tr>
+      <tr><td><code>create(data)</code></td><td>插入新插件记录</td></tr>
+      <tr><td><code>update(name, data)</code></td><td>更新版本和/或 manifest</td></tr>
+      <tr><td><code>upsert(name, data)</code></td><td>存在则更新，不存在则创建</td></tr>
+      <tr><td><code>remove(name)</code></td><td>删除插件记录</td></tr>
+    </table>
 
-  <h3>6. PluginMigrationService <code>src/plugin-migration/plugin-migration.service.ts</code></h3>
-  <p>管理声明了 <code>migrations/</code> 目录的插件的 SQL 迁移。在 <code>PluginRegistry</code> 数据库记录中跟踪已应用的迁移，避免重复执行。</p>
-  <table>
-    <tr><th>方法</th><th>说明</th></tr>
-    <tr><td><code>applyMigrations(name, path, applied)</code></td><td>读取 <code>migrations/*.sql</code>，跳过已应用的迁移，通过 <code>prisma.query()</code> 执行待处理的 SQL 语句</td></tr>
-    <tr><td><code>rollbackMigrations(name)</code></td><td>删除所有以 <code>plugin_{name}_*</code> 为前缀的表（卸载时使用）</td></tr>
-    <tr><td><code>readMigrationFiles(path)</code></td><td>返回迁移目录中按字母排序的 <code>.sql</code> 文件列表</td></tr>
-  </table>
+    <h2 id="plugindata">6. PluginDataService <code>src/plugin-data/</code></h2>
+    <p>插件运行时键值数据存储。通过 upsert API 包装 <code>PluginData</code> 模型。所有值以 JSONB 存储。字段可选择携带 i18n locale 映射，在读写时自动解析或合并。</p>
+    <table>
+      <tr><th>方法</th><th>签名</th><th>说明</th></tr>
+      <tr><td><code>get</code></td><td><code>get(plugin, key, options?)</code></td><td>读取单个键值条目。<code>resolveI18n</code> 自动将所有 locale 映射扁平化为当前 locale。<code>i18nPaths</code> 仅解析指定字段。<code>lang</code> 覆盖请求 locale。</td></tr>
+      <tr><td><code>set</code></td><td><code>set(plugin, key, data, options?)</code></td><td>创建或覆盖键值条目。<code>i18nPaths</code> 在创建时将指定路径的字符串值包装为 <code>{locale: value}</code>；在更新时将新 locale 合并到已有 JSONB 中。</td></tr>
+      <tr><td><code>remove</code></td><td><code>remove(plugin, key)</code></td><td>删除键值条目</td></tr>
+      <tr><td><code>list</code></td><td><code>list(plugin, options?)</code></td><td>列出某插件的所有键值条目</td></tr>
+      <tr><td><code>queryRaw</code></td><td><code>queryRaw&lt;T&gt;(query, params?)</code></td><td>对插件自有表执行原始 SELECT 查询</td></tr>
+      <tr><td><code>executeRaw</code></td><td><code>executeRaw(query, params?)</code></td><td>对插件自有表执行原始写入查询</td></tr>
+    </table>
 
-  <h3>7. PluginSchemaService <code>src/plugin-schema/plugin-schema.service.ts</code></h3>
-  <p>通过 <code>manifest.json</code> 中声明的 JSON schema 动态创建表并提供 CRUD 操作。表名前缀为 <code>plugin_{name}_{model}</code>。每张表自动添加 <code>id</code>（SERIAL PRIMARY KEY）、<code>created_at</code>、<code>updated_at</code> 列。</p>
+    <div class="note">
+      <div class="note-title">&#128161; i18n KV 示例</div>
+      <code>set(plugin, key, {title:"Hello"}, {i18nPaths:["title"]})</code> 存储 <code>{title:{"en":"Hello"}}</code>。在 <code>zh-CN</code> locale 下再次调用后合并为 <code>{title:{"en":"Hello","zh-CN":"你好"}}</code>。读取时使用 <code>get(..., {i18nPaths:["title"]})</code>，英文用户得到 <code>{title:"Hello"}</code>。
+    </div>
 
-  <h4>Schema 管理方法</h4>
-  <table>
-    <tr><th>方法</th><th>说明</th></tr>
-    <tr><td><code>syncSchema(name, schema)</code></td><td>根据 JSON schema 定义创建表或添加缺失列。同时调用 <code>registerSchema</code>，使 CRUD 调用可省略 <code>schema</code> 参数。</td></tr>
-    <tr><td><code>dropSchema(name, schema)</code></td><td>以逆序删除插件所有表（处理外键依赖）。调用 <code>unregisterSchema</code>。</td></tr>
-    <tr><td><code>registerSchema(name, schema)</code></td><td>将 schema 缓存到内存，使后续 CRUD 调用可省略 <code>schema</code> 参数。</td></tr>
-    <tr><td><code>unregisterSchema(name)</code></td><td>移除缓存的 schema（由 <code>dropSchema</code> 调用）。</td></tr>
-  </table>
+    <h2 id="pluginschema">7. PluginSchemaService <code>src/plugin-schema/</code></h2>
+    <p>通过 <code>manifest.json</code> 中声明的 JSON schema 动态创建表并提供 CRUD 操作。表名前缀为 <code>plugin_{name}_{model}</code>。每张表自动添加 <code>id</code>（SERIAL PRIMARY KEY）、<code>created_at</code>、<code>updated_at</code> 列。</p>
 
-  <h4>CRUD 方法</h4>
-  <table>
-    <tr><th>方法</th><th>说明</th></tr>
-    <tr><td><code>create(name, model, data, schema?)</code></td><td>插入一行。i18n 字段在写入时包装为 <code>{locale: value}</code>。</td></tr>
-    <tr><td><code>find(name, model, options?, schema?)</code></td><td>查询行。选项：<code>where</code>、<code>orderBy</code>、<code>limit</code>、<code>offset</code>、<code>lang</code>。返回行中 i18n 字段自动扁平化为解析后的 locale 值。</td></tr>
-    <tr><td><code>findOne(name, model, where?, schema?, lang?)</code></td><td>查询单行（内部调用 <code>find</code> 加 <code>limit: 1</code>）。</td></tr>
-    <tr><td><code>update(name, model, where, data, schema?)</code></td><td>更新匹配行。i18n 字段合并入已有 JSONB（添加/替换当前 locale，不影响其他语言）。</td></tr>
-    <tr><td><code>remove(name, model, where)</code></td><td>删除匹配行，返回删除行数。</td></tr>
-    <tr><td><code>count(name, model, where?)</code></td><td>统计匹配行数。</td></tr>
-    <tr><td><code>resolveI18nValue(jsonb, locale?)</code></td><td>工具方法：将 JSONB locale 映射解析为字符串，回退到 <code>en</code>，再回退到第一个可用键。</td></tr>
-  </table>
+    <h4>Schema 管理方法</h4>
+    <table>
+      <tr><th>方法</th><th>说明</th></tr>
+      <tr><td><code>syncSchema(name, schema)</code></td><td>根据 JSON schema 定义创建表或添加缺失列。同时调用 <code>registerSchema</code>。</td></tr>
+      <tr><td><code>dropSchema(name, schema)</code></td><td>以逆序删除插件所有表（处理外键依赖）。调用 <code>unregisterSchema</code>。</td></tr>
+      <tr><td><code>registerSchema(name, schema)</code></td><td>将 schema 缓存到内存，使后续 CRUD 调用可省略 <code>schema</code> 参数。</td></tr>
+      <tr><td><code>unregisterSchema(name)</code></td><td>移除缓存的 schema。</td></tr>
+    </table>
 
-  <h4>字段定义（<code>FieldDef</code>）</h4>
-  <p>支持的 <code>type</code> 值：<code>string</code>、<code>int</code>、<code>bigint</code>、<code>float</code>、<code>decimal</code>、<code>boolean</code>、<code>date</code>、<code>timestamp</code>、<code>json</code>、<code>text</code>。</p>
-  <table>
-    <tr><th>属性</th><th>类型</th><th>说明</th></tr>
-    <tr><td><code>type</code></td><td>FieldType</td><td>SQL 列类型</td></tr>
-    <tr><td><code>i18n</code></td><td>boolean</td><td>若为 <code>true</code>，列以 JSONB locale 键存储。读取时自动扁平化为请求 locale。</td></tr>
-    <tr><td><code>required</code></td><td>boolean</td><td>NOT NULL 约束</td></tr>
-    <tr><td><code>default</code></td><td>any</td><td>DEFAULT 值；<code>"now()"</code> 映射为 <code>CURRENT_TIMESTAMP</code></td></tr>
-    <tr><td><code>unique</code></td><td>boolean</td><td>UNIQUE 约束（i18n 字段：按默认 locale 值唯一）</td></tr>
-    <tr><td><code>index</code></td><td>boolean</td><td>索引（i18n 字段：GIN 索引）</td></tr>
-    <tr><td><code>primary</code></td><td>boolean</td><td>PRIMARY KEY 覆盖（跳过自动 <code>id</code> 列）</td></tr>
-    <tr><td><code>length</code></td><td>number</td><td><code>string</code> 类型的 VARCHAR 长度</td></tr>
-    <tr><td><code>precision</code> / <code>scale</code></td><td>number</td><td>用于 <code>decimal</code> 类型</td></tr>
-  </table>
+    <h4>CRUD 方法</h4>
+    <table>
+      <tr><th>方法</th><th>说明</th></tr>
+      <tr><td><code>create(name, model, data, schema?)</code></td><td>插入一行。i18n 字段在写入时包装为 <code>{locale: value}</code>。</td></tr>
+      <tr><td><code>find(name, model, options?, schema?)</code></td><td>查询行。选项：<code>where</code>、<code>orderBy</code>、<code>limit</code>、<code>offset</code>、<code>lang</code>。</td></tr>
+      <tr><td><code>findOne(name, model, where?, schema?, lang?)</code></td><td>查询单行（内部调用 <code>find</code> 加 <code>limit: 1</code>）。</td></tr>
+      <tr><td><code>update(name, model, where, data, schema?)</code></td><td>更新匹配行。i18n 字段合并入已有 JSONB（添加/替换当前 locale，不影响其他语言）。</td></tr>
+      <tr><td><code>remove(name, model, where)</code></td><td>删除匹配行，返回删除行数。</td></tr>
+      <tr><td><code>count(name, model, where?)</code></td><td>统计匹配行数。</td></tr>
+    </table>
 
-  <h4>WHERE 条件操作符</h4>
-  <table>
-    <tr><th>语法</th><th>SQL 等价</th></tr>
-    <tr><td><code>{field: value}</code></td><td><code>field = value</code></td></tr>
-    <tr><td><code>{field: null}</code></td><td><code>field IS NULL</code></td></tr>
-    <tr><td><code>{field: [a, b]}</code></td><td><code>field IN (a, b)</code></td></tr>
-    <tr><td><code>{field: {$gt: v}}</code></td><td><code>field &gt; v</code></td></tr>
-    <tr><td><code>{field: {$gte: v}}</code></td><td><code>field &gt;= v</code></td></tr>
-    <tr><td><code>{field: {$lt: v}}</code></td><td><code>field &lt; v</code></td></tr>
-    <tr><td><code>{field: {$lte: v}}</code></td><td><code>field &lt;= v</code></td></tr>
-    <tr><td><code>{field: {$ne: v}}</code></td><td><code>field &lt;&gt; v</code></td></tr>
-    <tr><td><code>{field: {$like: v}}</code></td><td><code>field LIKE v</code></td></tr>
-  </table>
-  <div class="note">对于 i18n 字段，WHERE 比较自动作用于 <code>->>'locale'</code> JSONB 文本提取，因此 <code>{name: "Hello"}</code> 会按当前 locale 值进行过滤。</div>
+    <h4>字段定义（<code>FieldDef</code>）</h4>
+    <p>支持的 <code>type</code> 值：<code>string</code>、<code>int</code>、<code>bigint</code>、<code>float</code>、<code>decimal</code>、<code>boolean</code>、<code>date</code>、<code>timestamp</code>、<code>json</code>、<code>text</code>。</p>
+    <table>
+      <tr><th>属性</th><th>类型</th><th>说明</th></tr>
+      <tr><td><code>type</code></td><td>FieldType</td><td>SQL 列类型</td></tr>
+      <tr><td><code>i18n</code></td><td>boolean</td><td>若为 <code>true</code>，列以 JSONB locale 键存储。读取时自动扁平化为请求 locale。</td></tr>
+      <tr><td><code>required</code></td><td>boolean</td><td>NOT NULL 约束</td></tr>
+      <tr><td><code>default</code></td><td>any</td><td>DEFAULT 值；<code>"now()"</code> 映射为 <code>CURRENT_TIMESTAMP</code></td></tr>
+      <tr><td><code>unique</code></td><td>boolean</td><td>UNIQUE 约束（i18n 字段：按默认 locale 值唯一）</td></tr>
+      <tr><td><code>index</code></td><td>boolean</td><td>索引（i18n 字段：GIN 索引）</td></tr>
+      <tr><td><code>primary</code></td><td>boolean</td><td>PRIMARY KEY 覆盖（跳过自动 <code>id</code> 列）</td></tr>
+      <tr><td><code>length</code></td><td>number</td><td><code>string</code> 类型的 VARCHAR 长度</td></tr>
+      <tr><td><code>precision</code> / <code>scale</code></td><td>number</td><td>用于 <code>decimal</code> 类型</td></tr>
+    </table>
 
-  <h3>8. I18nModule <code>src/i18n/</code></h3>
-  <p>标记为 <code>@Global()</code>，<code>I18nService</code> 可在任何地方注入。对所有路由应用 <code>I18nMiddleware</code>，读取请求的 <code>Accept-Language</code> 头，通过 <code>AsyncLocalStorage</code> 将解析出的 locale 绑定到当前请求作用域。默认 locale 为 <code>en</code>。</p>
-  <p>核心 locale 文件存放在 <code>locales/{locale}/*.json</code>。插件在安装时注册各自的翻译，在卸载时注销。</p>
+    <h4>WHERE 条件操作符</h4>
+    <table>
+      <tr><th>语法</th><th>SQL 等价</th></tr>
+      <tr><td><code>{field: value}</code></td><td><code>field = value</code></td></tr>
+      <tr><td><code>{field: null}</code></td><td><code>field IS NULL</code></td></tr>
+      <tr><td><code>{field: [a, b]}</code></td><td><code>field IN (a, b)</code></td></tr>
+      <tr><td><code>{field: {$gt: v}}</code></td><td><code>field &gt; v</code></td></tr>
+      <tr><td><code>{field: {$gte: v}}</code></td><td><code>field &gt;= v</code></td></tr>
+      <tr><td><code>{field: {$lt: v}}</code></td><td><code>field &lt; v</code></td></tr>
+      <tr><td><code>{field: {$lte: v}}</code></td><td><code>field &lt;= v</code></td></tr>
+      <tr><td><code>{field: {$ne: v}}</code></td><td><code>field &lt;&gt; v</code></td></tr>
+      <tr><td><code>{field: {$like: v}}</code></td><td><code>field LIKE v</code></td></tr>
+    </table>
 
-  <h4>I18nService 方法</h4>
-  <table>
-    <tr><th>方法</th><th>说明</th></tr>
-    <tr><td><code>t(key, args?)</code></td><td>按点分隔键翻译当前请求的 locale；回退到 <code>en</code>。支持 <code>{placeholder}</code> 插值。</td></tr>
-    <tr><td><code>tPlugin(pluginName, key, args?)</code></td><td><code>t('{pluginName}.{key}')</code> 的快捷方式，翻译插件命名空间下的键。</td></tr>
-    <tr><td><code>getLocale()</code></td><td>从 <code>AsyncLocalStorage</code> 返回当前请求 locale，无则返回 <code>en</code>。</td></tr>
-    <tr><td><code>registerPluginLocale(name, dir)</code></td><td>加载 <code>{dir}/{locale}/*.json</code> 并将键合并到 <code>{name}.*</code> 命名空间下，返回已注册的键列表供清理使用。</td></tr>
-    <tr><td><code>unregisterPluginLocale(name)</code></td><td>移除该插件命名空间下的所有翻译。</td></tr>
-  </table>
+    <h2 id="pluginmigration">8. PluginMigrationService <code>src/plugin-migration/</code></h2>
+    <p>管理声明了 <code>migrations/</code> 目录的插件的 SQL 迁移。在 <code>PluginRegistry</code> 数据库记录中跟踪已应用的迁移，避免重复执行。</p>
+    <table>
+      <tr><th>方法</th><th>说明</th></tr>
+      <tr><td><code>applyMigrations(name, path, applied)</code></td><td>读取 <code>migrations/*.sql</code>，跳过已应用的迁移，通过 <code>prisma.query()</code> 执行待处理的 SQL 语句</td></tr>
+      <tr><td><code>rollbackMigrations(name)</code></td><td>删除所有以 <code>plugin_{name}_*</code> 为前缀的表（卸载时使用）</td></tr>
+      <tr><td><code>readMigrationFiles(path)</code></td><td>返回迁移目录中按字母排序的 <code>.sql</code> 文件列表</td></tr>
+    </table>
 
-  <h4>Locale 文件结构</h4>
-  <p>核心 locale 文件（<code>locales/en/messages.json</code>、<code>locales/en/errors.json</code> 等）为平铺或嵌套 JSON。插件 locale 文件放在 ZIP 包内 <code>locales/{locale}/{file}.json</code>：</p>
-  <pre>locales/
+    <h2 id="i18n">9. I18nModule <code>src/i18n/</code></h2>
+    <p>标记为 <code>@Global()</code>，<code>I18nService</code> 可在任何地方注入。对所有路由应用 <code>I18nMiddleware</code>，读取请求的 <code>Accept-Language</code> 头，通过 <code>AsyncLocalStorage</code> 将解析出的 locale 绑定到当前请求作用域。默认 locale 为 <code>en</code>。</p>
+    <p>核心 locale 文件存放在 <code>locales/{locale}/*.json</code>。插件在安装时注册各自的翻译，在卸载时注销。</p>
+
+    <h4>I18nService 方法</h4>
+    <table>
+      <tr><th>方法</th><th>说明</th></tr>
+      <tr><td><code>t(key, args?)</code></td><td>按点分隔键翻译当前请求的 locale；回退到 <code>en</code>。支持 <code>{placeholder}</code> 插值。</td></tr>
+      <tr><td><code>tPlugin(pluginName, key, args?)</code></td><td><code>t('{pluginName}.{key}')</code> 的快捷方式，翻译插件命名空间下的键。</td></tr>
+      <tr><td><code>getLocale()</code></td><td>从 <code>AsyncLocalStorage</code> 返回当前请求 locale，无则返回 <code>en</code>。</td></tr>
+      <tr><td><code>registerPluginLocale(name, dir)</code></td><td>加载 <code>{dir}/{locale}/*.json</code> 并将键合并到 <code>{name}.*</code> 命名空间下。</td></tr>
+      <tr><td><code>unregisterPluginLocale(name)</code></td><td>移除该插件命名空间下的所有翻译。</td></tr>
+    </table>
+
+    <h4>Locale 文件结构</h4>
+<pre><code>locales/
 ├── en/
 │   ├── errors.json      # Postgres 错误消息、插件错误字符串
 │   └── messages.json    # 成功/状态消息
 └── zh-CN/
     ├── errors.json
-    └── messages.json</pre>
-  <p>插件翻译通过 <code>{pluginName}.{file}.{key}</code> 访问，例如 <code>my-plugin.messages.welcome</code>。</p>
+    └── messages.json</code></pre>
+    <p>插件翻译通过 <code>{pluginName}.{file}.{key}</code> 访问，例如 <code>my-plugin.messages.welcome</code>。</p>
 
-  <h3>9. PostgresExceptionFilter <code>src/common/filters/postgres-exception.filter.ts</code></h3>
-  <p>注册在 <code>AppModule</code> 中的全局 <code>@Catch()</code> 异常过滤器。在 PostgreSQL 驱动错误到达 NestJS 默认处理器之前将其拦截，返回结构化、本地化的 JSON 响应。</p>
-  <table>
-    <tr><th>PG 错误代码</th><th>HTTP 状态</th><th>i18n 键</th></tr>
-    <tr><td><code>23505</code> — 唯一约束冲突</td><td>409 Conflict</td><td><code>errors.23505</code> / <code>errors.23505_fallback</code></td></tr>
-    <tr><td><code>23503</code> — 外键约束冲突</td><td>409 Conflict</td><td><code>errors.23503</code></td></tr>
-    <tr><td><code>42703</code> — 未定义的列</td><td>400 Bad Request</td><td><code>errors.42703</code></td></tr>
-    <tr><td>其他错误</td><td><code>exception.status</code> 或 500</td><td><code>errors.500</code></td></tr>
-  </table>
+    <h2 id="exceptionfilter">10. PostgresExceptionFilter <code>src/common/filters/</code></h2>
+    <p>注册在 <code>AppModule</code> 中的全局 <code>@Catch()</code> 异常过滤器。在 PostgreSQL 驱动错误到达 NestJS 默认处理器之前将其拦截，返回结构化、本地化的 JSON 响应。</p>
+    <table>
+      <tr><th>PG 错误代码</th><th>HTTP 状态</th><th>i18n 键</th></tr>
+      <tr><td><code>23505</code> &mdash; 唯一约束冲突</td><td>409 Conflict</td><td><code>errors.23505</code> / <code>errors.23505_fallback</code></td></tr>
+      <tr><td><code>23503</code> &mdash; 外键约束冲突</td><td>409 Conflict</td><td><code>errors.23503</code></td></tr>
+      <tr><td><code>42703</code> &mdash; 未定义的列</td><td>400 Bad Request</td><td><code>errors.42703</code></td></tr>
+      <tr><td>其他错误</td><td><code>exception.status</code> 或 500</td><td><code>errors.500</code></td></tr>
+    </table>
 
-  <h3>10. PluginController <code>src/plugin.controller.ts</code></h3>
-  <p>插件管理的 REST API 接口。基础路径：<code>/plugins</code></p>
-  <table>
-    <tr><th>方法</th><th>路径</th><th>请求体</th><th>操作</th></tr>
-    <tr><td><code>POST</code></td><td><code>/plugins/upload</code></td><td>multipart <code>file</code> (ZIP)</td><td>安装插件</td></tr>
-    <tr><td><code>GET</code></td><td><code>/plugins</code></td><td>&mdash;</td><td>列出已安装插件</td></tr>
-    <tr><td><code>PUT</code></td><td><code>/plugins/:name</code></td><td>multipart <code>file</code> (ZIP)</td><td>按名称更新插件</td></tr>
-    <tr><td><code>DELETE</code></td><td><code>/plugins/:name</code></td><td>&mdash;</td><td>按名称卸载插件</td></tr>
-  </table>
+    <h2 id="auth-overview">认证与授权概述</h2>
+    <p>Wau Core 包含一套完整的基于令牌的认证和基于角色的授权系统，从零构建（不依赖 Passport 或 JWT 等外部库）。两个全局守卫作为 <code>APP_GUARD</code> 注册在 <code>AppModule</code> 中：</p>
+    <ul>
+      <li><strong>AuthGuard</strong> &mdash; 在每个请求上验证 Bearer 令牌（除非标记了 <code>@Public()</code>）</li>
+      <li><strong>PermissionGuard</strong> &mdash; 检查标有 <code>@RequirePermissions()</code> 的路由所需权限</li>
+    </ul>
 
-  <h2>数据库模型</h2>
-  <p>文件：<code>prisma/schema/schema.prisma</code>（generator &amp; datasource）+ <code>prisma/schema/plugin.prisma</code>（模型定义）</p>
+    <div class="mermaid">
+graph LR
+    subgraph Req["传入请求"]
+        A["AuthGuard"]
+        B["PermissionGuard"]
+    end
+    A -->|"有效令牌?"| C["request.user = UserPayload"]
+    C --> B
+    B -->|"有权限?"| D["路由处理器"]
+    B -->|"无权限"| E["403 Forbidden"]
+    A -->|"无效/缺失"| F["401 Unauthorized"]
+    </div>
 
-  <h3>PluginRegistry</h3>
-  <p>已安装插件元数据的权威来源。</p>
-  <pre>model PluginRegistry {
-  id                String   @id @default(cuid())
-  name              String   @unique
-  version           String
-  manifest          Json
-  migrationsApplied Json?    @map("migrations_applied")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+    <h2 id="authservice">AuthService <code>src/auth/auth.service.ts</code></h2>
+    <p>核心认证逻辑，实现基于令牌的认证与 bcrypt 密码哈希。</p>
 
-  @@map("plugin_registry")
-}</pre>
-  <table>
-    <tr><th>字段</th><th>类型</th><th>说明</th></tr>
-    <tr><td><code>id</code></td><td>CUID</td><td>主键</td></tr>
-    <tr><td><code>name</code></td><td>String</td><td>唯一；与插件目录名一致</td></tr>
-    <tr><td><code>version</code></td><td>String</td><td>manifest 中的语义化版本</td></tr>
-    <tr><td><code>manifest</code></td><td>JSONB</td><td>完整的 <code>manifest.json</code> 内容</td></tr>
-    <tr><td><code>migrationsApplied</code></td><td>JSONB</td><td>已应用的 SQL 迁移文件名列表</td></tr>
-  </table>
+    <h4>主要特性</h4>
+    <ul>
+      <li><strong>基于令牌的认证</strong>：创建 32 字节随机十六进制令牌，存储在 <code>userToken</code> 表中，可配置 TTL（默认 7 天）</li>
+      <li><strong>自动清理</strong>：每 6 小时执行一次定时任务，清理过期/已撤销的令牌</li>
+      <li><strong>首个用户为管理员</strong>：第一个注册用户获得 <code>ADMIN</code> 角色和 <code>["*"]</code> 权限</li>
+      <li><strong>角色同步</strong>：启动时确保 <code>ADMIN</code> 和 <code>USER</code> 角色具有正确的权限</li>
+    </ul>
 
-  <h3>PluginData</h3>
-  <p>插件运行时键值数据存储。</p>
-  <pre>model PluginData {
-  id        String   @id @default(cuid())
-  plugin    String
-  key       String
-  data      Json
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+    <h4>方法</h4>
+    <table>
+      <tr><th>方法</th><th>说明</th></tr>
+      <tr><td><code>register(dto)</code></td><td>创建新用户并哈希密码。首个用户成为 ADMIN。</td></tr>
+      <tr><td><code>login(dto, ip?, userAgent?)</code></td><td>验证凭据，检查 ACTIVE 状态，清理过期令牌，更新 lastLoginAt，返回令牌。</td></tr>
+      <tr><td><code>validateToken(token)</code></td><td>若令牌有效且未过期/撤销，返回包含角色和权限的 <code>UserPayload</code>。</td></tr>
+      <tr><td><code>revokeToken(token)</code></td><td>将令牌标记为已撤销。</td></tr>
+      <tr><td><code>revokeAllTokens(userId)</code></td><td>撤销用户的所有有效令牌。</td></tr>
+      <tr><td><code>getMe(userId)</code></td><td>返回当前用户详情及权限（password 已省略）。</td></tr>
+      <tr><td><code>changePassword(userId, dto)</code></td><td>验证旧密码，哈希新密码，撤销所有令牌。</td></tr>
+      <tr><td><code>forgotPassword(email)</code></td><td>生成重置令牌（1 小时有效期），存储在用户 profile 中。返回通用响应。</td></tr>
+      <tr><td><code>resetPassword(token, newPassword)</code></td><td>验证重置令牌，更新密码，撤销所有令牌。</td></tr>
+      <tr><td><code>hasUsers()</code></td><td>检查系统中是否存在用户。</td></tr>
+    </table>
 
-  @@unique([plugin, key])
-  @@index([plugin])
-  @@map("plugin_data")
-}</pre>
+    <h2 id="auth-api">AuthController API <code>src/auth/auth.controller.ts</code></h2>
+    <p><code>/auth</code> 下的 REST 接口。标记 <code>@Public()</code> 的路由绕过认证。</p>
 
-  <h2>插件格式规范</h2>
-  <p>一个有效的 Wau 插件是一个 ZIP 压缩包。最小结构为 <code>manifest.json</code> + 编译后的 <code>dist/</code>。可选添加 <code>locales/</code> 支持 i18n，或 <code>migrations/</code> 支持 SQL 迁移：</p>
-  <pre>myplugin.zip
-├── manifest.json               # 必需 — 插件元数据
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-post">POST</span>
+        <span class="api-path">/auth/register</span>
+      </div>
+      <div class="api-body">
+        <p><strong>公开</strong> &mdash; 注册新用户。首个用户成为管理员。</p>
+        <p><strong>请求体:</strong> <code>{ email: string, password: string (最少6位), name?: string }</code></p>
+        <p><strong>响应:</strong> <code>{ user: { id, email, name }, token: { token, expiresAt } }</code></p>
+      </div>
+    </div>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-post">POST</span>
+        <span class="api-path">/auth/login</span>
+      </div>
+      <div class="api-body">
+        <p><strong>公开</strong> &mdash; 认证并获取令牌。</p>
+        <p><strong>请求体:</strong> <code>{ email: string, password: string }</code></p>
+        <p><strong>响应:</strong> <code>{ user: { id, email, name }, token: { token, expiresAt } }</code></p>
+      </div>
+    </div>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-post">POST</span>
+        <span class="api-path">/auth/logout</span>
+      </div>
+      <div class="api-body">
+        <p>撤销当前令牌（从 Authorization 头中提取）。</p>
+        <p><strong>响应:</strong> <code>{ message: "登出成功" }</code></p>
+      </div>
+    </div>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-post">POST</span>
+        <span class="api-path">/auth/logout-all</span>
+      </div>
+      <div class="api-body">
+        <p>撤销当前用户的所有令牌。</p>
+        <p><strong>响应:</strong> <code>{ message: "所有会话已登出" }</code></p>
+      </div>
+    </div>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-get">GET</span>
+        <span class="api-path">/auth/me</span>
+      </div>
+      <div class="api-body">
+        <p>获取当前用户详情及权限。</p>
+        <p><strong>响应:</strong> <code>{ id, email, name, status, role, permissions, ... }</code></p>
+      </div>
+    </div>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-put">PUT</span>
+        <span class="api-path">/auth/password</span>
+      </div>
+      <div class="api-body">
+        <p>修改密码。修改后所有令牌将被撤销。</p>
+        <p><strong>请求体:</strong> <code>{ oldPassword: string, newPassword: string (最少6位) }</code></p>
+      </div>
+    </div>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-post">POST</span>
+        <span class="api-path">/auth/forgot-password</span>
+      </div>
+      <div class="api-body">
+        <p><strong>公开</strong> &mdash; 请求密码重置令牌。<strong>SMTP 尚未实现</strong> &mdash; 响应不返回令牌，请查询数据库（用户 profile 的 <code>_resetToken</code>）。</p>
+        <p><strong>请求体:</strong> <code>{ email: string }</code></p>
+        <p>无论邮箱是否存在都返回相同的通用消息（防止枚举攻击）。</p>
+      </div>
+    </div>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-post">POST</span>
+        <span class="api-path">/auth/reset-password</span>
+      </div>
+      <div class="api-body">
+        <p><strong>公开</strong> &mdash; 使用有效的重置令牌重置密码。</p>
+        <p><strong>请求体:</strong> <code>{ token: string, newPassword: string (最少6位) }</code></p>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <h4>忘记密码 / 重置密码流程（SMTP 尚未实现）</h4>
+      <ol>
+        <li><strong>请求重置令牌</strong> — 无论邮箱是否存在，都返回相同的通用消息：
+          <pre><code>curl -X POST http://localhost:3000/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'</code></pre>
+          响应：<code>{ "message": "If the email exists, a reset link has been sent." }</code>
+        </li>
+        <li><strong>从数据库读取令牌</strong> — 存储在 <code>users.profile._resetToken</code> 中（有效期 1 小时）：
+          <pre><code>psql $DATABASE_URL -c "SELECT profile-&gt;&gt;'_resetToken' AS reset_token FROM users WHERE email = 'user@example.com';"</code></pre>
+        </li>
+        <li><strong>使用令牌重置密码：</strong>
+          <pre><code>curl -X POST http://localhost:3000/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{"token": "&lt;reset_token&gt;", "newPassword": "new-secret-password"}'</code></pre>
+          响应：<code>{ "message": "Password has been reset successfully." }</code>
+        </li>
+      </ol>
+    </div>
+
+    <h2 id="guards">守卫与装饰器</h2>
+
+    <h4>装饰器</h4>
+    <table>
+      <tr><th>装饰器</th><th>用法</th><th>说明</th></tr>
+      <tr><td><code>@Public()</code></td><td>方法或类</td><td>将路由标记为公开，绕过 AuthGuard</td></tr>
+      <tr><td><code>@RequirePermissions(...perms)</code></td><td>方法</td><td>指定路由所需的权限</td></tr>
+      <tr><td><code>@CurrentUser()</code></td><td>参数</td><td>从 <code>request.user</code> 提取 <code>UserPayload</code></td></tr>
+    </table>
+
+    <h4>AuthContextService</h4>
+    <p>可注入的服务，提供认证状态检查辅助方法：</p>
+    <table>
+      <tr><th>方法</th><th>说明</th></tr>
+      <tr><td><code>getCurrentUser(req)</code></td><td>从请求对象返回 <code>UserPayload</code></td></tr>
+      <tr><td><code>hasPermission(req, permission)</code></td><td>检查用户是否拥有特定权限（包括 <code>*</code>）</td></tr>
+      <tr><td><code>hasRole(req, role)</code></td><td>检查用户是否拥有特定角色</td></tr>
+    </table>
+
+    <h2 id="permissions">权限系统</h2>
+    <p>权限以 JSON 数组形式存储在 <code>Role</code> 模型上。<code>PermissionGuard</code> 支持通配符匹配：</p>
+    <ul>
+      <li><code>*</code> &mdash; 授予所有权限</li>
+      <li><code>plugin:*</code> &mdash; 授予所有以 <code>plugin:</code> 开头的权限</li>
+      <li><code>plugin:create</code> &mdash; 精确匹配</li>
+    </ul>
+
+    <h4>默认角色</h4>
+    <table>
+      <tr><th>角色</th><th>权限</th><th>说明</th></tr>
+      <tr><td><code>ADMIN</code></td><td><code>["*"]</code></td><td>完全访问所有功能</td></tr>
+      <tr><td><code>USER</code></td><td><code>[]</code></td><td>默认无任何权限</td></tr>
+    </table>
+
+    <h4>插件管理权限</h4>
+    <table>
+      <tr><th>权限</th><th>用于</th></tr>
+      <tr><td><code>plugin:create</code></td><td>POST /plugins/upload</td></tr>
+      <tr><td><code>plugin:read</code></td><td>GET /plugins</td></tr>
+      <tr><td><code>plugin:update</code></td><td>PUT /plugins</td></tr>
+      <tr><td><code>plugin:delete</code></td><td>DELETE /plugins/:name</td></tr>
+    </table>
+
+    <h2 id="plugin-auth">插件 Auth 元数据</h2>
+    <p>插件可以在 <code>manifest.json</code> 中声明认证配置：</p>
+<pre><code>{
+  "name": "my-plugin",
+  "version": "1.0.0",
+  "auth": {
+    "required": false
+  }
+}</code></pre>
+    <p>当 <code>auth.required === false</code> 时，<code>PluginLoaderModule</code> 自动将插件控制器上所有路由处理方法标记为 <code>isPublic: true</code>，使其绕过 <code>AuthGuard</code>。</p>
+
+    <div class="warn">
+      <div class="warn-title">&#9888;&#65039; 权限仅为信息性</div>
+      <code>manifest.auth.permissions</code> 被核心<strong>有意忽略</strong>。<code>manifest.json</code> 中声明的权限纯粹是信息性的。实际的权限执行需要在每个路由处理器上显式使用 <code>@RequirePermissions(...)</code> 装饰器。
+    </div>
+
+    <h2 id="plugin-structure">插件结构</h2>
+    <p>一个有效的 Wau 插件是一个 ZIP 压缩包，结构如下：</p>
+<pre><code>my-plugin.zip
+├── manifest.json          # 插件元数据
 ├── dist/
-│   └── index.js                # 必需 — 编译后入口文件（导出 NestJS 模块）
-├── locales/                    # 可选 — i18n 翻译文件
+│   └── index.js           # 插件入口文件（若不存在则回退到根目录 index.js）
+├── locales/               # 可选：i18n 翻译文件
 │   ├── en/
-│   │   ├── messages.json       # 成功 / 状态消息
-│   │   └── errors.json         # 错误消息
+│   │   ├── messages.json
+│   │   └── errors.json
 │   └── zh-CN/
 │       ├── messages.json
 │       └── errors.json
-└── migrations/                 # 可选 — SQL 迁移文件
-    └── 20260101000000_init.sql</pre>
-  <p>若不存在 <code>dist/</code>，核心回退到 ZIP 根目录的 <code>index.js</code>。</p>
+└── migrations/            # 可选：SQL 迁移文件
+    └── 20260101000000_init.sql</code></pre>
 
-  <h3>manifest.json</h3>
-  <p>必需字段：<code>name</code>、<code>version</code>。其余均为可选。</p>
-  <pre>{
+    <h2 id="manifest">manifest.json</h2>
+    <p>必需字段：<code>name</code>、<code>version</code>。其余均为可选。</p>
+<pre><code>{
   "name": "my-plugin",
   "version": "1.0.0",
   "description": "插件描述",
-  "author": "作者名称"
-}</pre>
-
-  <p>带 i18n 支持与 JSON schema 的完整示例：</p>
-  <pre>{
-  "name": "my-plugin",
-  "version": "1.0.0",
-  "description": "多语言插件，含动态数据表",
   "author": "作者名称",
+  "auth": {
+    "required": true,
+    "permissions": ["plugin:read"]
+  },
   "i18n": {
     "defaultLocale": "en",
     "locales": ["en", "zh-CN", "ms-MY"],
@@ -348,221 +1485,426 @@ graph TB
       "status":  { "type": "string", "required": true, "default": "draft", "index": true }
     }
   }
-}</pre>
+}</code></pre>
 
-  <table>
-    <tr><th>字段</th><th>必需</th><th>说明</th></tr>
-    <tr><td><code>name</code></td><td>是</td><td>插件唯一标识符，用作路由前缀和表名前缀。</td></tr>
-    <tr><td><code>version</code></td><td>是</td><td>语义化版本号。安装时拒绝相同版本或降级上传。</td></tr>
-    <tr><td><code>description</code></td><td>否</td><td>可读描述。</td></tr>
-    <tr><td><code>author</code></td><td>否</td><td>作者名称。</td></tr>
-    <tr><td><code>i18n</code></td><td>否</td><td>声明 i18n 支持。<code>defaultLocale</code>、<code>locales</code>（数组）、<code>path</code>（相对 ZIP 根目录，默认 <code>./locales</code>）。</td></tr>
-    <tr><td><code>schema</code></td><td>否</td><td>JSON schema，用于通过 <code>PluginSchemaService</code> 动态建表。</td></tr>
-  </table>
+    <table>
+      <tr><th>字段</th><th>必需</th><th>说明</th></tr>
+      <tr><td><code>name</code></td><td>是</td><td>插件唯一标识符，用作路由前缀和表名前缀。</td></tr>
+      <tr><td><code>version</code></td><td>是</td><td>语义化版本号。安装时拒绝相同版本或降级上传。</td></tr>
+      <tr><td><code>description</code></td><td>否</td><td>可读描述。</td></tr>
+      <tr><td><code>author</code></td><td>否</td><td>作者名称。</td></tr>
+      <tr><td><code>auth</code></td><td>否</td><td>认证元数据。<code>required: false</code> 使所有插件路由公开。</td></tr>
+      <tr><td><code>i18n</code></td><td>否</td><td>声明 i18n 支持。<code>defaultLocale</code>、<code>locales</code>、<code>path</code>（默认 <code>./locales</code>）。</td></tr>
+      <tr><td><code>schema</code></td><td>否</td><td>JSON schema，用于通过 <code>PluginSchemaService</code> 动态建表。</td></tr>
+    </table>
 
-  <h3>i18n（多语言翻译）</h3>
-  <p>若解压后的插件包含 <code>locales/</code> 目录，核心会在安装/更新时自动调用 <code>I18nService.registerPluginLocale()</code>，在卸载时调用 <code>unregisterPluginLocale()</code>。</p>
-  <p>Locale 文件为纯 JSON，路径格式为 <code>locales/{locale}/{file}.json</code>。支持两种布局：</p>
-  <pre>// 平铺布局 — locales/zh-CN/messages.json
+    <h2 id="plugin-i18n">i18n（多语言翻译）</h2>
+    <p>若解压后的插件包含 <code>locales/</code> 目录，核心会在安装/更新时自动调用 <code>I18nService.registerPluginLocale()</code>，在卸载时调用 <code>unregisterPluginLocale()</code>。</p>
+    <p>Locale 文件为纯 JSON，路径格式为 <code>locales/{locale}/{file}.json</code>。支持两种布局：</p>
+<pre><code>// 平铺布局
 {
   "welcome": "欢迎！",
   "created": "创建成功。"
 }
 
-// 包裹布局 — locales/zh-CN/messages.json
-// （唯一顶层 key 与文件名一致时自动展开）
+// 包裹布局（唯一顶层 key 与文件名一致时自动展开）
 {
   "messages": {
     "welcome": "欢迎！",
     "created": "创建成功。"
   }
-}</pre>
-  <p>两种方式均可通过 <code>i18n.tPlugin(pluginName, 'messages.welcome')</code> 访问，或从核心代码使用 <code>i18n.t('{pluginName}.messages.welcome')</code>。占位符插值使用 <code>{key}</code> 语法：<code>i18n.tPlugin(name, 'messages.hello', { name: 'Alice' })</code>。</p>
+}</code></pre>
+    <p>两种方式均可通过 <code>i18n.tPlugin(pluginName, 'messages.welcome')</code> 访问。占位符插值使用 <code>{key}</code> 语法。</p>
 
-  <h3>JSON Schema</h3>
-  <p>在 <code>manifest.json</code> 中声明 <code>schema</code> 对象，由 <code>PluginSchemaService</code> 自动创建并同步 PostgreSQL 表。表名前缀为 <code>plugin_{name}_{model}</code>。支持字段类型：<code>string</code>、<code>int</code>、<code>bigint</code>、<code>float</code>、<code>decimal</code>、<code>boolean</code>、<code>date</code>、<code>timestamp</code>、<code>json</code>、<code>text</code>。</p>
-  <p>在任意字段上添加 <code>"i18n": true</code> 可将其存储为 JSONB locale 映射（<code>{"en":"Hello","zh-CN":"你好"}</code>）。通过 <code>find()</code> / <code>findOne()</code> 读取时，自动返回当前请求 locale 对应的扁平值。</p>
+    <h2 id="json-schema">JSON Schema</h2>
+    <p>在 <code>manifest.json</code> 中声明 <code>schema</code> 对象，由 <code>PluginSchemaService</code> 自动创建并同步 PostgreSQL 表。表名前缀为 <code>plugin_{name}_{model}</code>。</p>
+    <p>在任意字段上添加 <code>"i18n": true</code> 可将其存储为 JSONB locale 映射。通过 <code>find()</code> / <code>findOne()</code> 读取时，自动返回当前请求 locale 对应的扁平值。</p>
 
-  <h3>SQL 迁移</h3>
-  <p>插件可包含 <code>migrations/</code> 目录，存放以可排序时间戳前缀命名的 <code>.sql</code> 文件（如 <code>20260101000000_create_table.sql</code>）。安装/更新时按字母顺序执行，执行记录在 <code>plugin_registry.migrations_applied</code> 中防止重复执行。卸载时自动删除前缀为 <code>plugin_{name}_*</code> 的表。</p>
+    <h2 id="sql-migrations">SQL 迁移</h2>
+    <p>插件可包含 <code>migrations/</code> 目录，存放以可排序时间戳前缀命名的 <code>.sql</code> 文件。安装/更新时按字母顺序执行，执行记录在 <code>plugin_registry.migrations_applied</code> 中防止重复执行。卸载时自动删除前缀为 <code>plugin_{name}_*</code> 的表。</p>
 
-  <h3>构建输出</h3>
-  <p>将 TypeScript 编译到 <code>dist/</code>，并从入口文件导出 NestJS 模块类：</p>
-  <pre>// dist/index.js（由 index.ts 编译生成）
-export { MyPluginModule } from './src/my-plugin.module';</pre>
-  <p>ZIP 中应包含 <code>manifest.json</code>、<code>dist/</code>，以及可选的 <code>locales/</code> 和 <code>migrations/</code>。<strong>不要</strong>打包 TypeScript 源文件、<code>node_modules</code> 或构建配置文件。</p>
+    <h2 id="building">构建与打包</h2>
+    <p>将 TypeScript 编译到 <code>dist/</code>，并从入口文件导出 NestJS 模块类：</p>
+<pre><code>// dist/index.js（由 index.ts 编译生成）
+export { MyPluginModule } from './src/my-plugin.module';</code></pre>
+    <p>ZIP 中应包含 <code>manifest.json</code>、<code>dist/</code>，以及可选的 <code>locales/</code> 和 <code>migrations/</code>。<strong>不要</strong>打包 TypeScript 源文件、<code>node_modules</code> 或构建配置文件。</p>
 
-  <h2>PluginRegistry 数据库迁移</h2>
+    <h2 id="plugin-api">插件管理 API</h2>
 
-  <h3>变更内容</h3>
-  <p>迁移前，<code>PluginManagerService</code> 仅依赖内存中的 <code>Map</code> 和文件系统扫描 <code>manifest.json</code>。虽然 <code>PluginRegistry</code> Prisma 模型已存在于 schema 中，但应用代码从未使用它。</p>
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-get">GET</span>
+        <span class="api-path">/plugins</span>
+      </div>
+      <div class="api-body">
+        <p><strong>权限:</strong> <code>plugin:read</code></p>
+        <p>从数据库列出所有已安装插件。</p>
+        <p><strong>响应:</strong> <code>{ name, version, description, author, manifest, migrationsApplied, createdAt, updatedAt }[]</code></p>
+      </div>
+    </div>
 
-  <h3>新数据流</h3>
-  <div class="mermaid">
-flowchart LR
-    Op["PluginController\n安装 / 更新 / 卸载"] --> Mgr["PluginManagerService\n验证 ZIP\n解压到文件系统\n触发重启\n持久化到数据库"]
-    Mgr <--> PR[("plugin_registry\nPostgreSQL")]
-    Mgr --> FS["storage/plugins/\n代码文件"]
-  </div>
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-post">POST</span>
+        <span class="api-path">/plugins/upload</span>
+      </div>
+      <div class="api-body">
+        <p><strong>权限:</strong> <code>plugin:create</code></p>
+        <p><strong>请求体:</strong> multipart/form-data，字段 <code>file</code>（ZIP）</p>
+        <p>插件不存在时全新安装；上传版本更高时自动更新；相同版本或降级被拒绝。</p>
+        <p><strong>响应（安装）:</strong> <code>{ success, plugin, version, path, message }</code></p>
+        <p><strong>响应（更新）:</strong> <code>{ success, plugin, previousVersion, version, path, message }</code></p>
+      </div>
+    </div>
 
-  <h3>一致性策略</h3>
-  <table>
-    <tr><th>场景</th><th>行为</th></tr>
-    <tr><td>数据库有记录，代码存在</td><td>启动时正常加载</td></tr>
-    <tr><td>数据库有记录，代码缺失</td><td>警告并跳过（孤立的数据库记录）</td></tr>
-    <tr><td>代码存在，数据库无记录</td><td>PluginManagerService 忽略；PluginLoaderModule 仍会加载 NestJS 模块。重新安装可补录数据库记录。</td></tr>
-  </table>
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-put">PUT</span>
+        <span class="api-path">/plugins</span>
+      </div>
+      <div class="api-body">
+        <p><strong>权限:</strong> <code>plugin:update</code></p>
+        <p><strong>请求体:</strong> multipart/form-data，字段 <code>file</code>（ZIP）</p>
+        <p>更新已安装插件。插件名称从 ZIP 的 manifest.json 自动检测。验证和行为与 upload 在插件已存在时相同。</p>
+      </div>
+    </div>
 
-  <h3>回滚行为</h3>
-  <table>
-    <tr><th>操作</th><th>失败时的回滚</th></tr>
-    <tr><td>安装（路由冲突）</td><td>删除已解压目录 + 删除数据库记录</td></tr>
-    <tr><td>更新（路由冲突）</td><td>删除新解压的目录。旧代码已被删除；数据库已更新到新版本。这是架构限制。</td></tr>
-    <tr><td>卸载</td><td>先删除数据库记录，再删除目录。若目录删除失败，文件系统残留孤儿文件。</td></tr>
-  </table>
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-delete">DELETE</span>
+        <span class="api-path">/plugins/:name</span>
+      </div>
+      <div class="api-body">
+        <p><strong>权限:</strong> <code>plugin:delete</code></p>
+        <p>按名称卸载插件。清理 schema 表、迁移和 plugin_data 条目。</p>
+        <p><strong>响应:</strong> <code>{ success, plugin, message }</code></p>
+      </div>
+    </div>
 
-  <h2>文件结构</h2>
-  <pre>
-src/
-├── app.module.ts
-├── main.ts
-├── bootstrap.ts                   # 服务器重启辅助
-├── plugin.controller.ts
-├── plugin-manager.service.ts      # 插件生命周期；DB 委托给 PluginRegistryService
-├── common/
-│   └── filters/
-│       └── postgres-exception.filter.ts  # 全局 Postgres 错误处理器
-├── i18n/
-│   ├── i18n.constant.ts           # DEFAULT_LOCALE = 'en'
-│   ├── i18n.middleware.ts         # Accept-Language → AsyncLocalStorage
-│   ├── i18n.module.ts             # 全局模块 + 中间件绑定
-│   └── i18n.service.ts            # 翻译引擎 + 插件 locale 注册表
-├── plugin-registry/
-│   ├── plugin-registry.module.ts
-│   └── plugin-registry.service.ts # plugin_registry 表 CRUD
-├── plugin-data/
-│   ├── plugin-data.module.ts
-│   └── plugin-data.service.ts     # plugin_data 表键值操作
-├── plugin-migration/
-│   ├── plugin-migration.module.ts
-│   └── plugin-migration.service.ts # SQL 迁移执行器
-├── plugin-schema/
-│   ├── plugin-schema.module.ts
-│   ├── plugin-schema.service.ts   # JSON schema 表同步 + CRUD
-│   └── plugin-schema.types.ts     # Schema 类型定义
-├── plugins/
-│   └── plugin-loader.module.ts   # 基于文件系统的动态加载器
-└── prisma/
-    ├── prisma.module.ts          # 全局 Prisma 模块
-    └── prisma.service.ts         # PrismaClient 生命周期管理
+    <h2 id="auth-endpoints">认证接口</h2>
+    <p>参见上方的 <a href="#auth-api">AuthController API 章节</a>，了解 <code>/auth</code> 下的所有认证端点。</p>
 
-locales/                           # 核心翻译文件
-├── en/
-│   ├── errors.json               # Postgres + 插件错误消息
-│   └── messages.json             # 成功/状态消息
-└── zh-CN/
-    ├── errors.json
-    └── messages.json
+    <h2 id="db-schema">数据库模型</h2>
+    <p>文件：<code>prisma/schema/schema.prisma</code>（generator &amp; datasource）+ <code>prisma/schema/plugin.prisma</code> + <code>prisma/schema/auth.prisma</code></p>
 
-prisma/
-└── schema/
-    ├── schema.prisma             # Generator + datasource
-    └── plugin.prisma             # PluginData + PluginRegistry 模型
+    <h4>PluginRegistry</h4>
+<pre><code>model PluginRegistry {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  version           String
+  manifest          Json
+  migrationsApplied Json?    @map("migrations_applied")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-storage/
-└── plugins/
-    └── &lt;plugin-name&gt;/           # 插件代码解压至此
+  @@map("plugin_registry")
+}</code></pre>
 
-sample-plugins/                   # 示例插件源码
-├── test-plugin/
-├── test-kv-plugin/
-├── test-migration-plugin/
-└── test-hybrid-plugin/
-</pre>
+    <h4>PluginData</h4>
+<pre><code>model PluginData {
+  id        String   @id @default(cuid())
+  plugin    String
+  key       String
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  <h2>环境变量</h2>
-  <table>
-    <tr><th>变量</th><th>必需</th><th>说明</th></tr>
-    <tr><td><code>DATABASE_URL</code></td><td>是</td><td>PostgreSQL 连接字符串</td></tr>
-    <tr><td><code>PORT</code></td><td>否</td><td>HTTP 服务端口（默认：3000）</td></tr>
-    <tr><td><code>NODE_ENV</code></td><td>否</td><td><code>development</code> | <code>production</code></td></tr>
-  </table>
+  @@unique([plugin, key])
+  @@index([plugin])
+  @@map("plugin_data")
+}</code></pre>
 
-  <h2>Prisma 配置与部署</h2>
-  <p>Wau Core 基于 <strong>Prisma 7</strong>，使用 <code>@prisma/adapter-pg</code> 适配器连接 PostgreSQL。Schema 拆分在 <code>prisma/schema/</code> 下的多个文件中，迁移文件位于 <code>prisma/migrations/</code>。Prisma 配置位于 <code>prisma.config.ts</code>：</p>
-  <pre>import { defineConfig, env } from 'prisma/config'
-import { config } from 'dotenv'
-import { resolve } from 'path'
+    <h4>Role</h4>
+<pre><code>model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  permissions Json?    @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-config({ path: resolve(__dirname, '.env') })
+  users User[]
+  @@map("roles")
+}</code></pre>
 
-export default defineConfig({
-  schema: './prisma/schema',
-  migrations: { path: './prisma/migrations' },
-  datasource: { url: env('DATABASE_URL') },
-})</pre>
+    <h4>User</h4>
+<pre><code>model User {
+  id          String     @id @default(cuid())
+  email       String     @unique
+  password    String
+  name        String?
+  avatar      String?
+  status      UserStatus @default(ACTIVE)
+  roleId      String     @map("role_id")
+  role        Role       @relation(fields: [roleId], references: [id])
+  profile     Json?      @default("{}")
+  lastLoginAt DateTime?  @map("last_login_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
 
-  <h3>前置条件</h3>
-  <ul>
-    <li>PostgreSQL 14+ 正在运行且可访问</li>
-    <li>Node.js 20+ 与 npm</li>
-    <li><code>.env</code> 文件包含可用的 <code>DATABASE_URL</code>（可从 <code>.env.example</code> 复制）</li>
-  </ul>
+  tokens UserToken[]
+  @@map("users")
+}</code></pre>
 
-  <h3>本地开发</h3>
-  <pre># 安装依赖（若配置了 postinstall，会自动执行 prisma generate）
-npm install
+    <h4>UserToken</h4>
+<pre><code>model UserToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  ip        String?
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at")
 
-# 配置数据库 URL
-cp .env.example .env
-# 编辑 .env -> DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DB_NAME?schema=public
+  @@index([userId])
+  @@map("user_tokens")
+}</code></pre>
 
-# 应用所有迁移到本地数据库
+    <h4>UserStatus 枚举</h4>
+<pre><code>enum UserStatus {
+  ACTIVE
+  DISABLED
+  PENDING
+  @@map("user_status")
+}</code></pre>
+
+    <h2 id="prisma-setup">Prisma 配置与部署</h2>
+    <p>Wau Core 基于 <strong>Prisma 7</strong>，使用 <code>@prisma/adapter-pg</code> 适配器连接 PostgreSQL。Schema 拆分在 <code>prisma/schema/</code> 下的多个文件中。</p>
+
+    <h4>常用命令</h4>
+    <table>
+      <tr><th>命令</th><th>用途</th></tr>
+      <tr><td><code>npx prisma migrate dev --name &lt;name&gt;</code></td><td>开发时创建新的迁移并在本地应用</td></tr>
+      <tr><td><code>npx prisma migrate deploy</code></td><td>应用待执行的迁移（生产 / CI）</td></tr>
+      <tr><td><code>npx prisma migrate status</code></td><td>查看迁移历史与数据库状态</td></tr>
+      <tr><td><code>npx prisma generate</code></td><td>Schema 变更后重新生成 Prisma 客户端</td></tr>
+      <tr><td><code>npx prisma studio</code></td><td>通过本地 GUI 浏览数据</td></tr>
+    </table>
+
+    <h4>生产部署</h4>
+<pre><code># 1. 应用待执行的迁移
 npx prisma migrate deploy
 
-# 生成 Prisma 客户端
-npx prisma generate
-
-# 启动开发服务器
-npm run start:dev</pre>
-
-  <h3>创建新迁移</h3>
-  <p>当你修改 <code>prisma/schema/plugin.prisma</code> 中的模型（或新增 <code>.prisma</code> 文件）时，使用以下命令创建迁移：</p>
-  <pre>npx prisma migrate dev --name &lt;简短描述&gt;</pre>
-  <p>该命令会在 <code>prisma/migrations/&lt;时间戳&gt;_&lt;名称&gt;/</code> 下生成新的目录，包含一个 <code>migration.sql</code> 文件。请将 schema 变更和新的迁移目录一起提交。</p>
-
-  <h3>生产部署</h3>
-  <p>生产环境部署绝不应使用 <code>migrate dev</code>（它是交互式的，可能会丢失数据）。请使用 <code>migrate deploy</code>：</p>
-  <pre># 1. 应用待执行的迁移（非交互式，适用于生产 / CI）
-npx prisma migrate deploy
-
-# 2. 生成 Prisma 客户端（通常已包含在 postinstall 中）
+# 2. 生成客户端
 npx prisma generate
 
 # 3. 构建并启动
 npm run build
-npm run start:prod</pre>
+npm run start:prod</code></pre>
 
-  <h3>常用命令</h3>
-  <table>
-    <tr><th>命令</th><th>用途</th></tr>
-    <tr><td><code>npx prisma migrate dev --name &lt;n&gt;</code></td><td>开发环境创建并应用新迁移</td></tr>
-    <tr><td><code>npx prisma migrate deploy</code></td><td>应用待执行的迁移（生产 / CI）</td></tr>
-    <tr><td><code>npx prisma migrate status</code></td><td>查看已应用与待执行的迁移</td></tr>
-    <tr><td><code>npx prisma generate</code></td><td>重新生成 Prisma 客户端</td></tr>
-    <tr><td><code>npx prisma studio</code></td><td>通过本地 GUI 浏览数据</td></tr>
-    <tr><td><code>npx prisma migrate reset</code></td><td>删除数据库并重新应用所有迁移（破坏性操作）</td></tr>
-  </table>
+    <div class="note">
+      <div class="note-title">&#128161; 核心迁移 vs 插件迁移</div>
+      核心 Prisma 迁移只负责 <code>plugin_registry</code>、<code>plugin_data</code>、<code>users</code>、<code>roles</code> 和 <code>user_tokens</code> 表。插件自有的表是在<em>插件安装时</em>由 <code>PluginSchemaService</code>（基于 <code>manifest.json</code> 中的 schema）和 <code>PluginMigrationService</code>（基于 <code>migrations/*.sql</code>）创建的。这两套系统相互独立。
+    </div>
 
-  <div class="note">核心 Prisma 迁移只负责 <code>plugin_registry</code> 和 <code>plugin_data</code> 两张表。插件自有的表是在<em>插件安装时</em>由 <code>PluginSchemaService</code>（基于 <code>manifest.json</code> 中的 schema）和 <code>PluginMigrationService</code>（基于 <code>migrations/*.sql</code>）创建的。这两套系统相互独立，已应用的迁移记录在 <code>plugin_registry.migrations_applied</code> 字段中。</div>
+    <h2 id="migration-history">迁移历史</h2>
+    <table>
+      <tr><th>迁移</th><th>说明</th></tr>
+      <tr><td><code>20260511164328_init</code></td><td>初始 <code>plugin_data</code> 与 <code>plugin_registry</code> 表</td></tr>
+      <tr><td><code>20260519072740_update_plugin_registry</code></td><td><code>plugin_registry</code> 字段更新</td></tr>
+      <tr><td><code>20260519080440_remove_i18n_keys_from_plugin_registry</code></td><td>将 i18n 键移出 registry</td></tr>
+      <tr><td><code>20260521160000_add_auth</code></td><td>新增 <code>roles</code>、<code>users</code>、<code>user_tokens</code> 表及 <code>user_status</code> 枚举</td></tr>
+    </table>
 
-  <h3>迁移历史</h3>
-  <p>当前仓库中已包含的迁移（位于 <code>prisma/migrations/</code>）：</p>
-  <ul>
-    <li><code>20260511164328_init</code> — 初始 <code>plugin_data</code> 与 <code>plugin_registry</code> 表</li>
-    <li><code>20260519072740_update_plugin_registry</code> — <code>plugin_registry</code> 字段更新</li>
-    <li><code>20260519080440_remove_i18n_keys_from_plugin_registry</code> — 将 i18n 键移出 registry</li>
-  </ul>
+    <h2 id="samples">示例插件</h2>
+    <p>项目中包含多个示例插件，位于 <code>sample-plugins/</code>：</p>
+    <table>
+      <tr><th>插件</th><th>演示内容</th></tr>
+      <tr><td><code>test-plugin</code></td><td>基础插件，含控制器和服务</td></tr>
+      <tr><td><code>test-kv-plugin</code></td><td>PluginData KV 存储使用</td></tr>
+      <tr><td><code>test-migration-plugin</code></td><td>SQL 迁移</td></tr>
+      <tr><td><code>test-hybrid-plugin</code></td><td>Schema + 迁移 + KV 混合使用</td></tr>
+      <tr><td><code>test-multilang-plugin</code></td><td>i18n 翻译</td></tr>
+      <tr><td><code>test-multilang-db-plugin</code></td><td>JSON Schema 中的 i18n 字段</td></tr>
+      <tr><td><code>test-auth-plugin</code></td><td>含 auth 元数据的插件</td></tr>
+    </table>
+    <p>预构建的 ZIP 文件位于 <code>sample-plugins/installer/</code>，可直接用于测试。</p>
 
+    <h2 id="file-structure">项目结构</h2>
+<pre><code>wau-core/
+├── src/
+│   ├── app.module.ts
+│   ├── main.ts
+│   ├── bootstrap.ts                   # 服务器重启辅助
+│   ├── plugin.controller.ts
+│   ├── plugin-manager.service.ts
+│   ├── auth/                          # 认证与授权
+│   │   ├── auth.module.ts
+│   │   ├── auth.service.ts
+│   │   ├── auth.controller.ts
+│   │   ├── auth.guard.ts
+│   │   ├── permission.guard.ts
+│   │   ├── auth-context.service.ts
+│   │   ├── public.decorator.ts
+│   │   ├── current-user.decorator.ts
+│   │   ├── permissions.decorator.ts
+│   │   ├── auth.types.ts
+│   │   └── dto/
+│   ├── common/
+│   │   └── filters/
+│   │       └── postgres-exception.filter.ts
+│   ├── i18n/
+│   ├── plugin-registry/
+│   ├── plugin-data/
+│   ├── plugin-migration/
+│   ├── plugin-schema/
+│   ├── plugins/
+│   │   └── plugin-loader.module.ts
+│   └── prisma/
+├── prisma/
+│   └── schema/
+│       ├── schema.prisma
+│       ├── plugin.prisma
+│       └── auth.prisma
+├── locales/
+│   ├── en/
+│   └── zh-CN/
+├── sample-plugins/
+│   ├── test-plugin/
+│   ├── test-kv-plugin/
+│   ├── test-migration-plugin/
+│   ├── test-hybrid-plugin/
+│   ├── test-multilang-plugin/
+│   ├── test-multilang-db-plugin/
+│   ├── test-auth-plugin/
+│   └── installer/           # 预构建 ZIP
+├── storage/
+│   └── plugins/             # 已安装插件目录
+└── dist/                    # 编译输出</code></pre>
+
+    <h2 id="roadmap">未来路线图</h2>
+    <p>Wau 的定位是一个<strong>全栈插件化平台</strong>。后端核心只是起点：</p>
+    <ul>
+      <li><strong>Flutter 客户端（<code>wau-flutter</code>）</strong> &mdash; 一个移动端 App 壳，能够根据插件下发的 JSON 协议动态渲染页面。</li>
+      <li><strong>React JS Web 应用（<code>wau-web</code>）</strong> &mdash; 既是面向管理员的<strong>后台管理端</strong>，也是面向终端用户的<strong>客户端</strong>。</li>
+      <li><strong>事件总线（Event Bus）</strong> &mdash; 跨插件通信机制，让后端插件能无缝触发 Flutter 和 Web 端的行为。</li>
+      <li><strong>SDUI 协议</strong> &mdash; 后端驱动布局引擎，实现完全动态化的 UI 生成。</li>
+    </ul>
+
+    <p style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--fg-subtle); font-size: 0.9rem;">
+      本项目使用 <a href="https://github.com/jeffnaa/wau/blob/main/LICENSE">MIT 协议</a> 开源。
+      由 <strong>JeffNaa</strong> 维护。
+    </p>
+  </main>
+
+  <button class="back-to-top" id="backToTop" onclick="scrollToTop()">&#8593;</button>
+
+  <script>
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+
+    menuToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('show');
+    });
+
+    overlay.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+      overlay.classList.remove('show');
+    });
+
+    function toggleSection(el) {
+      el.parentElement.classList.toggle('collapsed');
+    }
+
+    const sections = document.querySelectorAll('h2[id], h3[id]');
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+
+    function updateActiveLink() {
+      let current = '';
+      sections.forEach(section => {
+        const rect = section.getBoundingClientRect();
+        if (rect.top <= 100) current = section.getAttribute('id');
+      });
+
+      sidebarLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === '#' + current) {
+          link.classList.add('active');
+          const section = link.closest('.sidebar-section');
+          if (section) section.classList.remove('collapsed');
+        }
+      });
+    }
+
+    window.addEventListener('scroll', updateActiveLink);
+    updateActiveLink();
+
+    const backToTop = document.getElementById('backToTop');
+    window.addEventListener('scroll', () => {
+      backToTop.classList.toggle('visible', window.scrollY > 400);
+    });
+    function scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+
+    const searchIndex = [];
+    document.querySelectorAll('h2[id], h3[id]').forEach(el => {
+      const prevH2 = el.tagName === 'H3' ? el.previousElementSibling : null;
+      let sectionName = '概览';
+      if (prevH2) {
+        while (prevH2 && prevH2.tagName !== 'H2') {
+          prevH2 = prevH2.previousElementSibling;
+        }
+        if (prevH2) sectionName = prevH2.textContent.replace(/#.*/, '').trim();
+      }
+      searchIndex.push({
+        id: el.id,
+        title: el.textContent.replace(/#.*/, '').trim(),
+        section: sectionName
+      });
+    });
+
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      if (!query) {
+        searchResults.classList.remove('visible');
+        return;
+      }
+
+      const matches = searchIndex.filter(item =>
+        item.title.toLowerCase().includes(query) ||
+        item.section.toLowerCase().includes(query)
+      );
+
+      if (matches.length === 0) {
+        searchResults.innerHTML = '<div class="no-results">未找到结果</div>';
+      } else {
+        searchResults.innerHTML = matches.map(item =>
+          `<div class="search-result-item" onclick="location.href='#${item.id}'; searchResults.classList.remove('visible');">
+            <div class="search-result-title">${item.title}</div>
+            <div class="search-result-section">${item.section}</div>
+          </div>`
+        ).join('');
+      }
+      searchResults.classList.add('visible');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.search-box')) {
+        searchResults.classList.remove('visible');
+      }
+    });
+
+    const tocContent = document.getElementById('tocContent');
+    if (tocContent) {
+      let tocHtml = '';
+      let h2Count = 0;
+      document.querySelectorAll('h2[id], h3[id], h4[id]').forEach(el => {
+        const level = el.tagName === 'H2' ? 1 : el.tagName === 'H3' ? 2 : 3;
+        const title = el.textContent.replace(/#.*/, '').trim();
+        const id = el.id;
+        if (level === 1) h2Count++;
+        if (h2Count > 1 && level === 1) tocHtml += '<div style="margin-top:8px"></div>';
+        tocHtml += `<a href="#${id}" class="toc-link l${level}">${title}</a>`;
+      });
+      tocContent.innerHTML = tocHtml;
+    }
+  </script>
 </body>
 </html>

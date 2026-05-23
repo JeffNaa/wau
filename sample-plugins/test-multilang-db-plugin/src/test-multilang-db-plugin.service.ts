@@ -7,10 +7,12 @@ export class TestMultilangDbPluginService {
   getStatus() {
     return {
       plugin: 'test-multilang-db-plugin',
-      description: 'Demo for i18n database fields (KV store + dynamic tables)',
+      description: 'Demo for i18n database fields using SQL migrations (KV store + raw SQL tables)',
       features: [
         'KV store with multilingual config (PluginData)',
-        'Dynamic tables with i18n fields (PluginSchema)',
+        'Tables created via migrations/*.sql (not manifest.schema)',
+        'Schema cache registered manually in module onModuleInit',
+        'Dynamic tables with i18n fields (PluginSchema CRUD still works)',
         'Auto-wrap on create',
         'Auto-merge on update',
         'Language fallback on read',

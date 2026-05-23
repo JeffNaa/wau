@@ -26,6 +26,16 @@
     },
     "system": {
       "not_initialized": "Cannot restart: app is not initialized"
+    },
+    "auth": {
+      "email_already_registered": "Email already registered",
+      "invalid_credentials": "Invalid credentials",
+      "account_not_active": "Account is not active",
+      "user_not_found": "User not found",
+      "old_password_incorrect": "Old password is incorrect",
+      "invalid_reset_token": "Invalid or expired reset token",
+      "unauthorized": "Unauthorized",
+      "forbidden": "Forbidden: insufficient permissions"
     }
   }
 }

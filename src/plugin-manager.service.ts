@@ -95,7 +95,7 @@ export class PluginManagerService implements OnModuleInit {
           );
         }
         // Higher version: perform update
-        return this.update(name, file);
+        return this.update(file);
       }
 
       if (await fs.pathExists(targetPath)) {
@@ -112,7 +112,7 @@ export class PluginManagerService implements OnModuleInit {
           );
         }
         // Higher version: perform update
-        return this.update(name, file);
+        return this.update(file);
       }
 
       // Collect existing controller routes BEFORE extraction
@@ -227,25 +227,30 @@ export class PluginManagerService implements OnModuleInit {
     return allRoutes;
   }
 
-  async update(name: string, file: Express.Multer.File) {
+  async update(file: Express.Multer.File) {
     try {
-      const targetPath = path.join(this.pluginsDir, name);
-
-      const dbPlugin = await this.pluginRegistry.findOne(name);
-      if (!dbPlugin && !(await fs.pathExists(targetPath))) {
-        throw new BadRequestException(this.i18n.t('errors.plugin.not_installed', { name }));
-      }
-
       const zip = new AdmZip(file.buffer);
-      const manifestEntry = zip.getEntries().find((e) => e.entryName === 'manifest.json');
+      const zipEntries = zip.getEntries();
+
+      const manifestEntry = zipEntries.find((e) => e.entryName === 'manifest.json');
       if (!manifestEntry) {
         throw new BadRequestException(this.i18n.t('errors.plugin.manifest_missing'));
       }
 
       const manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
+      const name = manifest.name;
+      if (!name) throw new BadRequestException(this.i18n.t('errors.plugin.name_required'));
+
       const newVersion = manifest.version;
       if (!newVersion) {
         throw new BadRequestException(this.i18n.t('errors.plugin.version_required'));
+      }
+
+      const targetPath = path.join(this.pluginsDir, name);
+
+      const dbPlugin = await this.pluginRegistry.findOne(name);
+      if (!dbPlugin && !(await fs.pathExists(targetPath))) {
+        throw new BadRequestException(this.i18n.t('errors.plugin.not_installed', { name }));
       }
 
       const installedVersion = dbPlugin?.version ?? (await fs.readJson(path.join(targetPath, 'manifest.json'))).version;

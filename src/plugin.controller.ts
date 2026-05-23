@@ -1,33 +1,33 @@
-// src/plugin.controller.ts
 import { Controller, Post, Get, Put, Delete, Param, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PluginManagerService } from './plugin-manager.service';
+import { RequirePermissions } from './auth/permissions.decorator';
 
 @Controller('plugins')
 export class PluginController {
   constructor(private readonly pluginService: PluginManagerService) {}
 
-  // Upload and install plugin
+  @RequirePermissions('plugin:create')
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async upload(@UploadedFile() file: Express.Multer.File) {
     return this.pluginService.install(file);
   }
 
-  // Get plugin list
+  @RequirePermissions('plugin:read')
   @Get()
   async getPlugins() {
     return this.pluginService.listPlugins();
   }
 
-  // Update an existing plugin by name
-  @Put(':name')
+  @RequirePermissions('plugin:update')
+  @Put()
   @UseInterceptors(FileInterceptor('file'))
-  async update(@Param('name') name: string, @UploadedFile() file: Express.Multer.File) {
-    return this.pluginService.update(name, file);
+  async update(@UploadedFile() file: Express.Multer.File) {
+    return this.pluginService.update(file);
   }
 
-  // Uninstall a plugin by name
+  @RequirePermissions('plugin:delete')
   @Delete(':name')
   async uninstall(@Param('name') name: string) {
     return this.pluginService.uninstall(name);

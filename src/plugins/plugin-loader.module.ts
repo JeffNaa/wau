@@ -34,8 +34,9 @@ export class PluginLoaderModule {
             // Read manifest to get the plugin name for route prefix
             const manifestPath = path.join(pluginDirPath, 'manifest.json');
             let manifestName = dir;
+            let manifest: any = null;
             if (fs.existsSync(manifestPath)) {
-              const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+              manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
               manifestName = manifest.name || dir;
             }
 
@@ -57,6 +58,11 @@ export class PluginLoaderModule {
 
               // Override controller path metadata so NestJS registers the prefixed route
               Reflect.defineMetadata('path', fullPath.replace(/^\//, ''), controller);
+
+              // Apply manifest.auth metadata to controller methods
+              if (manifest?.auth) {
+                this.applyAuthMetadata(controller, manifest.auth);
+              }
             }
 
             imports.push(PluginModule);
@@ -72,5 +78,28 @@ export class PluginLoaderModule {
       module: PluginLoaderModule,
       imports,
     };
+  }
+
+  private static applyAuthMetadata(controller: any, authConfig: any): void {
+    const prototype = controller.prototype;
+    const methodNames = Object.getOwnPropertyNames(prototype).filter(
+      (name) => name !== 'constructor' && typeof prototype[name] === 'function',
+    );
+
+    for (const methodName of methodNames) {
+      // Only apply to route handler methods (those with a 'path' metadata)
+      const routePath = Reflect.getMetadata('path', prototype, methodName);
+      if (routePath === undefined) continue;
+
+      // If auth.required is false, mark all routes as public
+      if (authConfig.required === false) {
+        Reflect.defineMetadata('isPublic', true, prototype, methodName);
+      }
+
+      // NOTE: manifest.auth.permissions is intentionally NOT injected here.
+      // Permissions declared in manifest.json are purely informational.
+      // Actual enforcement requires explicit @SetMetadata('permissions', [...])
+      // on each route handler.
+    }
   }
 }

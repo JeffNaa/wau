@@ -4,71 +4,973 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Wau Core Documentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --code: #161b22; }
-    * { box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.7; max-width: 920px; margin: 0 auto; padding: 40px 24px; }
-    h1 { color: #f0f6fc; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
-    h2 { color: #f0f6fc; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
-    h3 { color: #e6edf3; margin-top: 32px; }
-    a { color: var(--accent); text-decoration: none; }
+    :root {
+      --bg: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #21262d;
+      --bg-hover: rgba(177,186,196,0.08);
+      --fg: #c9d1d9;
+      --fg-muted: #8b949e;
+      --fg-subtle: #6e7681;
+      --fg-heading: #f0f6fc;
+      --accent: #58a6ff;
+      --accent-dim: #388bfd;
+      --accent-glow: rgba(88,166,255,0.15);
+      --border: #30363d;
+      --border-subtle: #21262d;
+      --code-bg: #161b22;
+      --code-border: #30363d;
+      --success: #3fb950;
+      --warning: #d29922;
+      --danger: #f85149;
+      --sidebar-width: 280px;
+      --navbar-height: 64px;
+      --radius: 8px;
+      --radius-sm: 6px;
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: calc(var(--navbar-height) + 20px);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.7;
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--fg-subtle); }
+
+    /* Navbar */
+    .navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--navbar-height);
+      background: rgba(13,17,23,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+    }
+
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--fg-heading);
+      text-decoration: none;
+    }
+
+    .navbar-brand .logo-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .search-box {
+      position: relative;
+    }
+
+    .search-box input {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 14px 8px 36px;
+      color: var(--fg);
+      font-size: 0.85rem;
+      width: 240px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .search-box input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .search-box input::placeholder { color: var(--fg-subtle); }
+
+    .search-box .search-icon {
+      position: absolute;
+      left: 12px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--fg-subtle);
+      font-size: 0.85rem;
+    }
+
+    .lang-switch {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 14px;
+      color: var(--fg-muted);
+      font-size: 0.85rem;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .lang-switch:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--fg-muted);
+      font-size: 1.3rem;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    /* Layout */
+    .layout {
+      display: flex;
+      margin-top: var(--navbar-height);
+      min-height: calc(100vh - var(--navbar-height));
+    }
+
+    /* Sidebar */
+    .sidebar {
+      position: fixed;
+      top: var(--navbar-height);
+      left: 0;
+      width: var(--sidebar-width);
+      height: calc(100vh - var(--navbar-height));
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      z-index: 900;
+      padding: 16px 0;
+    }
+
+    .sidebar-section {
+      margin-bottom: 4px;
+    }
+
+    .sidebar-section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 20px;
+      color: var(--fg-muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.2s;
+    }
+
+    .sidebar-section-title:hover { color: var(--fg); }
+
+    .sidebar-section-title .chevron {
+      transition: transform 0.2s;
+      font-size: 0.7rem;
+    }
+
+    .sidebar-section.collapsed .chevron { transform: rotate(-90deg); }
+
+    .sidebar-section.collapsed .sidebar-links { display: none; }
+
+    .sidebar-links { padding: 2px 0; }
+
+    .sidebar-link {
+      display: block;
+      padding: 6px 20px 6px 28px;
+      color: var(--fg-muted);
+      font-size: 0.875rem;
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      transition: all 0.15s;
+      line-height: 1.5;
+    }
+
+    .sidebar-link:hover {
+      color: var(--fg);
+      background: var(--bg-hover);
+    }
+
+    .sidebar-link.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: var(--accent-glow);
+    }
+
+    /* Main content */
+    .main-content {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      max-width: 900px;
+      padding: 40px 48px 80px;
+    }
+
+    /* Typography */
+    h1 {
+      color: var(--fg-heading);
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    h2 {
+      color: var(--fg-heading);
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-top: 48px;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      letter-spacing: -0.01em;
+    }
+
+    h3 {
+      color: var(--fg-heading);
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-top: 32px;
+      margin-bottom: 12px;
+    }
+
+    h4 {
+      color: var(--fg);
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-top: 24px;
+      margin-bottom: 10px;
+    }
+
+    p { margin-bottom: 14px; }
+
+    a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
     a:hover { text-decoration: underline; }
-    code, pre { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 0.9em; }
-    code { background: var(--code); padding: 2px 6px; border-radius: 4px; }
-    pre { background: var(--code); padding: 16px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); }
-    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-    th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; }
-    th { background: var(--code); color: #f0f6fc; }
+
+    /* Code */
+    code, pre {
+      font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+      font-size: 0.85em;
+    }
+
+    code {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      padding: 2px 7px;
+      border-radius: 4px;
+      color: var(--accent);
+      word-break: break-word;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      padding: 18px 20px;
+      border-radius: var(--radius);
+      overflow-x: auto;
+      margin: 16px 0 20px;
+      line-height: 1.6;
+    }
+
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--fg);
+      font-size: 0.82rem;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 20px;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      text-align: left;
+    }
+
+    th {
+      background: var(--bg-tertiary);
+      color: var(--fg-heading);
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
     tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-    .lang-switch { position: fixed; top: 16px; right: 24px; background: var(--code); border: 1px solid var(--border); border-radius: 6px; padding: 6px 14px; font-size: 0.85em; }
-    .note { background: rgba(88,166,255,0.08); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; }
-    .warn { background: rgba(210,153,34,0.08); border-left: 3px solid #d29922; }
-    .mermaid { background: var(--code); border-radius: 8px; padding: 16px; border: 1px solid var(--border); overflow-x: auto; margin: 16px 0; }
+    tr:hover { background: var(--bg-hover); }
+
+    /* Lists */
+    ul, ol { margin: 12px 0 16px 20px; }
+    li { margin-bottom: 6px; }
+    li > ul, li > ol { margin: 6px 0 6px 16px; }
+
+    /* Notes & Alerts */
+    .note, .warn, .tip, .danger {
+      padding: 14px 18px;
+      border-radius: 0 var(--radius) var(--radius) 0;
+      margin: 16px 0 20px;
+      font-size: 0.92rem;
+      line-height: 1.65;
+    }
+
+    .note {
+      background: var(--accent-glow);
+      border-left: 3px solid var(--accent);
+    }
+
+    .warn {
+      background: rgba(210,153,34,0.08);
+      border-left: 3px solid var(--warning);
+    }
+
+    .tip {
+      background: rgba(63,185,80,0.08);
+      border-left: 3px solid var(--success);
+    }
+
+    .danger {
+      background: rgba(248,81,73,0.08);
+      border-left: 3px solid var(--danger);
+    }
+
+    .note-title, .warn-title, .tip-title, .danger-title {
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .note .note-title { color: var(--accent); }
+    .warn .warn-title { color: var(--warning); }
+    .tip .tip-title { color: var(--success); }
+    .danger .danger-title { color: var(--danger); }
+
+    /* Mermaid */
+    .mermaid {
+      background: var(--code-bg);
+      border-radius: var(--radius);
+      padding: 28px 20px;
+      border: 1px solid var(--border);
+      overflow-x: auto;
+      margin: 20px 0 24px;
+      text-align: center;
+      font-size: 1.05rem;
+    }
+    .mermaid svg {
+      max-width: 100%;
+      height: auto;
+    }
+    .mermaid .node rect,
+    .mermaid .node circle,
+    .mermaid .node polygon {
+      stroke-width: 2px;
+    }
+    .mermaid .edgeLabel {
+      font-size: 0.95rem;
+    }
+
+    /* Hero section */
+    .hero {
+      padding: 32px 0 24px;
+      margin-bottom: 16px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(88,166,255,0.2);
+      color: var(--accent);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      font-size: 2.6rem;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, var(--fg-heading), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: 1.15rem;
+      color: var(--fg-muted);
+      max-width: 600px;
+      line-height: 1.7;
+    }
+
+    /* Feature cards */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    .feature-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: all 0.2s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .feature-icon {
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+    }
+
+    .feature-card h4 {
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+
+    .feature-card p {
+      color: var(--fg-muted);
+      font-size: 0.88rem;
+      margin-bottom: 0;
+      line-height: 1.6;
+    }
+
+    /* Status badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-done {
+      background: rgba(63,185,80,0.15);
+      color: var(--success);
+    }
+
+    .badge-planned {
+      background: rgba(139,148,158,0.15);
+      color: var(--fg-muted);
+    }
+
+    .badge-wip {
+      background: rgba(210,153,34,0.15);
+      color: var(--warning);
+    }
+
+    /* API endpoint block */
+    .api-block {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin: 16px 0 20px;
+      overflow: hidden;
+    }
+
+    .api-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .api-method {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .method-get { background: rgba(63,185,80,0.15); color: var(--success); }
+    .method-post { background: rgba(88,166,255,0.15); color: var(--accent); }
+    .method-put { background: rgba(210,153,34,0.15); color: var(--warning); }
+    .method-delete { background: rgba(248,81,73,0.15); color: var(--danger); }
+
+    .api-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      color: var(--fg-heading);
+    }
+
+    .api-body {
+      padding: 16px 18px;
+    }
+
+    .api-body p { margin-bottom: 8px; font-size: 0.9rem; }
+    .api-body p:last-child { margin-bottom: 0; }
+
+    /* Progress table */
+    .progress-table td:first-child { font-weight: 500; }
+
+    /* Back to top */
+    .back-to-top {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 44px; height: 44px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--fg-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s;
+      z-index: 800;
+      font-size: 1.1rem;
+    }
+
+    .back-to-top.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .back-to-top:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Overlay for mobile */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 850;
+    }
+
+    /* Search results */
+    .search-results {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      right: 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      max-height: 320px;
+      overflow-y: auto;
+      z-index: 1100;
+      display: none;
+    }
+
+    .search-results.visible { display: block; }
+
+    .search-result-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background 0.15s;
+    }
+
+    .search-result-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .search-result-item:last-child { border-bottom: none; }
+
+    .search-result-title {
+      font-size: 0.85rem;
+      color: var(--fg-heading);
+      font-weight: 500;
+    }
+
+    .search-result-section {
+      font-size: 0.75rem;
+      color: var(--fg-subtle);
+      margin-top: 2px;
+    }
+
+    .no-results {
+      padding: 16px;
+      text-align: center;
+      color: var(--fg-subtle);
+      font-size: 0.85rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .search-box input { width: 180px; }
+    }
+
+    @media (max-width: 768px) {
+      .menu-toggle { display: block; }
+      .search-box { display: none; }
+      .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s;
+      }
+      .sidebar.open { transform: translateX(0); }
+      .main-content {
+        margin-left: 0;
+        padding: 24px 20px 60px;
+        max-width: 100%;
+      }
+      .sidebar-overlay.show { display: block; }
+      h1 { font-size: 1.8rem; }
+      .hero h1 { font-size: 2rem; }
+      h2 { font-size: 1.3rem; }
+      .feature-grid { grid-template-columns: 1fr; }
+    }
+
+    /* File tree style */
+    .file-tree {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      line-height: 1.8;
+      color: var(--fg-muted);
+    }
+
+    .file-tree .folder { color: var(--accent); }
+    .file-tree .file { color: var(--fg-muted); }
+
+    /* TOC on right (hidden on small screens) */
+    .toc-sidebar {
+      position: fixed;
+      top: calc(var(--navbar-height) + 40px);
+      right: 24px;
+      width: 200px;
+      display: none;
+    }
+
+    @media (min-width: 1400px) {
+      .toc-sidebar { display: block; }
+      .main-content { max-width: 800px; }
+    }
+
+    .toc-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--fg-subtle);
+      margin-bottom: 10px;
+    }
+
+    .toc-link {
+      display: block;
+      padding: 4px 0;
+      color: var(--fg-subtle);
+      font-size: 0.8rem;
+      text-decoration: none;
+      border-left: 1px solid var(--border);
+      padding-left: 12px;
+      transition: all 0.15s;
+    }
+
+    .toc-link:hover, .toc-link.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+    }
+
+    .toc-link.l2 { padding-left: 20px; }
+    .toc-link.l3 { padding-left: 28px; }
   </style>
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-    mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        fontSize: '16px',
+        nodeBorder: '2px',
+        primaryColor: '#21262d',
+        primaryTextColor: '#f0f6fc',
+        primaryBorderColor: '#58a6ff',
+        lineColor: '#8b949e',
+        secondaryColor: '#161b22',
+        tertiaryColor: '#0d1117',
+      },
+    });
   </script>
 </head>
 <body>
-  <a href="index.zh.html" class="lang-switch">中文</a>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="#" class="navbar-brand">
+      <span>Wau Core Docs</span>
+    </a>
+    <div class="navbar-right">
+      <div class="search-box">
+        <span class="search-icon">&#128269;</span>
+        <input type="text" id="searchInput" placeholder="Search documentation..." autocomplete="off">
+        <div class="search-results" id="searchResults"></div>
+      </div>
+      <a href="index.zh.html" class="lang-switch">
+        <span>&#127759;</span> 中文
+      </a>
+      <button class="menu-toggle" id="menuToggle">&#9776;</button>
+    </div>
+  </nav>
 
-  <h1>Wau Core Documentation</h1>
-  <p>Wau Core is a NestJS-based plugin runtime engine. It scans and loads third-party plugin modules at boot time via PluginLoaderModule, while persisting plugin metadata in a PostgreSQL database via Prisma. The server auto-restarts after plugin install/update/uninstall to reload routes.</p>
+  <!-- Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <h2>Tech Stack</h2>
-  <table>
-    <tr><th>Layer</th><th>Technology</th></tr>
-    <tr><td>Framework</td><td>NestJS 11</td></tr>
-    <tr><td>Database</td><td>PostgreSQL</td></tr>
-    <tr><td>ORM</td><td>Prisma 7 + @prisma/adapter-pg</td></tr>
-    <tr><td>HTTP</td><td>Express (via NestJS platform-express)</td></tr>
-    <tr><td>Config</td><td>@nestjs/config</td></tr>
-    <tr><td>Utilities</td><td>fs-extra, adm-zip</td></tr>
-  </table>
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>Overview</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#intro" class="sidebar-link">Introduction</a>
+        <a href="#features" class="sidebar-link">Features</a>
+        <a href="#architecture" class="sidebar-link">Architecture</a>
+        <a href="#tech-stack" class="sidebar-link">Tech Stack</a>
+        <a href="#progress" class="sidebar-link">Progress</a>
+      </div>
+    </div>
 
-  <h2>System Architecture</h2>
-  <div class="mermaid">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>Getting Started</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#prerequisites" class="sidebar-link">Prerequisites</a>
+        <a href="#quick-start" class="sidebar-link">Quick Start</a>
+        <a href="#env-vars" class="sidebar-link">Environment Variables</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>Core Modules</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#prismamodule" class="sidebar-link">PrismaModule</a>
+        <a href="#pluginloader" class="sidebar-link">PluginLoaderModule</a>
+        <a href="#pluginmanager" class="sidebar-link">PluginManagerService</a>
+        <a href="#plugincontroller" class="sidebar-link">PluginController</a>
+        <a href="#pluginregistry" class="sidebar-link">PluginRegistryService</a>
+        <a href="#plugindata" class="sidebar-link">PluginDataService</a>
+        <a href="#pluginschema" class="sidebar-link">PluginSchemaService</a>
+        <a href="#pluginmigration" class="sidebar-link">PluginMigrationService</a>
+        <a href="#i18n" class="sidebar-link">I18nModule</a>
+        <a href="#exceptionfilter" class="sidebar-link">PostgresExceptionFilter</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>Authentication</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#auth-overview" class="sidebar-link">Overview</a>
+        <a href="#authservice" class="sidebar-link">AuthService</a>
+        <a href="#auth-api" class="sidebar-link">Auth API</a>
+        <a href="#guards" class="sidebar-link">Guards & Decorators</a>
+        <a href="#permissions" class="sidebar-link">Permissions</a>
+        <a href="#plugin-auth" class="sidebar-link">Plugin Auth Metadata</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>Plugin Development</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#plugin-structure" class="sidebar-link">Plugin Structure</a>
+        <a href="#manifest" class="sidebar-link">manifest.json</a>
+        <a href="#plugin-i18n" class="sidebar-link">i18n Translations</a>
+        <a href="#json-schema" class="sidebar-link">JSON Schema</a>
+        <a href="#sql-migrations" class="sidebar-link">SQL Migrations</a>
+        <a href="#building" class="sidebar-link">Building & Packaging</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>API Reference</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#plugin-api" class="sidebar-link">Plugin Management</a>
+        <a href="#auth-endpoints" class="sidebar-link">Authentication</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>Database</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#db-schema" class="sidebar-link">Schema Models</a>
+        <a href="#prisma-setup" class="sidebar-link">Prisma Setup</a>
+        <a href="#migration-history" class="sidebar-link">Migration History</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title" onclick="toggleSection(this)">
+        <span>Other</span>
+        <span class="chevron">&#9662;</span>
+      </div>
+      <div class="sidebar-links">
+        <a href="#samples" class="sidebar-link">Sample Plugins</a>
+        <a href="#roadmap" class="sidebar-link">Roadmap</a>
+        <a href="#file-structure" class="sidebar-link">File Structure</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- TOC Sidebar -->
+  <div class="toc-sidebar" id="tocSidebar">
+    <div class="toc-title">On this page</div>
+    <div id="tocContent"></div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="main-content" id="mainContent">
+    <div class="hero">
+      <div class="hero-badge">
+        <span>&#128640;</span> NestJS 11 + PostgreSQL Plugin Runtime Engine
+      </div>
+      <h1>Wau Core Documentation</h1>
+      <p class="hero-subtitle">A high-flexibility, plugin-driven development platform. Stable Core, Dynamic Business.</p>
+    </div>
+
+    <!-- ========== OVERVIEW ========== -->
+    <h2 id="intro">Introduction</h2>
+    <p><strong>Wau</strong> (Moon Kite) is a high-flexibility, plugin-driven development platform built with <strong>NestJS</strong>. The core philosophy is <strong>"Stable Core, Dynamic Business"</strong>:</p>
+    <ul>
+      <li><strong>Isolate Changes</strong>: All business logic lives in plugins; the Core never contains hard-coded logic for specific requirements.</li>
+      <li><strong>Plug &amp; Play</strong>: Dynamic loading via <code>.zip</code> files enables second-level installation and uninstallation of features.</li>
+      <li><strong>SDUI Ready</strong>: UI layouts are driven by backend protocols. Modifying elements only requires adjusting JSON &mdash; no app store resubmission.</li>
+      <li><strong>Atomic Decoupling</strong>: Plugins communicate via an event bus, working together or independently.</li>
+    </ul>
+
+    <h2 id="features">Features</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">&#128268;</div>
+        <h4>Plugin Management</h4>
+        <p>Dynamically upload and extract plugin packages via the Dashboard. Server auto-restarts to load new plugin routes.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128260;</div>
+        <h4>Dynamic Route Injection</h4>
+        <p>The core auto-scans and registers API routes defined within the plugin package with automatic prefixing.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128451;</div>
+        <h4>Extensible Data Model</h4>
+        <p>PostgreSQL + JSONB allows plugins to store private metadata without altering core table structures.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128203;</div>
+        <h4>JSON Schema</h4>
+        <p>Plugins declare tables via <code>manifest.json</code> schema &mdash; the core auto-creates and syncs PostgreSQL tables.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128259;</div>
+        <h4>SQL Migrations</h4>
+        <p>Plugins ship <code>.sql</code> migration files; the core tracks and applies them incrementally.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128483;</div>
+        <h4>i18n Support</h4>
+        <p>Plugin response messages, schema, KV store, and error handling are fully localized with locale resolution.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128274;</div>
+        <h4>Auth &amp; Permissions</h4>
+        <p>Built-in token-based authentication with role-based permission guards and wildcard matching.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128241;</div>
+        <h4>Cross-Platform Protocol</h4>
+        <p>A unified JSON protocol drives rendering for both Flutter and Web clients.</p>
+      </div>
+    </div>
+
+    <h2 id="architecture">System Architecture</h2>
+    <div class="mermaid">
 graph TB
     subgraph AppModule["AppModule"]
-        Config["ConfigModule\n(Global)"]
-        Prisma["PrismaModule (Global)\nPrismaService"]
-        I18n["I18nModule (Global)\nI18nService · I18nMiddleware"]
-        PEF["PostgresExceptionFilter\nPG errors → i18n responses"]
+        Config["ConfigModule (Global)"]
+        Prisma["PrismaModule (Global)"]
+        I18n["I18nModule (Global)"]
+        Auth["AuthModule (Global)"]
+        PEF["PostgresExceptionFilter"]
+        AG["AuthGuard (APP_GUARD)"]
+        PG["PermissionGuard (APP_GUARD)"]
         subgraph Loader["PluginLoaderModule (Dynamic)"]
-            FS["Scans storage/plugins/ at boot\nAuto-registers plugin NestJS modules"]
+            FS["Scans storage/plugins/ at boot"]
         end
-        Ctrl["PluginController\nPOST /plugins/upload\nGET · PUT · DELETE /plugins/:name"]
-        Mgr["PluginManagerService\nInstall · Update · Uninstall\nTriggers server restart"]
-        Reg["PluginRegistryService\nplugin_registry CRUD"]
-        Data["PluginDataService\nKV store · i18n"]
-        Mig["PluginMigrationService\nSQL migration runner"]
-        Sch["PluginSchemaService\nJSON schema CRUD · i18n"]
+        Ctrl["PluginController"]
+        Mgr["PluginManagerService"]
+        Reg["PluginRegistryService"]
+        Data["PluginDataService"]
+        Mig["PluginMigrationService"]
+        Sch["PluginSchemaService"]
     end
     subgraph DB["PostgreSQL"]
         R[("plugin_registry")]
         D[("plugin_data")]
-        T[("plugin tables\ndynamic")]
+        U[("users / roles / user_tokens")]
+        T[("plugin tables (dynamic)")]
     end
     Ctrl --> Mgr
     Mgr --> Reg & Mig & Sch
@@ -76,266 +978,550 @@ graph TB
     Data --> D
     Mig --> T
     Sch --> T
-    I18n -. locale context .-> Data & Sch & PEF
-  </div>
+    Auth --> U
+    I18n -. locale .-> Data & Sch & PEF
+    AG --> Auth
+    PG --> Auth
+    </div>
 
-  <h2>Module Breakdown</h2>
+    <h2 id="tech-stack">Tech Stack</h2>
+    <table>
+      <tr><th>Layer</th><th>Technology</th></tr>
+      <tr><td>Framework</td><td>NestJS 11</td></tr>
+      <tr><td>Database</td><td>PostgreSQL 14+</td></tr>
+      <tr><td>ORM</td><td>Prisma 7 + @prisma/adapter-pg</td></tr>
+      <tr><td>HTTP</td><td>Express (via NestJS platform-express)</td></tr>
+      <tr><td>Config</td><td>@nestjs/config</td></tr>
+      <tr><td>Auth</td><td>bcrypt, crypto (token-based)</td></tr>
+      <tr><td>Scheduling</td><td>@nestjs/schedule</td></tr>
+      <tr><td>Utilities</td><td>fs-extra, adm-zip</td></tr>
+    </table>
 
-  <h3>1. PrismaModule <code>src/prisma/</code></h3>
-  <p>Marked <code>@Global()</code> so <code>PrismaService</code> is injectable everywhere without explicit import.</p>
-  <ul>
-    <li><code>PrismaService</code> creates a <code>PrismaClient</code> backed by a <code>pg.Pool</code> from <code>DATABASE_URL</code>.</li>
-    <li>Implements <code>OnModuleDestroy</code> to gracefully disconnect on shutdown.</li>
-    <li>Exposes <code>client</code> for direct model access (no repository pattern).</li>
-  </ul>
+    <h2 id="progress">Progress</h2>
+    <table class="progress-table">
+      <tr><th>Milestone</th><th>Status</th><th>Notes</th></tr>
+      <tr><td>NestJS Core bootstrap</td><td><span class="badge badge-done">Done</span></td><td>AppModule, main.ts</td></tr>
+      <tr><td>Prisma + PostgreSQL setup</td><td><span class="badge badge-done">Done</span></td><td>Global PrismaModule with pg adapter</td></tr>
+      <tr><td>Dynamic plugin loader</td><td><span class="badge badge-done">Done</span></td><td>PluginLoaderModule scans storage/plugins/</td></tr>
+      <tr><td>Plugin lifecycle API</td><td><span class="badge badge-done">Done</span></td><td>POST/GET/PUT/DELETE /plugins</td></tr>
+      <tr><td>Plugin route mounting</td><td><span class="badge badge-done">Done</span></td><td>Auto-prefix routes with manifest name</td></tr>
+      <tr><td>PluginRegistry DB migration</td><td><span class="badge badge-done">Done</span></td><td>Plugin metadata persisted in plugin_registry</td></tr>
+      <tr><td>Plugin Schema</td><td><span class="badge badge-done">Done</span></td><td>JSON schema-driven dynamic table creation</td></tr>
+      <tr><td>Plugin Migrations</td><td><span class="badge badge-done">Done</span></td><td>SQL migration support</td></tr>
+      <tr><td>i18n Support</td><td><span class="badge badge-done">Done</span></td><td>Fully localized across all services</td></tr>
+      <tr><td>Authentication &amp; Authorization</td><td><span class="badge badge-done">Done</span></td><td>Token auth, roles, RBAC with wildcards</td></tr>
+      <tr><td>Flutter client (wau-flutter)</td><td><span class="badge badge-planned">Planned</span></td><td>Dynamic JSON-driven UI rendering</td></tr>
+      <tr><td>React Web admin (wau-web)</td><td><span class="badge badge-planned">Planned</span></td><td>Plugin management dashboard + user client</td></tr>
+      <tr><td>Event Bus</td><td><span class="badge badge-planned">Planned</span></td><td>Cross-plugin &amp; cross-platform communication</td></tr>
+      <tr><td>SDUI Protocol</td><td><span class="badge badge-planned">Planned</span></td><td>Backend-driven layout engine</td></tr>
+    </table>
 
-  <h3>2. PluginLoaderModule <code>src/plugins/plugin-loader.module.ts</code></h3>
-  <p>A <strong>dynamic module</strong> with a static <code>forRoot(pluginsDir)</code> factory. It runs at application bootstrap time (before DI is fully ready) and therefore <strong>scans the filesystem</strong>.</p>
-  <p>Responsibilities:</p>
-  <ul>
-    <li>Enumerate <code>storage/plugins/&lt;name&gt;/dist/index.js</code>, falling back to <code>storage/plugins/&lt;name&gt;/index.js</code> if <code>dist/</code> is absent</li>
-    <li>Use <code>Reflect.getMetadata('controllers', PluginModule)</code> to detect controller paths</li>
-    <li>Auto-prefix routes with manifest name (e.g. <code>/test-plugin/status</code>)</li>
-    <li>Detect and throw on duplicate controller routes across plugins</li>
-    <li>Import valid plugin modules into the NestJS module graph</li>
-  </ul>
-  <div class="note warn">Because this module runs in a static factory, it cannot use the database as its source of truth. It remains filesystem-based. After install/update/uninstall, the server auto-restarts to reload routes.</div>
 
-  <h3>3. PluginManagerService <code>src/plugin-manager.service.ts</code></h3>
-  <p>The core engine for plugin lifecycle and runtime routing.</p>
+    <!-- ========== GETTING STARTED ========== -->
+    <h2 id="prerequisites">Prerequisites</h2>
+    <ul>
+      <li><strong>PostgreSQL 14+</strong> running and reachable</li>
+      <li><strong>Node.js 20+</strong> and npm</li>
+      <li>A valid <code>.env</code> file with <code>DATABASE_URL</code></li>
+    </ul>
 
-  <h4>Constructor Dependencies</h4>
-  <pre>constructor(
+    <h2 id="quick-start">Quick Start</h2>
+<pre><code># 1. Install dependencies
+npm install
+
+# 2. Configure environment
+cp .env.example .env
+# Edit .env and set DATABASE_URL
+
+# 3. Initialize the database
+npx prisma migrate deploy
+
+# 4. Generate the Prisma client
+npx prisma generate
+
+# 5. Start the server
+npm run start:dev
+
+# 6. Server runs at http://localhost:3000
+#    Plugins are stored in ./storage/plugins/</code></pre>
+
+    <div class="note">
+      <div class="note-title">&#128161; First User = Admin</div>
+      The first user to register automatically gets the <code>ADMIN</code> role with <code>["*"]</code> (all) permissions. Subsequent users get the <code>USER</code> role with no permissions.
+    </div>
+
+    <h3>Test with the Sample Plugin</h3>
+<pre><code># ZIP the sample plugin (include manifest.json, dist/, and optional locales/ / migrations/)
+cd sample-plugins/test-plugin && zip -r ../../test-plugin.zip manifest.json dist/
+
+# Install via API
+curl -X POST -F "file=@test-plugin.zip" http://localhost:3000/plugins/upload
+
+# Verify it is installed
+curl http://localhost:3000/plugins
+
+# Test the plugin routes
+curl http://localhost:3000/test-plugin/status</code></pre>
+
+    <div class="note note-info">
+      <div class="note-title">&#128230; Packaging plugins with locales/ or migrations/</div>
+      If your plugin includes i18n translations or SQL migrations, include those directories in the ZIP:
+      <pre style="margin:0.5rem 0 0"><code>cd sample-plugins/test-multilang-db-plugin
+zip -r ../../test-multilang-db-plugin.zip manifest.json dist/ locales/ migrations/</code></pre>
+    </div>
+
+    <h2 id="env-vars">Environment Variables</h2>
+    <table>
+      <tr><th>Variable</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      <tr><td><code>DATABASE_URL</code></td><td>Yes</td><td>&mdash;</td><td>PostgreSQL connection string</td></tr>
+      <tr><td><code>PORT</code></td><td>No</td><td>3000</td><td>HTTP server port</td></tr>
+      <tr><td><code>NODE_ENV</code></td><td>No</td><td>development</td><td>development | production</td></tr>
+      <tr><td><code>TOKEN_TTL</code></td><td>No</td><td>7d</td><td>Token lifetime (e.g. 1h, 7d, 30d)</td></tr>
+      <tr><td><code>BCRYPT_ROUNDS</code></td><td>No</td><td>12</td><td>bcrypt hashing rounds</td></tr>
+    </table>
+
+
+    <!-- ========== CORE MODULES ========== -->
+    <h2 id="prismamodule">1. PrismaModule <code>src/prisma/</code></h2>
+    <p>Marked <code>@Global()</code> so <code>PrismaService</code> is injectable everywhere without explicit import.</p>
+    <ul>
+      <li>Creates a <code>PrismaClient</code> backed by a <code>pg.Pool</code> from <code>DATABASE_URL</code> via <code>@prisma/adapter-pg</code>.</li>
+      <li>Implements <code>OnModuleDestroy</code> to gracefully disconnect on shutdown.</li>
+      <li>Exposes <code>client</code> for direct model access (no repository pattern).</li>
+      <li>Provides <code>query(sql, params?)</code> for raw SQL execution via the pg pool.</li>
+    </ul>
+
+    <h2 id="pluginloader">2. PluginLoaderModule <code>src/plugins/</code></h2>
+    <p>A <strong>dynamic module</strong> with a static <code>forRoot(pluginsDir)</code> factory. Runs at bootstrap time and scans the filesystem.</p>
+    <ul>
+      <li>Enumerates <code>storage/plugins/&lt;name&gt;/dist/index.js</code>, falling back to <code>index.js</code></li>
+      <li>Uses <code>Reflect.getMetadata('controllers', PluginModule)</code> to detect controller paths</li>
+      <li>Auto-prefixes routes with manifest name (e.g. <code>/test-plugin/status</code>)</li>
+      <li>Detects and throws on duplicate controller routes across plugins</li>
+      <li>Reads <code>manifest.auth</code> and applies <code>isPublic</code> metadata when <code>auth.required === false</code></li>
+      <li>Imports valid plugin modules into the NestJS module graph</li>
+    </ul>
+    <div class="warn">
+      <div class="warn-title">&#9888;&#65039; Filesystem-based</div>
+      Because this module runs in a static factory, it cannot use the database as its source of truth. After install/update/uninstall, the server auto-restarts to reload routes.
+    </div>
+
+    <h2 id="pluginmanager">3. PluginManagerService <code>src/plugin-manager.service.ts</code></h2>
+    <p>The core engine for plugin lifecycle and runtime routing.</p>
+
+    <h4>Constructor Dependencies</h4>
+    <pre><code>constructor(
   private readonly pluginRegistry: PluginRegistryService,
-)</pre>
+  private readonly pluginMigration: PluginMigrationService,
+  private readonly pluginData: PluginDataService,
+  private readonly pluginSchema: PluginSchemaService,
+  private readonly i18n: I18nService,
+)</code></pre>
 
-  <h4>Internal State</h4>
-  <table>
-    <tr><th>Property</th><th>Type</th><th>Purpose</th></tr>
-    <tr><td><code>registry</code></td><td><code>Map&lt;string, any&gt;</code></td><td>Runtime cache of loaded plugin module objects (for <code>invoke()</code>)</td></tr>
-    <tr><td><code>pluginsDir</code></td><td><code>string</code></td><td><code>process.cwd() + '/storage/plugins'</code></td></tr>
-  </table>
+    <h4>Internal State</h4>
+    <table>
+      <tr><th>Property</th><th>Type</th><th>Purpose</th></tr>
+      <tr><td><code>registry</code></td><td><code>Map&lt;string, any&gt;</code></td><td>Runtime cache of loaded plugin module objects (for <code>invoke()</code>)</td></tr>
+      <tr><td><code>pluginsDir</code></td><td><code>string</code></td><td><code>process.cwd() + '/storage/plugins'</code></td></tr>
+    </table>
 
-  <h4>Methods</h4>
-  <table>
-    <tr><th>Method</th><th>Description</th></tr>
-    <tr><td><code>onModuleInit()</code></td><td>Ensures plugins directory exists</td></tr>
-    <tr><td><code>install(file)</code></td><td>Validates ZIP manifest, checks DB for existing plugin, extracts ZIP, detects route conflicts, writes <code>PluginRegistry</code> DB record, triggers server restart</td></tr>
-    <tr><td><code>update(name, file)</code></td><td>Validates new version &gt; installed version, removes old code, extracts new ZIP, detects conflicts, updates DB via <code>upsert</code>, triggers server restart</td></tr>
-    <tr><td><code>uninstall(name)</code></td><td>Clears registry &amp; require cache, deletes DB record, deletes plugin directory, triggers server restart</td></tr>
-    <tr><td><code>listPlugins()</code></td><td>Returns all records from <code>pluginRegistry</code> DB table</td></tr>
-    <tr><td><code>getPluginControllerRoutes(pluginPath)</code></td><td>Scans plugin entry file to extract controller routes (used for pre-install conflict detection)</td></tr>
-    <tr><td><code>invoke(pluginName, methodName, ...args)</code></td><td>Calls a method on a cached plugin module (inter-plugin communication)</td></tr>
-    <tr><td><code>registerPluginMethods(name, module)</code></td><td>Stores a plugin module in the runtime registry Map</td></tr>
-  </table>
+    <h4>Methods</h4>
+    <table>
+      <tr><th>Method</th><th>Description</th></tr>
+      <tr><td><code>onModuleInit()</code></td><td>Ensures plugins directory exists; registers locales and schema cache for existing plugins</td></tr>
+      <tr><td><code>install(file)</code></td><td>Validates ZIP manifest, checks DB, extracts ZIP, detects route conflicts, applies schema/migrations, registers translations, writes DB record, triggers restart</td></tr>
+      <tr><td><code>update(file)</code></td><td>Reads plugin name from ZIP manifest, validates new version &gt; installed version, removes old code, extracts new ZIP, detects conflicts, updates DB, triggers restart</td></tr>
+      <tr><td><code>uninstall(name)</code></td><td>Clears registry &amp; require cache, unregisters translations, drops schema tables, rolls back migrations, cleans plugin_data, deletes DB record, deletes directory, triggers restart</td></tr>
+      <tr><td><code>listPlugins()</code></td><td>Returns all records from <code>pluginRegistry</code> DB table</td></tr>
+      <tr><td><code>invoke(pluginName, methodName, ...args)</code></td><td>Calls a method on a cached plugin module (inter-plugin communication)</td></tr>
+      <tr><td><code>registerPluginMethods(name, module)</code></td><td>Stores a plugin module in the runtime registry Map</td></tr>
+    </table>
 
-  <h3>4. PluginRegistryService <code>src/plugin-registry/plugin-registry.service.ts</code></h3>
-  <p>Encapsulates all database operations for the <code>PluginRegistry</code> model. Injected into <code>PluginManagerService</code> so the lifecycle logic does not depend directly on <code>PrismaService</code>.</p>
-  <table>
-    <tr><th>Method</th><th>Description</th></tr>
-    <tr><td><code>findAll()</code></td><td>List all plugin registry records</td></tr>
-    <tr><td><code>findOne(name)</code><td>Find a single plugin by unique name</td></tr>
-    <tr><td><code>create(data)</code></td><td>Insert a new plugin record</td></tr>
-    <tr><td><code>update(name, data)</code></td><td>Update version and/or manifest</td></tr>
-    <tr><td><code>upsert(name, data)</code></td><td>Update if exists, create if not</td></tr>
-    <tr><td><code>remove(name)</code></td><td>Delete a plugin record</td></tr>
-  </table>
+    <h2 id="plugincontroller">4. PluginController <code>src/plugin.controller.ts</code></h2>
+    <p>REST API surface for plugin management. Base path: <code>/plugins</code>. All routes require specific permissions.</p>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Permission</th><th>Action</th></tr>
+      <tr><td><code>POST</code></td><td><code>/plugins/upload</code></td><td><code>plugin:create</code></td><td>Install plugin</td></tr>
+      <tr><td><code>GET</code></td><td><code>/plugins</code></td><td><code>plugin:read</code></td><td>List installed plugins</td></tr>
+      <tr><td><code>PUT</code></td><td><code>/plugins</code></td><td><code>plugin:update</code></td><td>Update plugin (name auto-detected from ZIP manifest)</td></tr>
+      <tr><td><code>DELETE</code></td><td><code>/plugins/:name</code></td><td><code>plugin:delete</code></td><td>Uninstall plugin by name</td></tr>
+    </table>
 
-  <h3>5. PluginDataService <code>src/plugin-data/plugin-data.service.ts</code></h3>
-  <p>Key-value store for plugin runtime data. Wraps the <code>PluginData</code> model with an upsert-based API. All values are stored as JSONB. Fields can optionally carry i18n locale maps (<code>{"en":"Hello","zh-CN":"你好"}</code>) that are transparently resolved or merged on read/write.</p>
-  <table>
-    <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
-    <tr><td><code>get</code></td><td><code>get(plugin, key, options?)</code></td><td>Read a single KV entry. <code>options.resolveI18n</code> auto-flattens all locale maps to the current locale. <code>options.i18nPaths</code> (dot-notation array) resolves specific fields only. <code>options.lang</code> overrides the request locale.</td></tr>
-    <tr><td><code>set</code></td><td><code>set(plugin, key, data, options?)</code></td><td>Create or overwrite a KV entry. <code>options.i18nPaths</code> wraps string values at those paths into <code>{locale: value}</code> on create; merges the new locale into the existing JSONB on update.</td></tr>
-    <tr><td><code>remove</code></td><td><code>remove(plugin, key)</code></td><td>Delete a KV entry.</td></tr>
-    <tr><td><code>list</code></td><td><code>list(plugin, options?)</code></td><td>List all KV entries for a plugin. Accepts the same <code>resolveI18n</code> / <code>i18nPaths</code> / <code>lang</code> options as <code>get</code>.</td></tr>
-    <tr><td><code>resolveI18nValue</code></td><td><code>resolveI18nValue(jsonb, locale?)</code></td><td>Utility: resolve a JSONB locale map to a single string. Falls back to <code>en</code>, then first available key.</td></tr>
-    <tr><td><code>queryRaw</code></td><td><code>queryRaw&lt;T&gt;(query, params?)</code></td><td>Execute a raw SELECT query on plugin-owned tables (migration-mode plugins).</td></tr>
-    <tr><td><code>executeRaw</code></td><td><code>executeRaw(query, params?)</code></td><td>Execute a raw write query on plugin-owned tables (migration-mode plugins).</td></tr>
-  </table>
-  <div class="note">i18n KV pattern: store <code>set(plugin, key, {title:"Hello"}, {i18nPaths:["title"]})</code> — saves <code>{title:{"en":"Hello"}}</code>. A second call with locale <code>zh-CN</code> merges: <code>{title:{"en":"Hello","zh-CN":"你好"}}</code>. Read with <code>get(..., {i18nPaths:["title"]})</code> returns <code>{title:"Hello"}</code> for English users.</div>
+    <h2 id="pluginregistry">5. PluginRegistryService <code>src/plugin-registry/</code></h2>
+    <p>Encapsulates all database operations for the <code>PluginRegistry</code> model. Injected into <code>PluginManagerService</code> so lifecycle logic does not depend directly on <code>PrismaService</code>.</p>
+    <table>
+      <tr><th>Method</th><th>Description</th></tr>
+      <tr><td><code>findAll()</code></td><td>List all plugin registry records</td></tr>
+      <tr><td><code>findOne(name)</code></td><td>Find a single plugin by unique name</td></tr>
+      <tr><td><code>create(data)</code></td><td>Insert a new plugin record</td></tr>
+      <tr><td><code>update(name, data)</code></td><td>Update version and/or manifest</td></tr>
+      <tr><td><code>upsert(name, data)</code></td><td>Update if exists, create if not</td></tr>
+      <tr><td><code>remove(name)</code></td><td>Delete a plugin record</td></tr>
+    </table>
 
-  <h3>6. PluginMigrationService <code>src/plugin-migration/plugin-migration.service.ts</code></h3>
-  <p>Manages SQL migrations for plugins that declare a <code>migrations/</code> directory. Tracks applied migrations in the <code>PluginRegistry</code> DB record to avoid re-running.</p>
-  <table>
-    <tr><th>Method</th><th>Description</th></tr>
-    <tr><td><code>applyMigrations(name, path, applied)</code></td><td>Reads <code>migrations/*.sql</code>, skips already applied, executes pending statements via <code>prisma.query()</code></td></tr>
-    <tr><td><code>rollbackMigrations(name)</code></td><td>Drops all tables prefixed <code>plugin_{name}_*</code> (used on uninstall)</td></tr>
-    <tr><td><code>readMigrationFiles(path)</code></td><td>Returns sorted list of <code>.sql</code> filenames in the migrations directory</td></tr>
-  </table>
+    <h2 id="plugindata">6. PluginDataService <code>src/plugin-data/</code></h2>
+    <p>Key-value store for plugin runtime data. Wraps the <code>PluginData</code> model with an upsert-based API. All values are stored as JSONB. Fields can optionally carry i18n locale maps that are transparently resolved or merged on read/write.</p>
+    <table>
+      <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      <tr><td><code>get</code></td><td><code>get(plugin, key, options?)</code></td><td>Read a single KV entry. <code>resolveI18n</code> auto-flattens locale maps. <code>i18nPaths</code> resolves specific fields. <code>lang</code> overrides locale.</td></tr>
+      <tr><td><code>set</code></td><td><code>set(plugin, key, data, options?)</code></td><td>Create or overwrite a KV entry. <code>i18nPaths</code> wraps string values into <code>{locale: value}</code> on create; merges locale on update.</td></tr>
+      <tr><td><code>remove</code></td><td><code>remove(plugin, key)</code></td><td>Delete a KV entry</td></tr>
+      <tr><td><code>list</code></td><td><code>list(plugin, options?)</code></td><td>List all KV entries for a plugin</td></tr>
+      <tr><td><code>queryRaw</code></td><td><code>queryRaw&lt;T&gt;(query, params?)</code></td><td>Execute a raw SELECT query on plugin-owned tables</td></tr>
+      <tr><td><code>executeRaw</code></td><td><code>executeRaw(query, params?)</code></td><td>Execute a raw write query on plugin-owned tables</td></tr>
+    </table>
 
-  <h3>7. PluginSchemaService <code>src/plugin-schema/plugin-schema.service.ts</code></h3>
-  <p>Provides dynamic table creation and CRUD operations driven by a JSON schema declared in <code>manifest.json</code>. Table names are prefixed <code>plugin_{name}_{model}</code>. Every table automatically gets <code>id</code> (SERIAL PRIMARY KEY), <code>created_at</code>, and <code>updated_at</code> columns.</p>
+    <div class="note">
+      <div class="note-title">&#128161; i18n KV Pattern</div>
+      Store <code>set(plugin, key, {title:"Hello"}, {i18nPaths:["title"]})</code> &rarr; saves <code>{title:{"en":"Hello"}}</code>. A second call with locale <code>zh-CN</code> merges: <code>{title:{"en":"Hello","zh-CN":"你好"}}</code>. Read with <code>get(..., {i18nPaths:["title"]})</code> returns <code>{title:"Hello"}</code> for English users.
+    </div>
 
-  <h4>Schema Methods</h4>
-  <table>
-    <tr><th>Method</th><th>Description</th></tr>
-    <tr><td><code>syncSchema(name, schema)</code></td><td>Creates tables or adds missing columns. Also calls <code>registerSchema</code> so CRUD can resolve i18n fields without a schema arg.</td></tr>
-    <tr><td><code>dropSchema(name, schema)</code></td><td>Drops all plugin tables in reverse order (respects FK deps). Calls <code>unregisterSchema</code>.</td></tr>
-    <tr><td><code>registerSchema(name, schema)</code></td><td>Caches the schema in memory so CRUD calls can omit the optional <code>schema</code> argument.</td></tr>
-    <tr><td><code>unregisterSchema(name)</code></td><td>Removes the cached schema (called by <code>dropSchema</code>).</td></tr>
-  </table>
+    <h2 id="pluginschema">7. PluginSchemaService <code>src/plugin-schema/</code></h2>
+    <p>Provides dynamic table creation and CRUD operations driven by a JSON schema declared in <code>manifest.json</code>. Table names are prefixed <code>plugin_{name}_{model}</code>. Every table automatically gets <code>id</code> (SERIAL PRIMARY KEY), <code>created_at</code>, and <code>updated_at</code> columns.</p>
 
-  <h4>CRUD Methods</h4>
-  <table>
-    <tr><th>Method</th><th>Description</th></tr>
-    <tr><td><code>create(name, model, data, schema?)</code></td><td>Insert a row. i18n fields are wrapped as <code>{locale: value}</code> on insert.</td></tr>
-    <tr><td><code>find(name, model, options?, schema?)</code></td><td>Query rows. Options: <code>where</code>, <code>orderBy</code>, <code>limit</code>, <code>offset</code>, <code>lang</code>. i18n fields are flattened to the resolved locale in returned rows.</td></tr>
-    <tr><td><code>findOne(name, model, where?, schema?, lang?)</code></td><td>Single row lookup (delegates to <code>find</code> with <code>limit: 1</code>).</td></tr>
-    <tr><td><code>update(name, model, where, data, schema?)</code></td><td>Update matching rows. i18n fields are merged into the existing JSONB (adds/replaces the current locale without overwriting others).</td></tr>
-    <tr><td><code>remove(name, model, where)</code></td><td>Delete matching rows. Returns deleted row count.</td></tr>
-    <tr><td><code>count(name, model, where?)</code></td><td>Count matching rows.</td></tr>
-    <tr><td><code>resolveI18nValue(jsonb, locale?)</code></td><td>Utility: resolve a JSONB locale map to a string. Falls back to <code>en</code>, then first available key.</td></tr>
-  </table>
+    <h4>Schema Methods</h4>
+    <table>
+      <tr><th>Method</th><th>Description</th></tr>
+      <tr><td><code>syncSchema(name, schema)</code></td><td>Creates tables or adds missing columns. Also calls <code>registerSchema</code> so CRUD can resolve i18n fields.</td></tr>
+      <tr><td><code>dropSchema(name, schema)</code></td><td>Drops all plugin tables in reverse order (respects FK deps). Calls <code>unregisterSchema</code>.</td></tr>
+      <tr><td><code>registerSchema(name, schema)</code></td><td>Caches the schema in memory so CRUD calls can omit the <code>schema</code> argument.</td></tr>
+      <tr><td><code>unregisterSchema(name)</code></td><td>Removes the cached schema.</td></tr>
+    </table>
 
-  <h4>Field Definition (<code>FieldDef</code>)</h4>
-  <p>Supported <code>type</code> values: <code>string</code>, <code>int</code>, <code>bigint</code>, <code>float</code>, <code>decimal</code>, <code>boolean</code>, <code>date</code>, <code>timestamp</code>, <code>json</code>, <code>text</code>.</p>
-  <table>
-    <tr><th>Property</th><th>Type</th><th>Description</th></tr>
-    <tr><td><code>type</code></td><td>FieldType</td><td>SQL column type</td></tr>
-    <tr><td><code>i18n</code></td><td>boolean</td><td>If <code>true</code>, column is stored as JSONB with locale keys. Reads are auto-flattened to the request locale.</td></tr>
-    <tr><td><code>required</code></td><td>boolean</td><td>NOT NULL constraint</td></tr>
-    <tr><td><code>default</code></td><td>any</td><td>DEFAULT value; <code>"now()"</code> maps to <code>CURRENT_TIMESTAMP</code></td></tr>
-    <tr><td><code>unique</code></td><td>boolean</td><td>UNIQUE constraint (i18n fields: unique on default-locale value)</td></tr>
-    <tr><td><code>index</code></td><td>boolean</td><td>Index (i18n fields: GIN index)</td></tr>
-    <tr><td><code>primary</code></td><td>boolean</td><td>PRIMARY KEY override (skips auto <code>id</code>)</td></tr>
-    <tr><td><code>length</code></td><td>number</td><td>VARCHAR length for <code>string</code> type</td></tr>
-    <tr><td><code>precision</code> / <code>scale</code></td><td>number</td><td>For <code>decimal</code> type</td></tr>
-  </table>
+    <h4>CRUD Methods</h4>
+    <table>
+      <tr><th>Method</th><th>Description</th></tr>
+      <tr><td><code>create(name, model, data, schema?)</code></td><td>Insert a row. i18n fields are wrapped as <code>{locale: value}</code> on insert.</td></tr>
+      <tr><td><code>find(name, model, options?, schema?)</code></td><td>Query rows. Options: <code>where</code>, <code>orderBy</code>, <code>limit</code>, <code>offset</code>, <code>lang</code>.</td></tr>
+      <tr><td><code>findOne(name, model, where?, schema?, lang?)</code></td><td>Single row lookup (delegates to <code>find</code> with <code>limit: 1</code>).</td></tr>
+      <tr><td><code>update(name, model, where, data, schema?)</code></td><td>Update matching rows. i18n fields are merged into existing JSONB (adds/replaces current locale).</td></tr>
+      <tr><td><code>remove(name, model, where)</code></td><td>Delete matching rows. Returns deleted row count.</td></tr>
+      <tr><td><code>count(name, model, where?)</code></td><td>Count matching rows.</td></tr>
+    </table>
 
-  <h4>WHERE Clause Operators</h4>
-  <p>The <code>where</code> object supports equality, array IN, null, and operator objects:</p>
-  <table>
-    <tr><th>Syntax</th><th>SQL equivalent</th></tr>
-    <tr><td><code>{field: value}</code></td><td><code>field = value</code></td></tr>
-    <tr><td><code>{field: null}</code></td><td><code>field IS NULL</code></td></tr>
-    <tr><td><code>{field: [a, b]}</code></td><td><code>field IN (a, b)</code></td></tr>
-    <tr><td><code>{field: {$gt: v}}</code></td><td><code>field &gt; v</code></td></tr>
-    <tr><td><code>{field: {$gte: v}}</code></td><td><code>field &gt;= v</code></td></tr>
-    <tr><td><code>{field: {$lt: v}}</code></td><td><code>field &lt; v</code></td></tr>
-    <tr><td><code>{field: {$lte: v}}</code></td><td><code>field &lt;= v</code></td></tr>
-    <tr><td><code>{field: {$ne: v}}</code></td><td><code>field &lt;&gt; v</code></td></tr>
-    <tr><td><code>{field: {$like: v}}</code></td><td><code>field LIKE v</code></td></tr>
-  </table>
-  <div class="note">For i18n fields, WHERE comparisons automatically target the <code>-&gt;&gt;'{locale}'</code> JSONB text extraction, so <code>{name: "Hello"}</code> filters on the current-locale value.</div>
+    <h4>Field Definition (<code>FieldDef</code>)</h4>
+    <p>Supported <code>type</code> values: <code>string</code>, <code>int</code>, <code>bigint</code>, <code>float</code>, <code>decimal</code>, <code>boolean</code>, <code>date</code>, <code>timestamp</code>, <code>json</code>, <code>text</code>.</p>
+    <table>
+      <tr><th>Property</th><th>Type</th><th>Description</th></tr>
+      <tr><td><code>type</code></td><td>FieldType</td><td>SQL column type</td></tr>
+      <tr><td><code>i18n</code></td><td>boolean</td><td>If <code>true</code>, column is stored as JSONB with locale keys</td></tr>
+      <tr><td><code>required</code></td><td>boolean</td><td>NOT NULL constraint</td></tr>
+      <tr><td><code>default</code></td><td>any</td><td>DEFAULT value; <code>"now()"</code> maps to <code>CURRENT_TIMESTAMP</code></td></tr>
+      <tr><td><code>unique</code></td><td>boolean</td><td>UNIQUE constraint (i18n: unique on default-locale value)</td></tr>
+      <tr><td><code>index</code></td><td>boolean</td><td>Index (i18n: GIN index)</td></tr>
+      <tr><td><code>primary</code></td><td>boolean</td><td>PRIMARY KEY override (skips auto <code>id</code>)</td></tr>
+      <tr><td><code>length</code></td><td>number</td><td>VARCHAR length for <code>string</code> type</td></tr>
+      <tr><td><code>precision</code> / <code>scale</code></td><td>number</td><td>For <code>decimal</code> type</td></tr>
+    </table>
 
-  <h3>8. I18nModule <code>src/i18n/</code></h3>
-  <p>Marked <code>@Global()</code> so <code>I18nService</code> is injectable everywhere. Applies <code>I18nMiddleware</code> to all routes, reading the <code>Accept-Language</code> request header and scoping the resolved locale to the current request via <code>AsyncLocalStorage</code>. The default locale is <code>en</code>.</p>
-  <p>Core locale files live under <code>locales/{locale}/*.json</code>. Plugins register additional translations at install time and deregister them on uninstall.</p>
+    <h4>WHERE Clause Operators</h4>
+    <table>
+      <tr><th>Syntax</th><th>SQL equivalent</th></tr>
+      <tr><td><code>{field: value}</code></td><td><code>field = value</code></td></tr>
+      <tr><td><code>{field: null}</code></td><td><code>field IS NULL</code></td></tr>
+      <tr><td><code>{field: [a, b]}</code></td><td><code>field IN (a, b)</code></td></tr>
+      <tr><td><code>{field: {$gt: v}}</code></td><td><code>field &gt; v</code></td></tr>
+      <tr><td><code>{field: {$gte: v}}</code></td><td><code>field &gt;= v</code></td></tr>
+      <tr><td><code>{field: {$lt: v}}</code></td><td><code>field &lt; v</code></td></tr>
+      <tr><td><code>{field: {$lte: v}}</code></td><td><code>field &lt;= v</code></td></tr>
+      <tr><td><code>{field: {$ne: v}}</code></td><td><code>field &lt;&gt; v</code></td></tr>
+      <tr><td><code>{field: {$like: v}}</code></td><td><code>field LIKE v</code></td></tr>
+    </table>
 
-  <h4>I18nService Methods</h4>
-  <table>
-    <tr><th>Method</th><th>Description</th></tr>
-    <tr><td><code>t(key, args?)</code></td><td>Translate a dot-notation key for the current request locale; falls back to <code>en</code>. Supports <code>{placeholder}</code> interpolation.</td></tr>
-    <tr><td><code>tPlugin(pluginName, key, args?)</code></td><td>Shorthand for <code>t('{pluginName}.{key}')</code> — translates a plugin-namespaced key.</td></tr>
-    <tr><td><code>getLocale()</code></td><td>Returns the current request locale from <code>AsyncLocalStorage</code>, or <code>en</code> if none is set.</td></tr>
-    <tr><td><code>registerPluginLocale(name, dir)</code></td><td>Loads <code>{dir}/{locale}/*.json</code> and merges keys under the <code>{name}.*</code> namespace. Returns registered keys for cleanup.</td></tr>
-    <tr><td><code>unregisterPluginLocale(name)</code></td><td>Removes all translations registered for a plugin namespace.</td></tr>
-  </table>
+    <h2 id="pluginmigration">8. PluginMigrationService <code>src/plugin-migration/</code></h2>
+    <p>Manages SQL migrations for plugins that declare a <code>migrations/</code> directory. Tracks applied migrations in the <code>PluginRegistry</code> DB record to avoid re-running.</p>
+    <table>
+      <tr><th>Method</th><th>Description</th></tr>
+      <tr><td><code>applyMigrations(name, path, applied)</code></td><td>Reads <code>migrations/*.sql</code>, skips already applied, executes pending statements via <code>prisma.query()</code></td></tr>
+      <tr><td><code>rollbackMigrations(name)</code></td><td>Drops all tables prefixed <code>plugin_{name}_*</code> (used on uninstall)</td></tr>
+      <tr><td><code>readMigrationFiles(path)</code></td><td>Returns sorted list of <code>.sql</code> filenames</td></tr>
+    </table>
 
-  <h4>Locale File Layout</h4>
-  <p>Core locale files (<code>locales/en/messages.json</code>, <code>locales/en/errors.json</code>, etc.) are flat JSON or nested objects. Plugin locale files follow the same convention but are placed inside the plugin zip under <code>locales/{locale}/{file}.json</code>:</p>
-  <pre>locales/
+    <h2 id="i18n">9. I18nModule <code>src/i18n/</code></h2>
+    <p>Marked <code>@Global()</code> so <code>I18nService</code> is injectable everywhere. Applies <code>I18nMiddleware</code> to all routes, reading the <code>Accept-Language</code> request header and scoping the resolved locale to the current request via <code>AsyncLocalStorage</code>. The default locale is <code>en</code>.</p>
+    <p>Core locale files live under <code>locales/{locale}/*.json</code>. Plugins register additional translations at install time and deregister them on uninstall.</p>
+
+    <h4>I18nService Methods</h4>
+    <table>
+      <tr><th>Method</th><th>Description</th></tr>
+      <tr><td><code>t(key, args?)</code></td><td>Translate a dot-notation key for the current request locale; falls back to <code>en</code>. Supports <code>{placeholder}</code> interpolation.</td></tr>
+      <tr><td><code>tPlugin(pluginName, key, args?)</code></td><td>Shorthand for <code>t('{pluginName}.{key}')</code>.</td></tr>
+      <tr><td><code>getLocale()</code></td><td>Returns the current request locale from <code>AsyncLocalStorage</code>, or <code>en</code>.</td></tr>
+      <tr><td><code>registerPluginLocale(name, dir)</code></td><td>Loads <code>{dir}/{locale}/*.json</code> and merges keys under <code>{name}.*</code> namespace.</td></tr>
+      <tr><td><code>unregisterPluginLocale(name)</code></td><td>Removes all translations registered for a plugin namespace.</td></tr>
+    </table>
+
+    <h4>Locale File Layout</h4>
+<pre><code>locales/
 ├── en/
 │   ├── errors.json      # Postgres error messages, plugin error strings
 │   └── messages.json    # Success/status messages
 └── zh-CN/
     ├── errors.json
-    └── messages.json</pre>
-  <p>Plugin translations are accessible as <code>{pluginName}.{file}.{key}</code>, e.g. <code>my-plugin.messages.welcome</code>.</p>
+    └── messages.json</code></pre>
+    <p>Plugin translations are accessible as <code>{pluginName}.{file}.{key}</code>, e.g. <code>my-plugin.messages.welcome</code>.</p>
 
-  <h3>9. PostgresExceptionFilter <code>src/common/filters/postgres-exception.filter.ts</code></h3>
-  <p>A global <code>@Catch()</code> exception filter registered in <code>AppModule</code>. Intercepts PostgreSQL driver errors before they reach the default NestJS handler and returns structured, localized JSON responses.</p>
-  <table>
-    <tr><th>PG Error Code</th><th>HTTP Status</th><th>i18n Key</th></tr>
-    <tr><td><code>23505</code> — unique constraint</td><td>409 Conflict</td><td><code>errors.23505</code> / <code>errors.23505_fallback</code></td></tr>
-    <tr><td><code>23503</code> — foreign key violation</td><td>409 Conflict</td><td><code>errors.23503</code></td></tr>
-    <tr><td><code>42703</code> — undefined column</td><td>400 Bad Request</td><td><code>errors.42703</code></td></tr>
-    <tr><td>All others</td><td><code>exception.status</code> or 500</td><td><code>errors.500</code></td></tr>
-  </table>
+    <h2 id="exceptionfilter">10. PostgresExceptionFilter <code>src/common/filters/</code></h2>
+    <p>A global <code>@Catch()</code> exception filter registered in <code>AppModule</code>. Intercepts PostgreSQL driver errors before they reach the default NestJS handler and returns structured, localized JSON responses.</p>
+    <table>
+      <tr><th>PG Error Code</th><th>HTTP Status</th><th>i18n Key</th></tr>
+      <tr><td><code>23505</code> &mdash; unique constraint</td><td>409 Conflict</td><td><code>errors.23505</code> / <code>errors.23505_fallback</code></td></tr>
+      <tr><td><code>23503</code> &mdash; foreign key violation</td><td>409 Conflict</td><td><code>errors.23503</code></td></tr>
+      <tr><td><code>42703</code> &mdash; undefined column</td><td>400 Bad Request</td><td><code>errors.42703</code></td></tr>
+      <tr><td>All others</td><td><code>exception.status</code> or 500</td><td><code>errors.500</code></td></tr>
+    </table>
 
-  <h3>10. PluginController <code>src/plugin.controller.ts</code></h3>
-  <p>REST API surface for plugin management. Base path: <code>/plugins</code></p>
-  <table>
-    <tr><th>Method</th><th>Path</th><th>Body</th><th>Action</th></tr>
-    <tr><td><code>POST</code></td><td><code>/plugins/upload</code></td><td>multipart <code>file</code> (ZIP)</td><td>Install plugin</td></tr>
-    <tr><td><code>GET</code></td><td><code>/plugins</code></td><td>&mdash;</td><td>List installed plugins</td></tr>
-    <tr><td><code>PUT</code></td><td><code>/plugins/:name</code></td><td>multipart <code>file</code> (ZIP)</td><td>Update plugin by name</td></tr>
-    <tr><td><code>DELETE</code></td><td><code>/plugins/:name</code></td><td>&mdash;</td><td>Uninstall plugin by name</td></tr>
-  </table>
 
-  <h2>Database Schema</h2>
-  <p>Files: <code>prisma/schema/schema.prisma</code> (generator &amp; datasource) + <code>prisma/schema/plugin.prisma</code> (models)</p>
+    <!-- ========== AUTHENTICATION ========== -->
+    <h2 id="auth-overview">Authentication &amp; Authorization Overview</h2>
+    <p>Wau Core includes a complete token-based authentication and role-based authorization system built from scratch (no external auth libraries like Passport or JWT). Two global guards are registered as <code>APP_GUARD</code> providers in <code>AppModule</code>:</p>
+    <ul>
+      <li><strong>AuthGuard</strong> &mdash; Validates Bearer tokens on every request (unless marked <code>@Public()</code>)</li>
+      <li><strong>PermissionGuard</strong> &mdash; Checks required permissions on routes decorated with <code>@RequirePermissions()</code></li>
+    </ul>
 
-  <h3>PluginRegistry</h3>
-  <p>Authoritative source of installed plugin metadata.</p>
-  <pre>model PluginRegistry {
-  id                String   @id @default(cuid())
-  name              String   @unique
-  version           String
-  manifest          Json
-  migrationsApplied Json?    @map("migrations_applied")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+    <div class="mermaid">
+graph LR
+    subgraph Req["Incoming Request"]
+        A["AuthGuard"]
+        B["PermissionGuard"]
+    end
+    A -->|"Valid token?"| C["request.user = UserPayload"]
+    C --> B
+    B -->|"Has permission?"| D["Route Handler"]
+    B -->|"No permission"| E["403 Forbidden"]
+    A -->|"Invalid/missing"| F["401 Unauthorized"]
+    </div>
 
-  @@map("plugin_registry")
-}</pre>
-  <table>
-    <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
-    <tr><td><code>id</code></td><td>CUID</td><td>Primary key</td></tr>
-    <tr><td><code>name</code></td><td>String</td><td>Unique; matches plugin directory name</td></tr>
-    <tr><td><code>version</code></td><td>String</td><td>Semver string from manifest</td></tr>
-    <tr><td><code>manifest</code></td><td>JSONB</td><td>Full <code>manifest.json</code> content</td></tr>
-    <tr><td><code>migrationsApplied</code></td><td>JSONB</td><td>List of applied SQL migration filenames</td></tr>
-  </table>
+    <h2 id="authservice">AuthService <code>src/auth/auth.service.ts</code></h2>
+    <p>Core authentication logic implementing token-based auth with bcrypt password hashing.</p>
 
-  <h3>PluginData</h3>
-  <p>Key-value store for plugin runtime data.</p>
-  <pre>model PluginData {
-  id        String   @id @default(cuid())
-  plugin    String
-  key       String
-  data      Json
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+    <h4>Key Features</h4>
+    <ul>
+      <li><strong>Token-based auth</strong>: Creates random 32-byte hex tokens stored in <code>userToken</code> table with configurable TTL (default 7d)</li>
+      <li><strong>Auto-cleanup</strong>: Cron job runs every 6 hours to clean up expired/revoked tokens</li>
+      <li><strong>First-user admin</strong>: First registered user gets <code>ADMIN</code> role with <code>["*"]</code> permissions</li>
+      <li><strong>Role sync</strong>: On startup, ensures <code>ADMIN</code> and <code>USER</code> roles have correct permissions</li>
+    </ul>
 
-  @@unique([plugin, key])
-  @@index([plugin])
-  @@map("plugin_data")
-}</pre>
+    <h4>Methods</h4>
+    <table>
+      <tr><th>Method</th><th>Description</th></tr>
+      <tr><td><code>register(dto)</code></td><td>Creates a new user with hashed password. First user becomes ADMIN.</td></tr>
+      <tr><td><code>login(dto, ip?, userAgent?)</code></td><td>Validates credentials, checks ACTIVE status, cleans expired tokens, updates lastLoginAt, returns token.</td></tr>
+      <tr><td><code>validateToken(token)</code></td><td>Returns <code>UserPayload</code> (with role and permissions) if token is valid and not expired/revoked.</td></tr>
+      <tr><td><code>revokeToken(token)</code></td><td>Marks a token as revoked.</td></tr>
+      <tr><td><code>revokeAllTokens(userId)</code></td><td>Revokes all active tokens for a user.</td></tr>
+      <tr><td><code>getMe(userId)</code></td><td>Returns current user details with permissions (password omitted).</td></tr>
+      <tr><td><code>changePassword(userId, dto)</code></td><td>Verifies old password, hashes new password, revokes all tokens.</td></tr>
+      <tr><td><code>forgotPassword(email)</code></td><td>Generates a reset token (1-hour expiry) stored in user profile. Returns generic response.</td></tr>
+      <tr><td><code>resetPassword(token, newPassword)</code></td><td>Validates reset token, updates password, revokes all tokens.</td></tr>
+      <tr><td><code>hasUsers()</code></td><td>Checks if any users exist in the system.</td></tr>
+    </table>
 
-  <h2>Plugin Format Specification</h2>
-  <p>A valid Wau plugin is a ZIP archive. The minimum structure is <code>manifest.json</code> + compiled <code>dist/</code>. Add <code>locales/</code> for i18n and <code>migrations/</code> for SQL migrations:</p>
-  <pre>myplugin.zip
-├── manifest.json               # Required — plugin metadata
+    <h2 id="auth-api">AuthController API <code>src/auth/auth.controller.ts</code></h2>
+    <p>REST endpoints under <code>/auth</code>. Routes marked <code>@Public()</code> bypass authentication.</p>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-post">POST</span>
+        <span class="api-path">/auth/register</span>
+      </div>
+      <div class="api-body">
+        <p><strong>Public</strong> &mdash; Register a new user. First user becomes ADMIN.</p>
+        <p><strong>Body:</strong> <code>{ email: string, password: string (min 6), name?: string }</code></p>
+        <p><strong>Response:</strong> <code>{ user: { id, email, name }, token: { token, expiresAt } }</code></p>
+      </div>
+    </div>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-post">POST</span>
+        <span class="api-path">/auth/login</span>
+      </div>
+      <div class="api-body">
+        <p><strong>Public</strong> &mdash; Authenticate and receive a token.</p>
+        <p><strong>Body:</strong> <code>{ email: string, password: string }</code></p>
+        <p><strong>Response:</strong> <code>{ user: { id, email, name }, token: { token, expiresAt } }</code></p>
+      </div>
+    </div>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-post">POST</span>
+        <span class="api-path">/auth/logout</span>
+      </div>
+      <div class="api-body">
+        <p>Revoke the current token (extracted from Authorization header).</p>
+        <p><strong>Response:</strong> <code>{ message: "Logged out successfully" }</code></p>
+      </div>
+    </div>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-post">POST</span>
+        <span class="api-path">/auth/logout-all</span>
+      </div>
+      <div class="api-body">
+        <p>Revoke all tokens for the current user.</p>
+        <p><strong>Response:</strong> <code>{ message: "All sessions logged out" }</code></p>
+      </div>
+    </div>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-get">GET</span>
+        <span class="api-path">/auth/me</span>
+      </div>
+      <div class="api-body">
+        <p>Get current user details with permissions.</p>
+        <p><strong>Response:</strong> <code>{ id, email, name, status, role, permissions, ... }</code></p>
+      </div>
+    </div>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-put">PUT</span>
+        <span class="api-path">/auth/password</span>
+      </div>
+      <div class="api-body">
+        <p>Change password. All tokens are revoked after change.</p>
+        <p><strong>Body:</strong> <code>{ oldPassword: string, newPassword: string (min 6) }</code></p>
+      </div>
+    </div>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-post">POST</span>
+        <span class="api-path">/auth/forgot-password</span>
+      </div>
+      <div class="api-body">
+        <p><strong>Public</strong> &mdash; Request a password reset token. <strong>SMTP is not yet implemented</strong> &mdash; no token is returned in the response; check the database (user profile <code>_resetToken</code>).</p>
+        <p><strong>Body:</strong> <code>{ email: string }</code></p>
+        <p>Returns generic message regardless of email existence (prevents enumeration).</p>
+      </div>
+    </div>
+
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-post">POST</span>
+        <span class="api-path">/auth/reset-password</span>
+      </div>
+      <div class="api-body">
+        <p><strong>Public</strong> &mdash; Reset password with a valid reset token.</p>
+        <p><strong>Body:</strong> <code>{ token: string, newPassword: string (min 6) }</code></p>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <h4>Forgot / Reset Password Flow (SMTP not yet implemented)</h4>
+      <ol>
+        <li><strong>Request reset token</strong> — returns a generic message regardless of whether the email exists:
+          <pre><code>curl -X POST http://localhost:3000/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'</code></pre>
+          Response: <code>{ "message": "If the email exists, a reset link has been sent." }</code>
+        </li>
+        <li><strong>Read token from DB</strong> — stored in <code>users.profile._resetToken</code> (expires in 1 hour):
+          <pre><code>psql $DATABASE_URL -c "SELECT profile->>'_resetToken' AS reset_token FROM users WHERE email = 'user@example.com';"</code></pre>
+        </li>
+        <li><strong>Reset password</strong> with the token:
+          <pre><code>curl -X POST http://localhost:3000/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{"token": "&lt;reset_token&gt;", "newPassword": "new-secret-password"}'</code></pre>
+          Response: <code>{ "message": "Password has been reset successfully." }</code>
+        </li>
+      </ol>
+    </div>
+
+    <h2 id="guards">Guards &amp; Decorators</h2>
+
+    <h4>Decorators</h4>
+    <table>
+      <tr><th>Decorator</th><th>Usage</th><th>Description</th></tr>
+      <tr><td><code>@Public()</code></td><td>Method or Class</td><td>Marks route(s) as public, bypassing AuthGuard</td></tr>
+      <tr><td><code>@RequirePermissions(...perms)</code></td><td>Method</td><td>Specifies required permissions for a route</td></tr>
+      <tr><td><code>@CurrentUser()</code></td><td>Parameter</td><td>Extracts <code>UserPayload</code> from <code>request.user</code></td></tr>
+    </table>
+
+    <h4>AuthContextService</h4>
+    <p>An injectable service providing helper methods for checking auth state:</p>
+    <table>
+      <tr><th>Method</th><th>Description</th></tr>
+      <tr><td><code>getCurrentUser(req)</code></td><td>Returns <code>UserPayload</code> from the request object</td></tr>
+      <tr><td><code>hasPermission(req, permission)</code></td><td>Checks if user has a specific permission (including <code>*</code>)</td></tr>
+      <tr><td><code>hasRole(req, role)</code></td><td>Checks if user has a specific role</td></tr>
+    </table>
+
+    <h2 id="permissions">Permission System</h2>
+    <p>Permissions are stored as a JSON array on the <code>Role</code> model. The <code>PermissionGuard</code> supports wildcard matching:</p>
+    <ul>
+      <li><code>*</code> &mdash; grants all permissions</li>
+      <li><code>plugin:*</code> &mdash; grants all permissions starting with <code>plugin:</code></li>
+      <li><code>plugin:create</code> &mdash; exact match</li>
+    </ul>
+
+    <h4>Default Roles</h4>
+    <table>
+      <tr><th>Role</th><th>Permissions</th><th>Description</th></tr>
+      <tr><td><code>ADMIN</code></td><td><code>["*"]</code></td><td>Full access to everything</td></tr>
+      <tr><td><code>USER</code></td><td><code>[]</code></td><td>No permissions by default</td></tr>
+    </table>
+
+    <h4>Plugin Management Permissions</h4>
+    <table>
+      <tr><th>Permission</th><th>Used On</th></tr>
+      <tr><td><code>plugin:create</code></td><td>POST /plugins/upload</td></tr>
+      <tr><td><code>plugin:read</code></td><td>GET /plugins</td></tr>
+      <tr><td><code>plugin:update</code></td><td>PUT /plugins</td></tr>
+      <tr><td><code>plugin:delete</code></td><td>DELETE /plugins/:name</td></tr>
+    </table>
+
+    <h2 id="plugin-auth">Plugin Auth Metadata</h2>
+    <p>Plugins can declare auth configuration in <code>manifest.json</code>:</p>
+<pre><code>{
+  "name": "my-plugin",
+  "version": "1.0.0",
+  "auth": {
+    "required": false
+  }
+}</code></pre>
+    <p>When <code>auth.required === false</code>, the <code>PluginLoaderModule</code> automatically marks all route handler methods on the plugin's controllers as <code>isPublic: true</code>, making them bypass <code>AuthGuard</code>.</p>
+
+    <div class="warn">
+      <div class="warn-title">&#9888;&#65039; Permissions are Informational</div>
+      <code>manifest.auth.permissions</code> is intentionally <strong>not</strong> enforced by the core. Permissions declared in <code>manifest.json</code> are purely informational. Actual enforcement requires explicit <code>@RequirePermissions(...)</code> decorators on each route handler.
+    </div>
+
+
+    <!-- ========== PLUGIN DEVELOPMENT ========== -->
+    <h2 id="plugin-structure">Plugin Structure</h2>
+    <p>A valid Wau plugin is a ZIP archive with this structure:</p>
+<pre><code>my-plugin.zip
+├── manifest.json          # Plugin metadata
 ├── dist/
-│   └── index.js                # Required — compiled entry point (exports NestJS Module)
-├── locales/                    # Optional — i18n translation files
+│   └── index.js           # Plugin entry point (fallback: index.js at root)
+├── locales/               # Optional: i18n translation files
 │   ├── en/
-│   │   ├── messages.json       # Success / status messages
-│   │   └── errors.json         # Error messages
+│   │   ├── messages.json
+│   │   └── errors.json
 │   └── zh-CN/
 │       ├── messages.json
 │       └── errors.json
-└── migrations/                 # Optional — SQL migration files (.sql)
-    └── 20260101000000_init.sql</pre>
-  <p>If <code>dist/</code> is absent, the core falls back to <code>index.js</code> at the ZIP root.</p>
+└── migrations/            # Optional: SQL migration files
+    └── 20260101000000_init.sql</code></pre>
 
-  <h3>manifest.json</h3>
-  <p>Required fields: <code>name</code>, <code>version</code>. All others are optional.</p>
-  <pre>{
+    <h2 id="manifest">manifest.json</h2>
+    <p>Required fields: <code>name</code>, <code>version</code>. All others are optional.</p>
+<pre><code>{
   "name": "my-plugin",
   "version": "1.0.0",
   "description": "What this plugin does",
-  "author": "Your Name"
-}</pre>
-
-  <p>With i18n support and a JSON schema:</p>
-  <pre>{
-  "name": "my-plugin",
-  "version": "1.0.0",
-  "description": "Multilingual plugin with dynamic tables",
   "author": "Your Name",
+  "auth": {
+    "required": true,
+    "permissions": ["plugin:read"]
+  },
   "i18n": {
     "defaultLocale": "en",
     "locales": ["en", "zh-CN", "ms-MY"],
@@ -349,221 +1535,453 @@ graph TB
       "status":  { "type": "string", "required": true, "default": "draft", "index": true }
     }
   }
-}</pre>
+}</code></pre>
 
-  <table>
-    <tr><th>Field</th><th>Required</th><th>Description</th></tr>
-    <tr><td><code>name</code></td><td>Yes</td><td>Unique plugin identifier. Used as the route prefix and table name prefix.</td></tr>
-    <tr><td><code>version</code></td><td>Yes</td><td>Semver string. Install rejects same-version or downgrade uploads.</td></tr>
-    <tr><td><code>description</code></td><td>No</td><td>Human-readable description.</td></tr>
-    <tr><td><code>author</code></td><td>No</td><td>Author name.</td></tr>
-    <tr><td><code>i18n</code></td><td>No</td><td>Declares i18n support. <code>defaultLocale</code>, <code>locales</code> (array), <code>path</code> (relative to ZIP root, default <code>./locales</code>).</td></tr>
-    <tr><td><code>schema</code></td><td>No</td><td>JSON schema for dynamic table creation via <code>PluginSchemaService</code>.</td></tr>
-  </table>
+    <table>
+      <tr><th>Field</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>name</code></td><td>Yes</td><td>Unique plugin identifier. Used as route prefix and table name prefix.</td></tr>
+      <tr><td><code>version</code></td><td>Yes</td><td>Semver string. Install rejects same-version or downgrade uploads.</td></tr>
+      <tr><td><code>description</code></td><td>No</td><td>Human-readable description.</td></tr>
+      <tr><td><code>author</code></td><td>No</td><td>Author name.</td></tr>
+      <tr><td><code>auth</code></td><td>No</td><td>Auth metadata. <code>required: false</code> makes all plugin routes public.</td></tr>
+      <tr><td><code>i18n</code></td><td>No</td><td>Declares i18n support. <code>defaultLocale</code>, <code>locales</code>, <code>path</code> (default <code>./locales</code>).</td></tr>
+      <tr><td><code>schema</code></td><td>No</td><td>JSON schema for dynamic table creation via <code>PluginSchemaService</code>.</td></tr>
+    </table>
 
-  <h3>i18n (Translations)</h3>
-  <p>If the extracted plugin contains a <code>locales/</code> directory, the core automatically calls <code>I18nService.registerPluginLocale()</code> at install/update time and <code>unregisterPluginLocale()</code> on uninstall.</p>
-  <p>Locale files are plain JSON under <code>locales/{locale}/{file}.json</code>. Two layouts are supported:</p>
-  <pre>// Flat layout — locales/en/messages.json
+    <h2 id="plugin-i18n">i18n (Translations)</h2>
+    <p>If the extracted plugin contains a <code>locales/</code> directory, the core automatically calls <code>I18nService.registerPluginLocale()</code> at install/update time and <code>unregisterPluginLocale()</code> on uninstall.</p>
+    <p>Locale files are plain JSON under <code>locales/{locale}/{file}.json</code>. Two layouts are supported:</p>
+<pre><code>// Flat layout
 {
   "welcome": "Welcome!",
   "created": "Record created."
 }
 
-// Wrapped layout — locales/en/messages.json
-// (sole top-level key matches filename, so it is auto-unwrapped)
+// Wrapped layout (sole top-level key matches filename, auto-unwrapped)
 {
   "messages": {
     "welcome": "Welcome!",
     "created": "Record created."
   }
-}</pre>
-  <p>Both are accessible in the plugin as <code>i18n.tPlugin(pluginName, 'messages.welcome')</code> or from core code as <code>i18n.t('{pluginName}.messages.welcome')</code>. Placeholder interpolation uses <code>{key}</code> syntax: <code>i18n.tPlugin(name, 'messages.hello', { name: 'Alice' })</code>.</p>
+}</code></pre>
+    <p>Both are accessible as <code>i18n.tPlugin(pluginName, 'messages.welcome')</code> or from core code as <code>i18n.t('{pluginName}.messages.welcome')</code>. Placeholder interpolation uses <code>{key}</code> syntax.</p>
 
-  <h3>JSON Schema</h3>
-  <p>Declare a <code>schema</code> object in <code>manifest.json</code> to have <code>PluginSchemaService</code> automatically create and sync PostgreSQL tables. Table names are prefixed <code>plugin_{name}_{model}</code>. Supported field types: <code>string</code>, <code>int</code>, <code>bigint</code>, <code>float</code>, <code>decimal</code>, <code>boolean</code>, <code>date</code>, <code>timestamp</code>, <code>json</code>, <code>text</code>.</p>
-  <p>Add <code>"i18n": true</code> to any field to store it as a JSONB locale map (<code>{"en":"Hello","zh-CN":"你好"}</code>). Reads via <code>find()</code> / <code>findOne()</code> automatically return the flattened value for the request locale.</p>
+    <h2 id="json-schema">JSON Schema</h2>
+    <p>Declare a <code>schema</code> object in <code>manifest.json</code> to have <code>PluginSchemaService</code> automatically create and sync PostgreSQL tables. Table names are prefixed <code>plugin_{name}_{model}</code>.</p>
+    <p>Add <code>"i18n": true</code> to any field to store it as a JSONB locale map. Reads via <code>find()</code> / <code>findOne()</code> automatically return the flattened value for the request locale.</p>
 
-  <h3>SQL Migrations</h3>
-  <p>Plugins can include a <code>migrations/</code> directory with <code>.sql</code> files named with a sortable timestamp prefix (e.g. <code>20260101000000_create_table.sql</code>). Files are executed in alphabetical order on install/update. Applied filenames are tracked in <code>plugin_registry.migrations_applied</code> to prevent re-runs. On uninstall, tables prefixed <code>plugin_{name}_*</code> are dropped automatically.</p>
+    <h2 id="sql-migrations">SQL Migrations</h2>
+    <p>Plugins can include a <code>migrations/</code> directory with <code>.sql</code> files named with a sortable timestamp prefix (e.g. <code>20260101000000_create_table.sql</code>). Files are executed in alphabetical order on install/update. Applied filenames are tracked in <code>plugin_registry.migrations_applied</code> to prevent re-runs. On uninstall, tables prefixed <code>plugin_{name}_*</code> are dropped automatically.</p>
 
-  <h3>Built Output</h3>
-  <p>Compile TypeScript to <code>dist/</code> and export the NestJS module class from the entry point:</p>
-  <pre>// dist/index.js  (compiled from index.ts)
-export { MyPluginModule } from './src/my-plugin.module';</pre>
-  <p>The ZIP should contain <code>manifest.json</code>, <code>dist/</code>, and optionally <code>locales/</code> and <code>migrations/</code>. Do <strong>not</strong> include TypeScript source, <code>node_modules</code>, or build config files.</p>
+    <h2 id="building">Building &amp; Packaging</h2>
+    <p>Compile TypeScript to <code>dist/</code> and export the NestJS module class from the entry point:</p>
+<pre><code>// dist/index.js (compiled from index.ts)
+export { MyPluginModule } from './src/my-plugin.module';</code></pre>
+    <p>The ZIP should contain <code>manifest.json</code>, <code>dist/</code>, and optionally <code>locales/</code> and <code>migrations/</code>. Do <strong>not</strong> include TypeScript source, <code>node_modules</code>, or build config files.</p>
 
-  <h2>PluginRegistry Database Migration</h2>
 
-  <h3>What Changed</h3>
-  <p>Prior to this migration, <code>PluginManagerService</code> relied solely on an in-memory <code>Map</code> and filesystem scanning of <code>manifest.json</code> files. The <code>PluginRegistry</code> Prisma model existed in the schema but was never used by application code.</p>
+    <!-- ========== API REFERENCE ========== -->
+    <h2 id="plugin-api">Plugin Management API</h2>
 
-  <h3>New Data Flow</h3>
-  <div class="mermaid">
-flowchart LR
-    Op["PluginController\nInstall / Update / Uninstall"] --> Mgr["PluginManagerService\nValidate ZIP\nExtract to FS\nTrigger restart\nPersist to DB"]
-    Mgr <--> PR[("plugin_registry\nPostgreSQL")]
-    Mgr --> FS["storage/plugins/\nCode files"]
-  </div>
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-get">GET</span>
+        <span class="api-path">/plugins</span>
+      </div>
+      <div class="api-body">
+        <p><strong>Permission:</strong> <code>plugin:read</code></p>
+        <p>List all installed plugins from the database.</p>
+        <p><strong>Response:</strong> Array of <code>{ name, version, description, author, manifest, migrationsApplied, createdAt, updatedAt }</code></p>
+      </div>
+    </div>
 
-  <h3>Consistency Strategy</h3>
-  <table>
-    <tr><th>Scenario</th><th>Behavior</th></tr>
-    <tr><td>DB record exists, code exists</td><td>Normal load at startup</td></tr>
-    <tr><td>DB record exists, code missing</td><td>Warn and skip (orphaned DB record)</td></tr>
-    <tr><td>Code exists, DB record missing</td><td>Ignored by PluginManagerService; PluginLoaderModule still loads NestJS module. Re-install to create DB record.</td></tr>
-  </table>
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-post">POST</span>
+        <span class="api-path">/plugins/upload</span>
+      </div>
+      <div class="api-body">
+        <p><strong>Permission:</strong> <code>plugin:create</code></p>
+        <p><strong>Body:</strong> multipart/form-data with <code>file</code> (ZIP)</p>
+        <p>Fresh install if plugin does not exist. Auto-update if uploaded version is higher. Rejected if same version or downgrade.</p>
+        <p><strong>Response (install):</strong> <code>{ success, plugin, version, path, message }</code></p>
+        <p><strong>Response (update):</strong> <code>{ success, plugin, previousVersion, version, path, message }</code></p>
+      </div>
+    </div>
 
-  <h3>Rollback Behavior</h3>
-  <table>
-    <tr><th>Operation</th><th>Rollback on Failure</th></tr>
-    <tr><td>Install (route conflict)</td><td>Delete extracted directory + delete DB record</td></tr>
-    <tr><td>Update (route conflict)</td><td>Delete new extraction. Old code already deleted; DB updated to new version. This is an architectural limitation.</td></tr>
-    <tr><td>Uninstall</td><td>DB record deleted first, then directory. If directory deletion fails, filesystem orphan remains.</td></tr>
-  </table>
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-put">PUT</span>
+        <span class="api-path">/plugins</span>
+      </div>
+      <div class="api-body">
+        <p><strong>Permission:</strong> <code>plugin:update</code></p>
+        <p><strong>Body:</strong> multipart/form-data with <code>file</code> (ZIP)</p>
+        <p>Update an installed plugin. Plugin name is auto-detected from the ZIP manifest.json. Same validation and behavior as upload when the plugin already exists.</p>
+      </div>
+    </div>
 
-  <h2>File Structure</h2>
-  <pre>
-src/
-├── app.module.ts
-├── main.ts
-├── bootstrap.ts                   # Server restart helper
-├── plugin.controller.ts
-├── plugin-manager.service.ts      # Plugin lifecycle; delegates DB to PluginRegistryService
-├── common/
-│   └── filters/
-│       └── postgres-exception.filter.ts  # Global Postgres error handler
-├── i18n/
-│   ├── i18n.constant.ts           # DEFAULT_LOCALE = 'en'
-│   ├── i18n.middleware.ts         # Accept-Language → AsyncLocalStorage
-│   ├── i18n.module.ts             # Global module + middleware wiring
-│   └── i18n.service.ts            # Translation engine + plugin locale registry
-├── plugin-registry/
-│   ├── plugin-registry.module.ts
-│   └── plugin-registry.service.ts # CRUD for plugin_registry table
-├── plugin-data/
-│   ├── plugin-data.module.ts
-│   └── plugin-data.service.ts     # KV ops for plugin_data table
-├── plugin-migration/
-│   ├── plugin-migration.module.ts
-│   └── plugin-migration.service.ts # SQL migration runner
-├── plugin-schema/
-│   ├── plugin-schema.module.ts
-│   ├── plugin-schema.service.ts   # JSON schema table sync + CRUD
-│   └── plugin-schema.types.ts     # Schema type definitions
-├── plugins/
-│   └── plugin-loader.module.ts   # Filesystem-based dynamic loader
-└── prisma/
-    ├── prisma.module.ts          # Global Prisma module
-    └── prisma.service.ts         # PrismaClient lifecycle management
+    <div class="api-block">
+      <div class="api-header">
+        <span class="api-method method-delete">DELETE</span>
+        <span class="api-path">/plugins/:name</span>
+      </div>
+      <div class="api-body">
+        <p><strong>Permission:</strong> <code>plugin:delete</code></p>
+        <p>Uninstall a plugin by name. Cleans up schema tables, migrations, and plugin_data entries.</p>
+        <p><strong>Response:</strong> <code>{ success, plugin, message }</code></p>
+      </div>
+    </div>
 
-locales/                           # Core translation files
-├── en/
-│   ├── errors.json               # Postgres + plugin error messages
-│   └── messages.json             # Success/status messages
-└── zh-CN/
-    ├── errors.json
-    └── messages.json
+    <h2 id="auth-endpoints">Authentication API</h2>
+    <p>See the <a href="#auth-api">AuthController API section</a> above for all authentication endpoints under <code>/auth</code>.</p>
 
-prisma/
-└── schema/
-    ├── schema.prisma             # Generator + datasource
-    └── plugin.prisma             # PluginData + PluginRegistry models
 
-storage/
-└── plugins/
-    └── &lt;plugin-name&gt;/           # Plugin code extracted here
+    <!-- ========== DATABASE ========== -->
+    <h2 id="db-schema">Database Schema Models</h2>
+    <p>Files: <code>prisma/schema/schema.prisma</code> (generator &amp; datasource) + <code>prisma/schema/plugin.prisma</code> + <code>prisma/schema/auth.prisma</code></p>
 
-sample-plugins/                   # Sample plugin source code
-├── test-plugin/
-├── test-kv-plugin/
-├── test-migration-plugin/
-└── test-hybrid-plugin/
-</pre>
+    <h4>PluginRegistry</h4>
+    <pre><code>model PluginRegistry {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  version           String
+  manifest          Json
+  migrationsApplied Json?    @map("migrations_applied")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-  <h2>Environment Variables</h2>
-  <table>
-    <tr><th>Variable</th><th>Required</th><th>Description</th></tr>
-    <tr><td><code>DATABASE_URL</code></td><td>Yes</td><td>PostgreSQL connection string</td></tr>
-    <tr><td><code>PORT</code></td><td>No</td><td>HTTP server port (default: 3000)</td></tr>
-    <tr><td><code>NODE_ENV</code></td><td>No</td><td><code>development</code> | <code>production</code></td></tr>
-  </table>
+  @@map("plugin_registry")
+}</code></pre>
 
-  <h2>Prisma Setup &amp; Deployment</h2>
-  <p>Wau Core uses <strong>Prisma 7</strong> with the <code>@prisma/adapter-pg</code> adapter against PostgreSQL. The schema is split across multiple files under <code>prisma/schema/</code> and migrations are stored in <code>prisma/migrations/</code>. The Prisma config is in <code>prisma.config.ts</code>:</p>
-  <pre>import { defineConfig, env } from 'prisma/config'
-import { config } from 'dotenv'
-import { resolve } from 'path'
+    <h4>PluginData</h4>
+    <pre><code>model PluginData {
+  id        String   @id @default(cuid())
+  plugin    String
+  key       String
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-config({ path: resolve(__dirname, '.env') })
+  @@unique([plugin, key])
+  @@index([plugin])
+  @@map("plugin_data")
+}</code></pre>
 
-export default defineConfig({
-  schema: './prisma/schema',
-  migrations: { path: './prisma/migrations' },
-  datasource: { url: env('DATABASE_URL') },
-})</pre>
+    <h4>Role</h4>
+    <pre><code>model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  permissions Json?    @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  <h3>Prerequisites</h3>
-  <ul>
-    <li>PostgreSQL 14+ running and reachable</li>
-    <li>Node.js 20+ and npm</li>
-    <li><code>.env</code> file with a valid <code>DATABASE_URL</code> (copy from <code>.env.example</code>)</li>
-  </ul>
+  users User[]
+  @@map("roles")
+}</code></pre>
 
-  <h3>Local Development</h3>
-  <pre># Install dependencies (runs prisma generate via postinstall if configured)
-npm install
+    <h4>User</h4>
+    <pre><code>model User {
+  id          String     @id @default(cuid())
+  email       String     @unique
+  password    String
+  name        String?
+  avatar      String?
+  status      UserStatus @default(ACTIVE)
+  roleId      String     @map("role_id")
+  role        Role       @relation(fields: [roleId], references: [id])
+  profile     Json?      @default("{}")
+  lastLoginAt DateTime?  @map("last_login_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
 
-# Configure your database URL
-cp .env.example .env
-# edit .env -> DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DB_NAME?schema=public
+  tokens UserToken[]
+  @@map("users")
+}</code></pre>
 
-# Apply all migrations to the local database
+    <h4>UserToken</h4>
+    <pre><code>model UserToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  ip        String?
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("user_tokens")
+}</code></pre>
+
+    <h4>UserStatus Enum</h4>
+    <pre><code>enum UserStatus {
+  ACTIVE
+  DISABLED
+  PENDING
+  @@map("user_status")
+}</code></pre>
+
+    <h2 id="prisma-setup">Prisma Setup &amp; Deployment</h2>
+    <p>Wau Core uses <strong>Prisma 7</strong> with the <code>@prisma/adapter-pg</code> adapter. Schema is split across multiple files under <code>prisma/schema/</code>.</p>
+
+    <h4>Commands</h4>
+    <table>
+      <tr><th>Command</th><th>Purpose</th></tr>
+      <tr><td><code>npx prisma migrate dev --name &lt;name&gt;</code></td><td>Create a new migration during development and apply it locally</td></tr>
+      <tr><td><code>npx prisma migrate deploy</code></td><td>Apply all pending migrations (production / CI)</td></tr>
+      <tr><td><code>npx prisma migrate status</code></td><td>Show migration history vs. database state</td></tr>
+      <tr><td><code>npx prisma generate</code></td><td>Regenerate the Prisma client after schema changes</td></tr>
+      <tr><td><code>npx prisma studio</code></td><td>Open a local GUI for browsing data</td></tr>
+    </table>
+
+    <h4>Production Deployment</h4>
+<pre><code># 1. Apply pending migrations
 npx prisma migrate deploy
 
-# Generate the Prisma client
+# 2. Generate client
 npx prisma generate
 
-# Run the dev server
-npm run start:dev</pre>
-
-  <h3>Creating a New Migration</h3>
-  <p>When you change a model in <code>prisma/schema/plugin.prisma</code> (or add a new <code>.prisma</code> file), create a migration with:</p>
-  <pre>npx prisma migrate dev --name &lt;short_description&gt;</pre>
-  <p>This generates a new folder under <code>prisma/migrations/&lt;timestamp&gt;_&lt;name&gt;/</code> containing a single <code>migration.sql</code>. Commit both the schema change and the new migration folder.</p>
-
-  <h3>Production Deployment</h3>
-  <p>Production deploys should never use <code>migrate dev</code> (which is interactive and can drop data). Use <code>migrate deploy</code> instead:</p>
-  <pre># 1. Apply pending migrations (non-interactive, safe for prod / CI)
-npx prisma migrate deploy
-
-# 2. Generate the Prisma client (typically already part of postinstall)
-npx prisma generate
-
-# 3. Build and start
+# 3. Build and run
 npm run build
-npm run start:prod</pre>
+npm run start:prod</code></pre>
 
-  <h3>Useful Commands</h3>
-  <table>
-    <tr><th>Command</th><th>Purpose</th></tr>
-    <tr><td><code>npx prisma migrate dev --name &lt;n&gt;</code></td><td>Create + apply a new migration locally</td></tr>
-    <tr><td><code>npx prisma migrate deploy</code></td><td>Apply pending migrations (production / CI)</td></tr>
-    <tr><td><code>npx prisma migrate status</code></td><td>Show which migrations are applied vs. pending</td></tr>
-    <tr><td><code>npx prisma generate</code></td><td>Regenerate the Prisma client</td></tr>
-    <tr><td><code>npx prisma studio</code></td><td>Browse data via local GUI</td></tr>
-    <tr><td><code>npx prisma migrate reset</code></td><td>Drop DB and re-apply all migrations (destructive)</td></tr>
-  </table>
+    <div class="note">
+      <div class="note-title">&#128161; Core vs. Plugin Migrations</div>
+      Core Prisma migrations only manage <code>plugin_registry</code>, <code>plugin_data</code>, <code>users</code>, <code>roles</code>, and <code>user_tokens</code> tables. Plugin-owned tables are created at <em>plugin install time</em> by <code>PluginSchemaService</code> (from <code>manifest.json</code> schema) and <code>PluginMigrationService</code> (from <code>migrations/*.sql</code>). These two systems are independent.
+    </div>
 
-  <div class="note">The core Prisma migrations only manage the <code>plugin_registry</code> and <code>plugin_data</code> tables. Plugin-owned tables are created at <em>plugin install time</em> by <code>PluginSchemaService</code> (from <code>manifest.json</code> schema) and <code>PluginMigrationService</code> (from <code>migrations/*.sql</code>). These two systems are independent and tracked separately in <code>plugin_registry.migrations_applied</code>.</div>
+    <h2 id="migration-history">Migration History</h2>
+    <table>
+      <tr><th>Migration</th><th>Description</th></tr>
+      <tr><td><code>20260511164328_init</code></td><td>Initial <code>plugin_data</code> and <code>plugin_registry</code> tables</td></tr>
+      <tr><td><code>20260519072740_update_plugin_registry</code></td><td>Additions to <code>plugin_registry</code></td></tr>
+      <tr><td><code>20260519080440_remove_i18n_keys_from_plugin_registry</code></td><td>i18n keys moved out of registry</td></tr>
+      <tr><td><code>20260521160000_add_auth</code></td><td>Added <code>roles</code>, <code>users</code>, <code>user_tokens</code> tables and <code>user_status</code> enum</td></tr>
+    </table>
 
-  <h3>Migration History</h3>
-  <p>Migrations currently shipped in this repo (under <code>prisma/migrations/</code>):</p>
-  <ul>
-    <li><code>20260511164328_init</code> — initial <code>plugin_data</code> and <code>plugin_registry</code> tables</li>
-    <li><code>20260519072740_update_plugin_registry</code> — additions to <code>plugin_registry</code></li>
-    <li><code>20260519080440_remove_i18n_keys_from_plugin_registry</code> — i18n keys moved out of the registry</li>
-  </ul>
 
+    <!-- ========== SAMPLES ========== -->
+    <h2 id="samples">Sample Plugins</h2>
+    <p>The repo includes several sample plugins under <code>sample-plugins/</code>:</p>
+    <table>
+      <tr><th>Plugin</th><th>Demonstrates</th></tr>
+      <tr><td><code>test-plugin</code></td><td>Basic plugin with controller and service</td></tr>
+      <tr><td><code>test-kv-plugin</code></td><td>PluginData KV store usage</td></tr>
+      <tr><td><code>test-migration-plugin</code></td><td>SQL migrations</td></tr>
+      <tr><td><code>test-hybrid-plugin</code></td><td>Combined schema + migrations</td></tr>
+      <tr><td><code>test-multilang-plugin</code></td><td>i18n translations</td></tr>
+      <tr><td><code>test-multilang-db-plugin</code></td><td>i18n fields in JSON schema</td></tr>
+      <tr><td><code>test-auth-plugin</code></td><td>Plugin with auth metadata</td></tr>
+    </table>
+    <p>Pre-built ZIPs are available in <code>sample-plugins/installer/</code> for quick testing.</p>
+
+
+    <!-- ========== FILE STRUCTURE ========== -->
+    <h2 id="file-structure">Project File Structure</h2>
+<pre><code>wau-core/
+├── src/
+│   ├── app.module.ts
+│   ├── main.ts
+│   ├── bootstrap.ts                   # Server restart helper
+│   ├── plugin.controller.ts
+│   ├── plugin-manager.service.ts
+│   ├── auth/                          # Authentication &amp; authorization
+│   │   ├── auth.module.ts
+│   │   ├── auth.service.ts
+│   │   ├── auth.controller.ts
+│   │   ├── auth.guard.ts
+│   │   ├── permission.guard.ts
+│   │   ├── auth-context.service.ts
+│   │   ├── public.decorator.ts
+│   │   ├── current-user.decorator.ts
+│   │   ├── permissions.decorator.ts
+│   │   ├── auth.types.ts
+│   │   └── dto/
+│   │       ├── register.dto.ts
+│   │       ├── login.dto.ts
+│   │       ├── change-password.dto.ts
+│   │       ├── forgot-password.dto.ts
+│   │       └── reset-password.dto.ts
+│   ├── common/
+│   │   └── filters/
+│   │       └── postgres-exception.filter.ts
+│   ├── i18n/
+│   │   ├── i18n.constant.ts
+│   │   ├── i18n.middleware.ts
+│   │   ├── i18n.module.ts
+│   │   └── i18n.service.ts
+│   ├── plugin-registry/
+│   ├── plugin-data/
+│   ├── plugin-migration/
+│   ├── plugin-schema/
+│   ├── plugins/
+│   │   └── plugin-loader.module.ts
+│   └── prisma/
+│       ├── prisma.module.ts
+│       └── prisma.service.ts
+├── prisma/
+│   ├── config.ts
+│   └── schema/
+│       ├── schema.prisma
+│       ├── plugin.prisma
+│       └── auth.prisma
+├── locales/
+│   ├── en/
+│   └── zh-CN/
+├── sample-plugins/
+│   ├── test-plugin/
+│   ├── test-kv-plugin/
+│   ├── test-migration-plugin/
+│   ├── test-hybrid-plugin/
+│   ├── test-multilang-plugin/
+│   ├── test-multilang-db-plugin/
+│   ├── test-auth-plugin/
+│   └── installer/           # Pre-built ZIPs
+├── storage/
+│   └── plugins/             # Installed plugins directory
+└── dist/                    # Compiled output</code></pre>
+
+
+    <!-- ========== ROADMAP ========== -->
+    <h2 id="roadmap">Future Roadmap</h2>
+    <p>Wau is designed as a <strong>full-stack plugin platform</strong>. The backend core is just the beginning:</p>
+    <ul>
+      <li><strong>Flutter Client (<code>wau-flutter</code>)</strong> &mdash; A mobile app shell that dynamically renders screens from JSON protocols served by plugins.</li>
+      <li><strong>React JS Web App (<code>wau-web</code>)</strong> &mdash; A dual-purpose React application: an admin dashboard for managing plugins and a user-facing client.</li>
+      <li><strong>Event Bus</strong> &mdash; Cross-plugin &amp; cross-platform communication so backend plugins can trigger actions in Flutter and Web clients.</li>
+      <li><strong>SDUI Protocol</strong> &mdash; Backend-driven layout engine for fully dynamic UI generation.</li>
+    </ul>
+
+    <p style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--fg-subtle); font-size: 0.9rem;">
+      This project is licensed under the <a href="https://github.com/jeffnaa/wau/blob/main/LICENSE">MIT License</a>.
+      Maintained by <strong>JeffNaa</strong>.
+    </p>
+  </main>
+
+  <!-- Back to top -->
+  <button class="back-to-top" id="backToTop" onclick="scrollToTop()">&#8593;</button>
+
+  <script>
+    // Sidebar toggle
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+
+    menuToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('show');
+    });
+
+    overlay.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+      overlay.classList.remove('show');
+    });
+
+    // Section collapse
+    function toggleSection(el) {
+      el.parentElement.classList.toggle('collapsed');
+    }
+
+    // Active link tracking
+    const sections = document.querySelectorAll('h2[id], h3[id]');
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+
+    function updateActiveLink() {
+      let current = '';
+      sections.forEach(section => {
+        const rect = section.getBoundingClientRect();
+        if (rect.top <= 100) current = section.getAttribute('id');
+      });
+
+      sidebarLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === '#' + current) {
+          link.classList.add('active');
+          // Expand parent section
+          const section = link.closest('.sidebar-section');
+          if (section) section.classList.remove('collapsed');
+        }
+      });
+    }
+
+    window.addEventListener('scroll', updateActiveLink);
+    updateActiveLink();
+
+    // Back to top
+    const backToTop = document.getElementById('backToTop');
+    window.addEventListener('scroll', () => {
+      backToTop.classList.toggle('visible', window.scrollY > 400);
+    });
+    function scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Search
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+
+    const searchIndex = [];
+    document.querySelectorAll('h2[id], h3[id]').forEach(el => {
+      const section = el.closest('.main-content');
+      const prevH2 = el.tagName === 'H3' ? el.previousElementSibling : null;
+      while (prevH2 && prevH2.tagName !== 'H2') {
+        prevH2 = prevH2.previousElementSibling;
+      }
+      searchIndex.push({
+        id: el.id,
+        title: el.textContent.replace(/#.*/, '').trim(),
+        section: prevH2 ? prevH2.textContent.replace(/#.*/, '').trim() : 'Overview'
+      });
+    });
+
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      if (!query) {
+        searchResults.classList.remove('visible');
+        return;
+      }
+
+      const matches = searchIndex.filter(item =>
+        item.title.toLowerCase().includes(query) ||
+        item.section.toLowerCase().includes(query)
+      );
+
+      if (matches.length === 0) {
+        searchResults.innerHTML = '<div class="no-results">No results found</div>';
+      } else {
+        searchResults.innerHTML = matches.map(item =>
+          `<div class="search-result-item" onclick="location.href='#${item.id}'; searchResults.classList.remove('visible');">
+            <div class="search-result-title">${item.title}</div>
+            <div class="search-result-section">${item.section}</div>
+          </div>`
+        ).join('');
+      }
+      searchResults.classList.add('visible');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.search-box')) {
+        searchResults.classList.remove('visible');
+      }
+    });
+
+    // TOC generation
+    const tocContent = document.getElementById('tocContent');
+    if (tocContent) {
+      let tocHtml = '';
+      let h2Count = 0;
+      document.querySelectorAll('h2[id], h3[id], h4[id]').forEach(el => {
+        const level = el.tagName === 'H2' ? 1 : el.tagName === 'H3' ? 2 : 3;
+        const title = el.textContent.replace(/#.*/, '').trim();
+        const id = el.id;
+        if (level === 1) h2Count++;
+        if (h2Count > 1 && level === 1) tocHtml += '<div style="margin-top:8px"></div>';
+        tocHtml += `<a href="#${id}" class="toc-link l${level}">${title}</a>`;
+      });
+      tocContent.innerHTML = tocHtml;
+    }
+  </script>
 </body>
 </html>
