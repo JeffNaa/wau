@@ -266,9 +266,40 @@ POST /auth/logout            # Revoke current token
 POST /auth/logout-all        # Revoke all user tokens
 GET  /auth/me                # Current user details
 PUT  /auth/password          # Change password (revokes all tokens)
-POST /auth/forgot-password   # Public — request reset token (SMTP not yet implemented; token is returned in response)
+POST /auth/forgot-password   # Public — request reset token (SMTP not yet implemented)
 POST /auth/reset-password    # Public — reset with token
 ```
+
+**Forgot / Reset Password Flow (detailed)**
+
+Since SMTP is not wired up yet, the reset token is written to the database instead of being emailed. Here is the complete flow:
+
+1. **Request a reset token** (returns a generic message regardless of whether the email exists):
+   ```bash
+   curl -X POST http://localhost:3000/auth/forgot-password \
+     -H "Content-Type: application/json" \
+     -d '{"email": "user@example.com"}'
+   ```
+   Response:
+   ```json
+   { "message": "If the email exists, a reset link has been sent." }
+   ```
+
+2. **Retrieve the token from the database.** The token is stored inside the user's `profile` JSON field under the key `_resetToken` (expires in 1 hour):
+   ```bash
+   psql $DATABASE_URL -c "SELECT profile->>'_resetToken' AS reset_token, profile->>'_resetTokenExpiresAt' AS expires_at FROM users WHERE email = 'user@example.com';"
+   ```
+
+3. **Reset the password** with the token obtained in step 2:
+   ```bash
+   curl -X POST http://localhost:3000/auth/reset-password \
+     -H "Content-Type: application/json" \
+     -d '{"token": "<reset_token>", "newPassword": "new-secret-password"}'
+   ```
+   Response:
+   ```json
+   { "message": "Password has been reset successfully." }
+   ```
 
 The first registered user automatically gets the `ADMIN` role with `["*"]` (all) permissions. Subsequent users get the `USER` role with no permissions. Both `AuthGuard` and `PermissionGuard` are registered as global `APP_GUARD` providers.
 
@@ -602,9 +633,40 @@ POST /auth/logout            # 撤销当前令牌
 POST /auth/logout-all        # 撤销用户所有令牌
 GET  /auth/me                # 当前用户详情
 PUT  /auth/password          # 修改密码（撤销所有令牌）
-POST /auth/forgot-password   # 公开 — 请求重置令牌（SMTP 尚未实现；令牌直接在响应中返回）
+POST /auth/forgot-password   # 公开 — 请求重置令牌（SMTP 尚未实现）
 POST /auth/reset-password    # 公开 — 使用令牌重置密码
 ```
+
+**忘记密码 / 重置密码详细流程**
+
+由于 SMTP 尚未接入，重置令牌会写入数据库而非发送邮件。完整流程如下：
+
+1. **请求重置令牌**（无论邮箱是否存在，都返回相同的通用消息）：
+   ```bash
+   curl -X POST http://localhost:3000/auth/forgot-password \
+     -H "Content-Type: application/json" \
+     -d '{"email": "user@example.com"}'
+   ```
+   响应：
+   ```json
+   { "message": "If the email exists, a reset link has been sent." }
+   ```
+
+2. **从数据库读取令牌。** 令牌存储在用户 `profile` JSON 字段的 `_resetToken` 键下（有效期 1 小时）：
+   ```bash
+   psql $DATABASE_URL -c "SELECT profile->>'_resetToken' AS reset_token, profile->>'_resetTokenExpiresAt' AS expires_at FROM users WHERE email = 'user@example.com';"
+   ```
+
+3. **使用步骤 2 获取的令牌重置密码：**
+   ```bash
+   curl -X POST http://localhost:3000/auth/reset-password \
+     -H "Content-Type: application/json" \
+     -d '{"token": "<reset_token>", "newPassword": "new-secret-password"}'
+   ```
+   响应：
+   ```json
+   { "message": "Password has been reset successfully." }
+   ```
 
 第一个注册的用户自动获得 `ADMIN` 角色和 `["*"]`（全部）权限。后续用户获得 `USER` 角色，默认无权限。`AuthGuard` 和 `PermissionGuard` 均作为全局 `APP_GUARD` 注册。
 

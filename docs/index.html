@@ -1396,7 +1396,7 @@ graph LR
         <span class="api-path">/auth/forgot-password</span>
       </div>
       <div class="api-body">
-        <p><strong>Public</strong> &mdash; Request a password reset token. <strong>SMTP is not yet implemented</strong> &mdash; the reset token is returned directly in the API response for now.</p>
+        <p><strong>Public</strong> &mdash; Request a password reset token. <strong>SMTP is not yet implemented</strong> &mdash; no token is returned in the response; check the database (user profile <code>_resetToken</code>).</p>
         <p><strong>Body:</strong> <code>{ email: string }</code></p>
         <p>Returns generic message regardless of email existence (prevents enumeration).</p>
       </div>
@@ -1411,6 +1411,27 @@ graph LR
         <p><strong>Public</strong> &mdash; Reset password with a valid reset token.</p>
         <p><strong>Body:</strong> <code>{ token: string, newPassword: string (min 6) }</code></p>
       </div>
+    </div>
+
+    <div class="info-box">
+      <h4>Forgot / Reset Password Flow (SMTP not yet implemented)</h4>
+      <ol>
+        <li><strong>Request reset token</strong> — returns a generic message regardless of whether the email exists:
+          <pre><code>curl -X POST http://localhost:3000/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'</code></pre>
+          Response: <code>{ "message": "If the email exists, a reset link has been sent." }</code>
+        </li>
+        <li><strong>Read token from DB</strong> — stored in <code>users.profile._resetToken</code> (expires in 1 hour):
+          <pre><code>psql $DATABASE_URL -c "SELECT profile->>'_resetToken' AS reset_token FROM users WHERE email = 'user@example.com';"</code></pre>
+        </li>
+        <li><strong>Reset password</strong> with the token:
+          <pre><code>curl -X POST http://localhost:3000/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{"token": "&lt;reset_token&gt;", "newPassword": "new-secret-password"}'</code></pre>
+          Response: <code>{ "message": "Password has been reset successfully." }</code>
+        </li>
+      </ol>
     </div>
 
     <h2 id="guards">Guards &amp; Decorators</h2>

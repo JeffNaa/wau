@@ -1348,7 +1348,7 @@ graph LR
         <span class="api-path">/auth/forgot-password</span>
       </div>
       <div class="api-body">
-        <p><strong>公开</strong> &mdash; 请求密码重置令牌。<strong>SMTP 尚未实现</strong> &mdash; 目前重置令牌直接在 API 响应中返回。</p>
+        <p><strong>公开</strong> &mdash; 请求密码重置令牌。<strong>SMTP 尚未实现</strong> &mdash; 响应不返回令牌，请查询数据库（用户 profile 的 <code>_resetToken</code>）。</p>
         <p><strong>请求体:</strong> <code>{ email: string }</code></p>
         <p>无论邮箱是否存在都返回相同的通用消息（防止枚举攻击）。</p>
       </div>
@@ -1363,6 +1363,27 @@ graph LR
         <p><strong>公开</strong> &mdash; 使用有效的重置令牌重置密码。</p>
         <p><strong>请求体:</strong> <code>{ token: string, newPassword: string (最少6位) }</code></p>
       </div>
+    </div>
+
+    <div class="info-box">
+      <h4>忘记密码 / 重置密码流程（SMTP 尚未实现）</h4>
+      <ol>
+        <li><strong>请求重置令牌</strong> — 无论邮箱是否存在，都返回相同的通用消息：
+          <pre><code>curl -X POST http://localhost:3000/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'</code></pre>
+          响应：<code>{ "message": "If the email exists, a reset link has been sent." }</code>
+        </li>
+        <li><strong>从数据库读取令牌</strong> — 存储在 <code>users.profile._resetToken</code> 中（有效期 1 小时）：
+          <pre><code>psql $DATABASE_URL -c "SELECT profile-&gt;&gt;'_resetToken' AS reset_token FROM users WHERE email = 'user@example.com';"</code></pre>
+        </li>
+        <li><strong>使用令牌重置密码：</strong>
+          <pre><code>curl -X POST http://localhost:3000/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{"token": "&lt;reset_token&gt;", "newPassword": "new-secret-password"}'</code></pre>
+          响应：<code>{ "message": "Password has been reset successfully." }</code>
+        </li>
+      </ol>
     </div>
 
     <h2 id="guards">守卫与装饰器</h2>
