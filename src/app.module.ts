@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { PluginManagerService } from './plugin-manager.service';
 import { PluginController } from './plugin.controller';
 import { PluginLoaderModule } from './plugins/plugin-loader.module';
@@ -17,10 +18,15 @@ import { PermissionGuard } from './auth/permission.guard';
 import * as path from 'path';
 
 const pluginsDir = path.join(process.cwd(), 'storage/plugins');
+const webDistDir = path.join(process.cwd(), 'apps', 'web', 'dist');
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ServeStaticModule.forRoot({
+      rootPath: webDistDir,
+      serveRoot: '/',
+    }),
     AuthModule,
     I18nModule,
     PrismaModule,
