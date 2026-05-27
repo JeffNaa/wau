@@ -808,6 +808,7 @@
       <div class="sidebar-links">
         <a href="#plugin-api" class="sidebar-link">插件管理</a>
         <a href="#auth-endpoints" class="sidebar-link">认证接口</a>
+        <a href="#web-api" class="sidebar-link">Web API (M1)</a>
       </div>
     </div>
 
@@ -968,6 +969,7 @@ graph TB
       <tr><td>Plugin Migrations</td><td><span class="badge badge-done">完成</span></td><td>支持 SQL 迁移</td></tr>
       <tr><td>i18n 国际化</td><td><span class="badge badge-done">完成</span></td><td>所有服务全面本地化</td></tr>
       <tr><td>认证与授权</td><td><span class="badge badge-done">完成</span></td><td>令牌认证、角色、RBAC 通配符权限</td></tr>
+      <tr><td>WebModule (M1)</td><td><span class="badge badge-done">完成</span></td><td>SiteConfig、Page、Navigation、WidgetRegistry API</td></tr>
       <tr><td>Flutter 客户端</td><td><span class="badge badge-planned">规划中</span></td><td>JSON 驱动的动态 UI 渲染</td></tr>
       <tr><td>React Web 管理端</td><td><span class="badge badge-planned">规划中</span></td><td>插件管理后台 + 用户端</td></tr>
       <tr><td>事件总线</td><td><span class="badge badge-planned">规划中</span></td><td>跨插件 &amp; 跨平台通信</td></tr>
@@ -1011,13 +1013,13 @@ npm run start:dev
 cd sample-plugins/test-plugin &amp;&amp; zip -r ../../test-plugin.zip manifest.json dist/
 
 # 通过 API 安装
-curl -X POST -F "file=@test-plugin.zip" http://localhost:3000/plugins/upload
+curl -X POST -F "file=@test-plugin.zip" http://localhost:3000/api/plugins/upload
 
 # 验证已安装
-curl http://localhost:3000/plugins
+curl http://localhost:3000/api/plugins
 
 # 测试插件路由
-curl http://localhost:3000/test-plugin/status</code></pre>
+curl http://localhost:3000/api/test-plugin/status</code></pre>
 
     <div class="note note-info">
       <div class="note-title">&#128230; 打包包含 locales/ 或 migrations/ 的插件</div>
@@ -1369,7 +1371,7 @@ graph LR
       <h4>忘记密码 / 重置密码流程（SMTP 尚未实现）</h4>
       <ol>
         <li><strong>请求重置令牌</strong> — 无论邮箱是否存在，都返回相同的通用消息：
-          <pre><code>curl -X POST http://localhost:3000/auth/forgot-password \
+          <pre><code>curl -X POST http://localhost:3000/api/auth/forgot-password \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com"}'</code></pre>
           响应：<code>{ "message": "If the email exists, a reset link has been sent." }</code>
@@ -1378,7 +1380,7 @@ graph LR
           <pre><code>psql $DATABASE_URL -c "SELECT profile-&gt;&gt;'_resetToken' AS reset_token FROM users WHERE email = 'user@example.com';"</code></pre>
         </li>
         <li><strong>使用令牌重置密码：</strong>
-          <pre><code>curl -X POST http://localhost:3000/auth/reset-password \
+          <pre><code>curl -X POST http://localhost:3000/api/auth/reset-password \
   -H "Content-Type: application/json" \
   -d '{"token": "&lt;reset_token&gt;", "newPassword": "new-secret-password"}'</code></pre>
           响应：<code>{ "message": "Password has been reset successfully." }</code>
@@ -1582,10 +1584,138 @@ export { MyPluginModule } from './src/my-plugin.module';</code></pre>
     </div>
 
     <h2 id="auth-endpoints">认证接口</h2>
-    <p>参见上方的 <a href="#auth-api">AuthController API 章节</a>，了解 <code>/auth</code> 下的所有认证端点。</p>
+    <p>参见上方的 <a href="#auth-api">AuthController API 章节</a>，了解 <code>/api/auth</code> 下的所有认证端点。</p>
+
+    <h2 id="web-api">Web API (M1)</h2>
+    <p>站点配置、页面、导航和组件注册表。所有路由前缀为 <code>/api/web</code>。</p>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/web/config</span>
+        <span class="badge badge-public">公开</span>
+      </div>
+      <p>返回所有站点配置（键值对形式）。</p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/web/config/:key</span>
+        <span class="badge badge-public">公开</span>
+      </div>
+      <p>返回单条配置值。</p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-put">PUT</span>
+        <span class="endpoint-path">/api/web/config/:key</span>
+        <span class="badge badge-auth">认证</span>
+      </div>
+      <p><strong>权限：</strong> <code>web:config:update</code></p>
+      <p>创建或更新站点配置。</p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/web/pages</span>
+        <span class="badge badge-auth">认证</span>
+      </div>
+      <p><strong>权限：</strong> <code>web:page:read</code></p>
+      <p>列出所有页面（含 DRAFT 状态）。</p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/web/pages/:slug</span>
+        <span class="badge badge-public">公开</span>
+      </div>
+      <p>按 slug 获取页面（含 layout JSON、meta、status）。</p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-post">POST</span>
+        <span class="endpoint-path">/api/web/pages</span>
+        <span class="badge badge-auth">认证</span>
+      </div>
+      <p><strong>权限：</strong> <code>web:page:create</code></p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-put">PUT</span>
+        <span class="endpoint-path">/api/web/pages/:slug</span>
+        <span class="badge badge-auth">认证</span>
+      </div>
+      <p><strong>权限：</strong> <code>web:page:update</code></p>
+      <p>更新页面。所有字段可选（部分更新）。</p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-delete">DELETE</span>
+        <span class="endpoint-path">/api/web/pages/:slug</span>
+        <span class="badge badge-auth">认证</span>
+      </div>
+      <p><strong>权限：</strong> <code>web:page:delete</code></p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-put">PUT</span>
+        <span class="endpoint-path">/api/web/pages/:slug/home</span>
+        <span class="badge badge-auth">认证</span>
+      </div>
+      <p><strong>权限：</strong> <code>web:page:update</code></p>
+      <p>设为首页。自动清除其他页面的 <code>isHome</code>。</p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/web/navigation</span>
+        <span class="badge badge-public">公开</span>
+      </div>
+      <p>返回导航树。<code>?position=header</code> 过滤。</p>
+      <p>位置：<code>header</code>、<code>footer</code>、<code>dashboard_sidebar</code></p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-post">POST</span>
+        <span class="endpoint-path">/api/web/navigation</span>
+        <span class="badge badge-auth">认证</span>
+      </div>
+      <p><strong>权限：</strong> <code>web:navigation:create</code></p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/web/widgets</span>
+        <span class="badge badge-public">公开</span>
+      </div>
+      <p>列出所有已注册组件（内置 + 插件组件）。</p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/web/widgets/:type</span>
+        <span class="badge badge-public">公开</span>
+      </div>
+      <p>按 type 获取组件配置 schema（如 <code>wau:hero</code>）。</p>
+    </div>
+
+    <h4>Page Layout JSON 结构</h4>
+    <pre><code>{"sections":[{"id":"section-1","columns":[{"id":"col-1","width":12,"widgets":[{"id":"widget-1","type":"wau:hero","props":{"title":"Hello"}}]}],"styles":{"padding":"2rem","backgroundColor":"#fff"}}]}</code></pre>
 
     <h2 id="db-schema">数据库模型</h2>
-    <p>文件：<code>prisma/schema/schema.prisma</code>（generator &amp; datasource）+ <code>prisma/schema/plugin.prisma</code> + <code>prisma/schema/auth.prisma</code></p>
+    <p>文件：<code>prisma/schema/schema.prisma</code>（generator &amp; datasource）+ <code>prisma/schema/plugin.prisma</code> + <code>prisma/schema/auth.prisma</code> + <code>prisma/schema/web.prisma</code></p>
 
     <h4>PluginRegistry</h4>
 <pre><code>model PluginRegistry {
@@ -1667,6 +1797,73 @@ export { MyPluginModule } from './src/my-plugin.module';</code></pre>
   DISABLED
   PENDING
   @@map("user_status")
+}</code></pre>
+
+    <h4>SiteConfig</h4>
+    <pre><code>model SiteConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_configs")
+}</code></pre>
+
+    <h4>Page</h4>
+    <pre><code>model Page {
+  id        String     @id @default(cuid())
+  slug      String     @unique
+  title     String
+  layout    Json       @default("{\"sections\":[]}")
+  meta      Json       @default("{}")
+  isHome    Boolean    @default(false) @map("is_home")
+  status    PageStatus @default(DRAFT)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  @@map("pages")
+}</code></pre>
+
+    <h4>PageStatus 枚举</h4>
+    <pre><code>enum PageStatus {
+  DRAFT
+  PUBLISHED
+
+  @@map("page_status")
+}</code></pre>
+
+    <h4>WidgetRegistry</h4>
+    <pre><code>model WidgetRegistry {
+  id           String   @id @default(cuid())
+  type         String   @unique
+  name         String
+  category     String
+  configSchema Json     @map("config_schema")
+  isBuiltIn    Boolean  @default(false) @map("is_built_in")
+  plugin       String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("widget_registry")
+}</code></pre>
+
+    <h4>Navigation</h4>
+    <pre><code>model Navigation {
+  id        String      @id @default(cuid())
+  label     String
+  href      String
+  position  String
+  order     Int         @default(0)
+  parentId  String?     @map("parent_id")
+  parent    Navigation? @relation("NavigationChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Navigation[] @relation("NavigationChildren")
+
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  @@index([position])
+  @@map("navigation")
 }</code></pre>
 
     <h2 id="prisma-setup">Prisma 配置与部署</h2>

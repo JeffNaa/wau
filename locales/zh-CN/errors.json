@@ -36,6 +36,13 @@
       "invalid_reset_token": "重置令牌无效或已过期",
       "unauthorized": "未授权",
       "forbidden": "禁止访问：权限不足"
+    },
+    "web": {
+      "page_not_found": "页面 slug '{slug}' 不存在",
+      "page_already_exists": "页面 slug '{slug}' 已存在",
+      "navigation_not_found": "导航 id '{id}' 不存在",
+      "navigation_parent_not_found": "父导航 id '{id}' 不存在",
+      "widget_not_found": "组件 type '{type}' 不存在"
     }
   }
 }

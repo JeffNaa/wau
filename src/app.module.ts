@@ -15,6 +15,7 @@ import { PostgresExceptionFilter } from './common/filters/postgres-exception.fil
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './auth/auth.guard';
 import { PermissionGuard } from './auth/permission.guard';
+import { WebModule } from './web/web.module';
 import * as path from 'path';
 
 const pluginsDir = path.join(process.cwd(), 'storage/plugins');
@@ -35,6 +36,7 @@ const webDistDir = path.join(process.cwd(), 'apps', 'web', 'dist');
     PluginMigrationModule,
     PluginSchemaModule,
     PluginLoaderModule.forRoot(pluginsDir),
+    WebModule,
   ],
   controllers: [PluginController],
   providers: [

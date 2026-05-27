@@ -36,6 +36,13 @@
       "invalid_reset_token": "Invalid or expired reset token",
       "unauthorized": "Unauthorized",
       "forbidden": "Forbidden: insufficient permissions"
+    },
+    "web": {
+      "page_not_found": "Page with slug '{slug}' not found",
+      "page_already_exists": "Page with slug '{slug}' already exists",
+      "navigation_not_found": "Navigation with id '{id}' not found",
+      "navigation_parent_not_found": "Parent navigation with id '{id}' not found",
+      "widget_not_found": "Widget with type '{type}' not found"
     }
   }
 }

@@ -1,0 +1,61 @@
+model SiteConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_configs")
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+
+  @@map("page_status")
+}
+
+model Page {
+  id        String     @id @default(cuid())
+  slug      String     @unique
+  title     String
+  layout    Json       @default("{\"sections\":[]}")
+  meta      Json       @default("{}")
+  isHome    Boolean    @default(false) @map("is_home")
+  status    PageStatus @default(DRAFT)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  @@map("pages")
+}
+
+model WidgetRegistry {
+  id           String   @id @default(cuid())
+  type         String   @unique
+  name         String
+  category     String
+  configSchema Json     @map("config_schema")
+  isBuiltIn    Boolean  @default(false) @map("is_built_in")
+  plugin       String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("widget_registry")
+}
+
+model Navigation {
+  id        String      @id @default(cuid())
+  label     String
+  href      String
+  position  String
+  order     Int         @default(0)
+  parentId  String?     @map("parent_id")
+  parent    Navigation? @relation("NavigationChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Navigation[] @relation("NavigationChildren")
+
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  @@index([position])
+  @@map("navigation")
+}

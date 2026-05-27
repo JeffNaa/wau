@@ -847,6 +847,7 @@
       <div class="sidebar-links">
         <a href="#plugin-api" class="sidebar-link">Plugin Management</a>
         <a href="#auth-endpoints" class="sidebar-link">Authentication</a>
+        <a href="#web-api" class="sidebar-link">Web API (M1)</a>
       </div>
     </div>
 
@@ -1010,6 +1011,7 @@ graph TB
       <tr><td>Plugin Migrations</td><td><span class="badge badge-done">Done</span></td><td>SQL migration support</td></tr>
       <tr><td>i18n Support</td><td><span class="badge badge-done">Done</span></td><td>Fully localized across all services</td></tr>
       <tr><td>Authentication &amp; Authorization</td><td><span class="badge badge-done">Done</span></td><td>Token auth, roles, RBAC with wildcards</td></tr>
+      <tr><td>WebModule (M1)</td><td><span class="badge badge-done">Done</span></td><td>SiteConfig, Page, Navigation, WidgetRegistry APIs</td></tr>
       <tr><td>Flutter client (wau-flutter)</td><td><span class="badge badge-planned">Planned</span></td><td>Dynamic JSON-driven UI rendering</td></tr>
       <tr><td>React Web admin (wau-web)</td><td><span class="badge badge-planned">Planned</span></td><td>Plugin management dashboard + user client</td></tr>
       <tr><td>Event Bus</td><td><span class="badge badge-planned">Planned</span></td><td>Cross-plugin &amp; cross-platform communication</td></tr>
@@ -1055,13 +1057,13 @@ npm run start:dev
 cd sample-plugins/test-plugin && zip -r ../../test-plugin.zip manifest.json dist/
 
 # Install via API
-curl -X POST -F "file=@test-plugin.zip" http://localhost:3000/plugins/upload
+curl -X POST -F "file=@test-plugin.zip" http://localhost:3000/api/plugins/upload
 
 # Verify it is installed
 curl http://localhost:3000/plugins
 
 # Test the plugin routes
-curl http://localhost:3000/test-plugin/status</code></pre>
+curl http://localhost:3000/api/test-plugin/status</code></pre>
 
     <div class="note note-info">
       <div class="note-title">&#128230; Packaging plugins with locales/ or migrations/</div>
@@ -1417,7 +1419,7 @@ graph LR
       <h4>Forgot / Reset Password Flow (SMTP not yet implemented)</h4>
       <ol>
         <li><strong>Request reset token</strong> — returns a generic message regardless of whether the email exists:
-          <pre><code>curl -X POST http://localhost:3000/auth/forgot-password \
+          <pre><code>curl -X POST http://localhost:3000/api/auth/forgot-password \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com"}'</code></pre>
           Response: <code>{ "message": "If the email exists, a reset link has been sent." }</code>
@@ -1426,7 +1428,7 @@ graph LR
           <pre><code>psql $DATABASE_URL -c "SELECT profile->>'_resetToken' AS reset_token FROM users WHERE email = 'user@example.com';"</code></pre>
         </li>
         <li><strong>Reset password</strong> with the token:
-          <pre><code>curl -X POST http://localhost:3000/auth/reset-password \
+          <pre><code>curl -X POST http://localhost:3000/api/auth/reset-password \
   -H "Content-Type: application/json" \
   -d '{"token": "&lt;reset_token&gt;", "newPassword": "new-secret-password"}'</code></pre>
           Response: <code>{ "message": "Password has been reset successfully." }</code>
@@ -1634,12 +1636,171 @@ export { MyPluginModule } from './src/my-plugin.module';</code></pre>
     </div>
 
     <h2 id="auth-endpoints">Authentication API</h2>
-    <p>See the <a href="#auth-api">AuthController API section</a> above for all authentication endpoints under <code>/auth</code>.</p>
+    <p>See the <a href="#auth-api">AuthController API section</a> above for all authentication endpoints under <code>/api/auth</code>.</p>
 
+    <h2 id="web-api">Web API (M1)</h2>
+    <p>Site configuration, pages, navigation, and widget registry. All routes are prefixed with <code>/api/web</code>.</p>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/web/config</span>
+        <span class="badge badge-public">Public</span>
+      </div>
+      <p>Returns all site configs as a key-value object.</p>
+      <p><strong>Response:</strong> <code>{ key: value, ... }</code></p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/web/config/:key</span>
+        <span class="badge badge-public">Public</span>
+      </div>
+      <p>Returns a single config entry.</p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-put">PUT</span>
+        <span class="endpoint-path">/api/web/config/:key</span>
+        <span class="badge badge-auth">Auth</span>
+      </div>
+      <p><strong>Permission:</strong> <code>web:config:update</code></p>
+      <p>Creates or updates a site config value.</p>
+      <pre><code>{ "value": { "primary": "#000", "secondary": "#fff" } }</code></pre>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/web/pages</span>
+        <span class="badge badge-auth">Auth</span>
+      </div>
+      <p><strong>Permission:</strong> <code>web:page:read</code></p>
+      <p>List all pages including DRAFT status.</p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/web/pages/:slug</span>
+        <span class="badge badge-public">Public</span>
+      </div>
+      <p>Get a single page by slug. Returns layout JSON, meta, and status.</p>
+      <p><strong>Note:</strong> Only <code>PUBLISHED</code> pages are visible on the public site (enforced by frontend).</p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-post">POST</span>
+        <span class="endpoint-path">/api/web/pages</span>
+        <span class="badge badge-auth">Auth</span>
+      </div>
+      <p><strong>Permission:</strong> <code>web:page:create</code></p>
+      <pre><code>{
+  "slug": "about",
+  "title": "About Us",
+  "layout": { "sections": [] },
+  "meta": { "description": "..." },
+  "isHome": false,
+  "status": "DRAFT"
+}</code></pre>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-put">PUT</span>
+        <span class="endpoint-path">/api/web/pages/:slug</span>
+        <span class="badge badge-auth">Auth</span>
+      </div>
+      <p><strong>Permission:</strong> <code>web:page:update</code></p>
+      <p>Update a page. All fields are optional (partial update).</p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-delete">DELETE</span>
+        <span class="endpoint-path">/api/web/pages/:slug</span>
+        <span class="badge badge-auth">Auth</span>
+      </div>
+      <p><strong>Permission:</strong> <code>web:page:delete</code></p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-put">PUT</span>
+        <span class="endpoint-path">/api/web/pages/:slug/home</span>
+        <span class="badge badge-auth">Auth</span>
+      </div>
+      <p><strong>Permission:</strong> <code>web:page:update</code></p>
+      <p>Sets the page as homepage. Automatically clears <code>isHome</code> from all other pages.</p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/web/navigation</span>
+        <span class="badge badge-public">Public</span>
+      </div>
+      <p>Returns navigation tree. Query <code>?position=header</code> to filter.</p>
+      <p>Positions: <code>header</code>, <code>footer</code>, <code>dashboard_sidebar</code></p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-post">POST</span>
+        <span class="endpoint-path">/api/web/navigation</span>
+        <span class="badge badge-auth">Auth</span>
+      </div>
+      <p><strong>Permission:</strong> <code>web:navigation:create</code></p>
+      <pre><code>{ "label": "Home", "href": "/", "position": "header", "order": 0 }</code></pre>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/web/widgets</span>
+        <span class="badge badge-public">Public</span>
+      </div>
+      <p>List all registered widgets (built-in + plugin widgets).</p>
+    </div>
+
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/web/widgets/:type</span>
+        <span class="badge badge-public">Public</span>
+      </div>
+      <p>Get widget config schema by type (e.g. <code>wau:hero</code>).</p>
+    </div>
+
+    <h4>Page Layout JSON Structure</h4>
+    <pre><code>{
+  "sections": [
+    {
+      "id": "section-1",
+      "columns": [
+        {
+          "id": "col-1",
+          "width": 12,
+          "widgets": [
+            {
+              "id": "widget-1",
+              "type": "wau:hero",
+              "props": { "title": "Hello" }
+            }
+          ]
+        }
+      ],
+      "styles": { "padding": "2rem", "backgroundColor": "#fff" }
+    }
+  ]
+}</code></pre>
 
     <!-- ========== DATABASE ========== -->
     <h2 id="db-schema">Database Schema Models</h2>
-    <p>Files: <code>prisma/schema/schema.prisma</code> (generator &amp; datasource) + <code>prisma/schema/plugin.prisma</code> + <code>prisma/schema/auth.prisma</code></p>
+    <p>Files: <code>prisma/schema/schema.prisma</code> (generator &amp; datasource) + <code>prisma/schema/plugin.prisma</code> + <code>prisma/schema/auth.prisma</code> + <code>prisma/schema/web.prisma</code></p>
 
     <h4>PluginRegistry</h4>
     <pre><code>model PluginRegistry {
@@ -1721,6 +1882,73 @@ export { MyPluginModule } from './src/my-plugin.module';</code></pre>
   DISABLED
   PENDING
   @@map("user_status")
+}</code></pre>
+
+    <h4>SiteConfig</h4>
+    <pre><code>model SiteConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_configs")
+}</code></pre>
+
+    <h4>Page</h4>
+    <pre><code>model Page {
+  id        String     @id @default(cuid())
+  slug      String     @unique
+  title     String
+  layout    Json       @default("{\"sections\":[]}")
+  meta      Json       @default("{}")
+  isHome    Boolean    @default(false) @map("is_home")
+  status    PageStatus @default(DRAFT)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  @@map("pages")
+}</code></pre>
+
+    <h4>PageStatus Enum</h4>
+    <pre><code>enum PageStatus {
+  DRAFT
+  PUBLISHED
+
+  @@map("page_status")
+}</code></pre>
+
+    <h4>WidgetRegistry</h4>
+    <pre><code>model WidgetRegistry {
+  id           String   @id @default(cuid())
+  type         String   @unique
+  name         String
+  category     String
+  configSchema Json     @map("config_schema")
+  isBuiltIn    Boolean  @default(false) @map("is_built_in")
+  plugin       String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("widget_registry")
+}</code></pre>
+
+    <h4>Navigation</h4>
+    <pre><code>model Navigation {
+  id        String      @id @default(cuid())
+  label     String
+  href      String
+  position  String
+  order     Int         @default(0)
+  parentId  String?     @map("parent_id")
+  parent    Navigation? @relation("NavigationChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Navigation[] @relation("NavigationChildren")
+
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  @@index([position])
+  @@map("navigation")
 }</code></pre>
 
     <h2 id="prisma-setup">Prisma Setup &amp; Deployment</h2>

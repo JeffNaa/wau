@@ -47,6 +47,7 @@ In traditional development, every tiny UI adjustment or logic change requires mo
 | **Plugin Migrations** | ✅ Done | SQL migration support via `PluginMigrationService` |
 | **i18n Support** | ✅ Done | Plugin response messages, schema, KV store, and error handling fully localized |
 | **Authentication & Authorization** | ✅ Done | Token-based auth, roles, RBAC with wildcard permissions |
+| **WebModule (M1)** | ✅ Done | SiteConfig, Page, Navigation, WidgetRegistry APIs |
 | Flutter client (`wau-flutter`) | ⏳ Planned | Dynamic JSON-driven UI rendering |
 | React Web admin (`wau-web`) | ⏳ Planned | Plugin management dashboard + user client |
 | Event Bus | ⏳ Planned | Cross-plugin & cross-platform communication |
@@ -76,6 +77,7 @@ npx prisma generate
 npm run start:dev
 
 # 6. The server starts at http://localhost:3000
+#    All API routes are prefixed with /api
 #    Plugins are stored in ./storage/plugins/
 ```
 
@@ -106,7 +108,7 @@ npm run build
 npm run start:prod
 ```
 
-> 💡 Core ships with five tables: `plugin_registry` (installed plugin metadata), `plugin_data` (KV store for plugin runtime data), `users`, `roles`, and `user_tokens` (auth system). Plugins can additionally declare their own tables via `manifest.json` schema or ship `migrations/*.sql` files — those are applied by `PluginSchemaService` / `PluginMigrationService` at install time, independent of the core Prisma migrations above.
+> 💡 Core ships with nine tables: `plugin_registry` (installed plugin metadata), `plugin_data` (KV store for plugin runtime data), `users`, `roles`, `user_tokens` (auth system), `site_configs`, `pages`, `widget_registry`, and `navigation` (WebModule). Plugins can additionally declare their own tables via `manifest.json` schema or ship `migrations/*.sql` files — those are applied by `PluginSchemaService` / `PluginMigrationService` at install time, independent of the core Prisma migrations above.
 
 ### 🧪 Test with the Sample Plugin
 
@@ -117,13 +119,13 @@ A sample plugin (`sample-plugins/test-plugin/`) is included in the repo. You can
 cd sample-plugins/test-plugin && zip -r ../../test-plugin.zip manifest.json dist/
 
 # Install it via API
-curl -X POST -F "file=@test-plugin.zip" http://localhost:3000/plugins/upload
+curl -X POST -F "file=@test-plugin.zip" http://localhost:3000/api/plugins/upload
 
 # Verify it is installed
-curl http://localhost:3000/plugins
+curl http://localhost:3000/api/plugins
 
 # Test the plugin routes
-curl http://localhost:3000/test-plugin/status
+curl http://localhost:3000/api/test-plugin/status
 ```
 
 > **Packaging plugins with `locales/` or `migrations/`:**
@@ -260,14 +262,14 @@ Response:
 All plugin management routes require permissions. The auth system is token-based (no JWT library — uses `crypto.randomBytes` + `bcrypt`).
 
 ```
-POST /auth/register          # Public — first user becomes ADMIN
-POST /auth/login             # Public
-POST /auth/logout            # Revoke current token
-POST /auth/logout-all        # Revoke all user tokens
-GET  /auth/me                # Current user details
-PUT  /auth/password          # Change password (revokes all tokens)
-POST /auth/forgot-password   # Public — request reset token (SMTP not yet implemented)
-POST /auth/reset-password    # Public — reset with token
+POST /api/auth/register          # Public — first user becomes ADMIN
+POST /api/auth/login             # Public
+POST /api/auth/logout            # Revoke current token
+POST /api/auth/logout-all        # Revoke all user tokens
+GET  /api/auth/me                # Current user details
+PUT  /api/auth/password          # Change password (revokes all tokens)
+POST /api/auth/forgot-password   # Public — request reset token (SMTP not yet implemented)
+POST /api/auth/reset-password    # Public — reset with token
 ```
 
 **Forgot / Reset Password Flow (detailed)**
@@ -276,7 +278,7 @@ Since SMTP is not wired up yet, the reset token is written to the database inste
 
 1. **Request a reset token** (returns a generic message regardless of whether the email exists):
    ```bash
-   curl -X POST http://localhost:3000/auth/forgot-password \
+   curl -X POST http://localhost:3000/api/auth/forgot-password \
      -H "Content-Type: application/json" \
      -d '{"email": "user@example.com"}'
    ```
@@ -292,7 +294,7 @@ Since SMTP is not wired up yet, the reset token is written to the database inste
 
 3. **Reset the password** with the token obtained in step 2:
    ```bash
-   curl -X POST http://localhost:3000/auth/reset-password \
+   curl -X POST http://localhost:3000/api/auth/reset-password \
      -H "Content-Type: application/json" \
      -d '{"token": "<reset_token>", "newPassword": "new-secret-password"}'
    ```
@@ -302,6 +304,56 @@ Since SMTP is not wired up yet, the reset token is written to the database inste
    ```
 
 The first registered user automatically gets the `ADMIN` role with `["*"]` (all) permissions. Subsequent users get the `USER` role with no permissions. Both `AuthGuard` and `PermissionGuard` are registered as global `APP_GUARD` providers.
+
+#### Web API (M1)
+
+Site-wide configuration, pages, navigation, and widget registry.
+
+**Permissions**: `web:config:*`, `web:page:*`, `web:navigation:*`
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| `GET` | `/api/web/config` | Public | All site configs |
+| `GET` | `/api/web/config/:key` | Public | Single config |
+| `PUT` | `/api/web/config/:key` | `web:config:update` | Update config |
+| `GET` | `/api/web/pages` | `web:page:read` | List all pages |
+| `GET` | `/api/web/pages/:slug` | Public | Get page by slug |
+| `POST` | `/api/web/pages` | `web:page:create` | Create page |
+| `PUT` | `/api/web/pages/:slug` | `web:page:update` | Update page |
+| `DELETE` | `/api/web/pages/:slug` | `web:page:delete` | Delete page |
+| `PUT` | `/api/web/pages/:slug/home` | `web:page:update` | Set as homepage |
+| `GET` | `/api/web/navigation` | Public | Get navigation |
+| `POST` | `/api/web/navigation` | `web:navigation:create` | Create nav item |
+| `PUT` | `/api/web/navigation/:id` | `web:navigation:update` | Update nav item |
+| `DELETE` | `/api/web/navigation/:id` | `web:navigation:delete` | Delete nav item |
+| `PUT` | `/api/web/navigation/reorder` | `web:navigation:update` | Bulk reorder |
+| `GET` | `/api/web/widgets` | Public | List all widgets |
+| `GET` | `/api/web/widgets/:type` | Public | Get widget schema |
+
+**Page Layout JSON Structure:**
+```json
+{
+  "sections": [
+    {
+      "id": "section-1",
+      "columns": [
+        {
+          "id": "col-1",
+          "width": 12,
+          "widgets": [
+            {
+              "id": "widget-1",
+              "type": "wau:hero",
+              "props": { "title": "Hello" }
+            }
+          ]
+        }
+      ],
+      "styles": { "padding": "2rem", "backgroundColor": "#fff" }
+    }
+  ]
+}
+```
 
 ### 🛠️ Creating a Plugin
 
@@ -345,6 +397,12 @@ wau-core/
 │   │   ├── plugin-schema.module.ts
 │   │   ├── plugin-schema.service.ts    # JSON schema table sync + CRUD
 │   │   └── plugin-schema.types.ts      # Schema type definitions
+│   ├── web/                       # Site config & pages (M1)
+│   │   ├── web.module.ts          # SiteConfig, Page, Navigation, WidgetRegistry
+│   │   ├── web.controller.ts      # /web REST endpoints
+│   │   ├── web.service.ts         # CRUD + seedBuiltInWidgets
+│   │   ├── web.seed.ts            # 10 built-in widget definitions
+│   │   └── dto/                   # CreatePageDto, UpdatePageDto, etc.
 │   ├── prisma/
 │   │   ├── prisma.module.ts       # Global Prisma module
 │   │   └── prisma.service.ts      # PrismaClient lifecycle
@@ -355,7 +413,8 @@ wau-core/
 │   └── schema/
 │       ├── schema.prisma          # Generator + datasource
 │       ├── plugin.prisma          # PluginData + PluginRegistry models
-│       └── auth.prisma            # Role + User + UserToken models
+│       ├── auth.prisma            # Role + User + UserToken models
+│       └── web.prisma             # SiteConfig + Page + Navigation + WidgetRegistry models
 ├── sample-plugins/                # Sample plugin source code
 │   ├── test-plugin/
 │   ├── test-kv-plugin/
@@ -430,6 +489,7 @@ This project is licensed under the [MIT License](LICENSE).
 | **Plugin Migrations** | ✅ 完成 | 通过 `PluginMigrationService` 支持 SQL 迁移 |
 | **i18n 国际化** | ✅ 完成 | 插件响应消息、Schema、KV 存储及错误处理已全面本地化 |
 | **认证与授权** | ✅ 完成 | 令牌认证、角色、RBAC 通配符权限 |
+| **WebModule (M1)** | ✅ 完成 | SiteConfig、Page、Navigation、WidgetRegistry API |
 | Flutter 客户端 (`wau-flutter`) | ⏳ 规划中 | JSON 驱动的动态 UI 渲染 |
 | React Web 管理端 (`wau-web`) | ⏳ 规划中 | 插件管理后台 + 用户端 |
 | 事件总线 | ⏳ 规划中 | 跨插件 & 跨平台通信 |
@@ -489,7 +549,7 @@ npm run build
 npm run start:prod
 ```
 
-> 💡 核心系统自带五张表：`plugin_registry`（已安装插件元数据）、`plugin_data`（插件运行时键值数据）、`users`（用户）、`roles`（角色）和 `user_tokens`（认证令牌）。插件还可以通过 `manifest.json` 中的 schema 声明自己的表，或者携带 `migrations/*.sql` 文件 —— 这些会在插件安装时由 `PluginSchemaService` / `PluginMigrationService` 处理，与上述核心 Prisma 迁移相互独立。
+> 💡 核心系统自带九张表：`plugin_registry`（已安装插件元数据）、`plugin_data`（插件运行时键值数据）、`users`（用户）、`roles`（角色）、`user_tokens`（认证令牌）、`site_configs`（站点配置）、`pages`（页面）、`widget_registry`（组件注册表）和 `navigation`（导航）（WebModule）。插件还可以通过 `manifest.json` 中的 schema 声明自己的表，或者携带 `migrations/*.sql` 文件 —— 这些会在插件安装时由 `PluginSchemaService` / `PluginMigrationService` 处理，与上述核心 Prisma 迁移相互独立。
 
 ### 🧪 使用示例插件测试
 
@@ -500,13 +560,13 @@ npm run start:prod
 cd sample-plugins/test-plugin && zip -r ../../test-plugin.zip manifest.json dist/
 
 # 通过 API 安装
-curl -X POST -F "file=@test-plugin.zip" http://localhost:3000/plugins/upload
+curl -X POST -F "file=@test-plugin.zip" http://localhost:3000/api/plugins/upload
 
 # 验证已安装
 curl http://localhost:3000/plugins
 
 # 测试插件路由
-curl http://localhost:3000/test-plugin/status
+curl http://localhost:3000/api/test-plugin/status
 ```
 
 > **打包包含 `locales/` 或 `migrations/` 的插件：**
@@ -627,14 +687,14 @@ DELETE /plugins/:name
 所有插件管理路由都需要权限。认证系统基于令牌（不使用 JWT 库 —— 使用 `crypto.randomBytes` + `bcrypt`）。
 
 ```
-POST /auth/register          # 公开 — 首个用户成为管理员
-POST /auth/login             # 公开
-POST /auth/logout            # 撤销当前令牌
-POST /auth/logout-all        # 撤销用户所有令牌
-GET  /auth/me                # 当前用户详情
-PUT  /auth/password          # 修改密码（撤销所有令牌）
-POST /auth/forgot-password   # 公开 — 请求重置令牌（SMTP 尚未实现）
-POST /auth/reset-password    # 公开 — 使用令牌重置密码
+POST /api/auth/register          # 公开 — 首个用户成为管理员
+POST /api/auth/login             # 公开
+POST /api/auth/logout            # 撤销当前令牌
+POST /api/auth/logout-all        # 撤销用户所有令牌
+GET  /api/auth/me                # 当前用户详情
+PUT  /api/auth/password          # 修改密码（撤销所有令牌）
+POST /api/auth/forgot-password   # 公开 — 请求重置令牌（SMTP 尚未实现）
+POST /api/auth/reset-password    # 公开 — 使用令牌重置密码
 ```
 
 **忘记密码 / 重置密码详细流程**
@@ -643,7 +703,7 @@ POST /auth/reset-password    # 公开 — 使用令牌重置密码
 
 1. **请求重置令牌**（无论邮箱是否存在，都返回相同的通用消息）：
    ```bash
-   curl -X POST http://localhost:3000/auth/forgot-password \
+   curl -X POST http://localhost:3000/api/auth/forgot-password \
      -H "Content-Type: application/json" \
      -d '{"email": "user@example.com"}'
    ```
@@ -659,7 +719,7 @@ POST /auth/reset-password    # 公开 — 使用令牌重置密码
 
 3. **使用步骤 2 获取的令牌重置密码：**
    ```bash
-   curl -X POST http://localhost:3000/auth/reset-password \
+   curl -X POST http://localhost:3000/api/auth/reset-password \
      -H "Content-Type: application/json" \
      -d '{"token": "<reset_token>", "newPassword": "new-secret-password"}'
    ```
@@ -669,6 +729,56 @@ POST /auth/reset-password    # 公开 — 使用令牌重置密码
    ```
 
 第一个注册的用户自动获得 `ADMIN` 角色和 `["*"]`（全部）权限。后续用户获得 `USER` 角色，默认无权限。`AuthGuard` 和 `PermissionGuard` 均作为全局 `APP_GUARD` 注册。
+
+#### Web API (M1)
+
+站点配置、页面、导航和组件注册表。
+
+**权限**: `web:config:*`, `web:page:*`, `web:navigation:*`
+
+| 方法 | 路由 | 认证 | 说明 |
+|------|------|------|------|
+| `GET` | `/api/web/config` | 公开 | 所有站点配置 |
+| `GET` | `/api/web/config/:key` | 公开 | 单条配置 |
+| `PUT` | `/api/web/config/:key` | `web:config:update` | 更新配置 |
+| `GET` | `/api/web/pages` | `web:page:read` | 列出所有页面 |
+| `GET` | `/api/web/pages/:slug` | 公开 | 按 slug 获取页面 |
+| `POST` | `/api/web/pages` | `web:page:create` | 创建页面 |
+| `PUT` | `/api/web/pages/:slug` | `web:page:update` | 更新页面 |
+| `DELETE` | `/api/web/pages/:slug` | `web:page:delete` | 删除页面 |
+| `PUT` | `/api/web/pages/:slug/home` | `web:page:update` | 设为首页 |
+| `GET` | `/api/web/navigation` | 公开 | 获取导航 |
+| `POST` | `/api/web/navigation` | `web:navigation:create` | 创建导航项 |
+| `PUT` | `/api/web/navigation/:id` | `web:navigation:update` | 更新导航项 |
+| `DELETE` | `/api/web/navigation/:id` | `web:navigation:delete` | 删除导航项 |
+| `PUT` | `/api/web/navigation/reorder` | `web:navigation:update` | 批量排序 |
+| `GET` | `/api/web/widgets` | 公开 | 列出所有组件 |
+| `GET` | `/api/web/widgets/:type` | 公开 | 获取组件 schema |
+
+**Page Layout JSON 结构：**
+```json
+{
+  "sections": [
+    {
+      "id": "section-1",
+      "columns": [
+        {
+          "id": "col-1",
+          "width": 12,
+          "widgets": [
+            {
+              "id": "widget-1",
+              "type": "wau:hero",
+              "props": { "title": "Hello" }
+            }
+          ]
+        }
+      ],
+      "styles": { "padding": "2rem", "backgroundColor": "#fff" }
+    }
+  ]
+}
+```
 
 ### 🛠️ 创建插件
 
@@ -712,6 +822,12 @@ wau-core/
 │   │   ├── plugin-schema.module.ts
 │   │   ├── plugin-schema.service.ts    # JSON schema 表同步 + CRUD
 │   │   └── plugin-schema.types.ts      # Schema 类型定义
+│   ├── web/                       # 网站配置与页面 (M1)
+│   │   ├── web.module.ts          # SiteConfig, Page, Navigation, WidgetRegistry
+│   │   ├── web.controller.ts      # /web REST 接口
+│   │   ├── web.service.ts         # CRUD + seedBuiltInWidgets
+│   │   ├── web.seed.ts            # 10 个内置组件定义
+│   │   └── dto/                   # CreatePageDto, UpdatePageDto 等
 │   ├── prisma/
 │   │   ├── prisma.module.ts       # 全局 Prisma 模块
 │   │   └── prisma.service.ts      # PrismaClient 生命周期管理
