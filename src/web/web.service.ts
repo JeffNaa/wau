@@ -1,7 +1,14 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { I18nService } from '../i18n/i18n.service';
-import { BUILT_IN_WIDGETS } from './web.seed';
+import {
+  BUILT_IN_WIDGETS,
+  DEFAULT_SITE_THEME,
+  DEFAULT_SITE_HEADER,
+  DEFAULT_SITE_FOOTER,
+  DEFAULT_NAVIGATION,
+  DEFAULT_HOME_PAGE,
+} from './web.seed';
 import { CreatePageDto, UpdatePageDto, CreateNavigationDto, UpdateNavigationDto, UpdateConfigDto } from './dto';
 
 @Injectable()
@@ -204,5 +211,55 @@ export class WebService {
       });
     }
     console.log(`Seeded ${BUILT_IN_WIDGETS.length} built-in widgets`);
+
+    // Seed site theme config
+    await this.prisma.client.siteConfig.upsert({
+      where: { key: 'site_theme' },
+      update: {},
+      create: { key: 'site_theme', value: DEFAULT_SITE_THEME },
+    });
+
+    // Seed site header config
+    await this.prisma.client.siteConfig.upsert({
+      where: { key: 'site_header' },
+      update: {},
+      create: { key: 'site_header', value: DEFAULT_SITE_HEADER },
+    });
+
+    // Seed site footer config
+    await this.prisma.client.siteConfig.upsert({
+      where: { key: 'site_footer' },
+      update: {},
+      create: { key: 'site_footer', value: DEFAULT_SITE_FOOTER },
+    });
+
+    // Seed default navigation
+    for (const nav of DEFAULT_NAVIGATION) {
+      const existing = await this.prisma.client.navigation.findFirst({
+        where: { label: nav.label, position: nav.position },
+      });
+      if (!existing) {
+        await this.prisma.client.navigation.create({ data: nav });
+      }
+    }
+
+    // Seed default home page
+    const homeExists = await this.prisma.client.page.findUnique({
+      where: { slug: DEFAULT_HOME_PAGE.slug },
+    });
+    if (!homeExists) {
+      await this.prisma.client.page.create({
+        data: {
+          slug: DEFAULT_HOME_PAGE.slug,
+          title: DEFAULT_HOME_PAGE.title,
+          layout: DEFAULT_HOME_PAGE.layout,
+          meta: DEFAULT_HOME_PAGE.meta,
+          isHome: DEFAULT_HOME_PAGE.isHome,
+          status: DEFAULT_HOME_PAGE.status as any,
+        },
+      });
+    }
+
+    console.log('Seeded site configs, navigation, and home page');
   }
 }

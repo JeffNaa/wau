@@ -102,3 +102,60 @@ export const BUILT_IN_WIDGETS = [
     },
   },
 ];
+
+export const DEFAULT_SITE_THEME = {
+  primary: '#2563eb',
+  secondary: '#7c3aed',
+  accent: '#f59e0b',
+  background: '#ffffff',
+  foreground: '#0f172a',
+  radius: 0.5,
+};
+
+export const DEFAULT_SITE_HEADER = {
+  logo: 'Wau',
+  sticky: true,
+  transparent: false,
+};
+
+export const DEFAULT_SITE_FOOTER = {
+  copyright: 'Wau. All rights reserved.',
+  columns: [
+    {
+      title: 'Product',
+      links: [
+        { label: 'Features', href: '#' },
+        { label: 'Pricing', href: '#' },
+      ],
+    },
+    {
+      title: 'Company',
+      links: [
+        { label: 'About', href: '#' },
+        { label: 'Contact', href: '#' },
+      ],
+    },
+  ],
+  social: [
+    { label: 'Twitter', href: '#' },
+    { label: 'GitHub', href: '#' },
+  ],
+};
+
+export const DEFAULT_NAVIGATION = [
+  { label: 'Home', href: '/', position: 'header', order: 0 },
+  { label: 'About', href: '/about', position: 'header', order: 1 },
+  { label: 'Contact', href: '/contact', position: 'header', order: 2 },
+  { label: 'Dashboard', href: '/admin/dashboard', position: 'dashboard_sidebar', order: 0 },
+  { label: 'Theme', href: '/admin/theme', position: 'dashboard_sidebar', order: 1 },
+  { label: 'Navigation', href: '/admin/navigation', position: 'dashboard_sidebar', order: 2 },
+];
+
+export const DEFAULT_HOME_PAGE = {
+  slug: 'home',
+  title: 'Home',
+  layout: { sections: [] },
+  meta: {},
+  isHome: true,
+  status: 'PUBLISHED',
+};
