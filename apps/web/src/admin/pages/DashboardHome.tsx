@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FileText, LayoutTemplate, Navigation, Palette, Eye, Pencil, ArrowUpRight } from 'lucide-react';
 import { webApi, type Page, type NavigationItem, type WidgetRegistryItem } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
@@ -37,6 +38,7 @@ function StatCard({ label, value, icon: Icon, href }: { label: string; value: nu
 }
 
 function StatusDistribution({ pages }: { pages: Page[] }) {
+  const { t } = useTranslation();
   const published = pages.filter(p => p.status === 'PUBLISHED').length;
   const draft = pages.filter(p => p.status === 'DRAFT').length;
   const total = pages.length || 1;
@@ -44,18 +46,18 @@ function StatusDistribution({ pages }: { pages: Page[] }) {
   return (
     <Card>
       <CardContent className="p-5">
-        <h3 className="text-sm font-semibold mb-5">Page Status</h3>
+        <h3 className="text-sm font-semibold mb-5">{t('dashboard.pageStatus')}</h3>
         <div className="space-y-4">
           <div>
             <div className="flex justify-between text-[13px] mb-2">
-              <span className="text-muted-foreground">Published</span>
+              <span className="text-muted-foreground">{t('dashboard.published')}</span>
               <span className="font-medium">{published} <span className="text-muted-foreground font-normal">({Math.round((published / total) * 100)}%)</span></span>
             </div>
             <Progress value={published} max={total} />
           </div>
           <div>
             <div className="flex justify-between text-[13px] mb-2">
-              <span className="text-muted-foreground">Draft</span>
+              <span className="text-muted-foreground">{t('dashboard.drafts')}</span>
               <span className="font-medium">{draft} <span className="text-muted-foreground font-normal">({Math.round((draft / total) * 100)}%)</span></span>
             </div>
             <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
@@ -69,6 +71,7 @@ function StatusDistribution({ pages }: { pages: Page[] }) {
 }
 
 function RecentPages({ pages }: { pages: Page[] }) {
+  const { t } = useTranslation();
   const recent = [...pages].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 5);
 
   return (
@@ -76,8 +79,8 @@ function RecentPages({ pages }: { pages: Page[] }) {
       <CardContent className="p-0">
         <div className="px-5 py-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Recent Pages</h3>
-            <span className="text-[12px] text-muted-foreground">{pages.length} total</span>
+            <h3 className="text-sm font-semibold">{t('dashboard.recentPages')}</h3>
+            <span className="text-[12px] text-muted-foreground">{t('dashboard.total', { count: pages.length })}</span>
           </div>
         </div>
         <div className="px-2 pb-2">
@@ -99,7 +102,7 @@ function RecentPages({ pages }: { pages: Page[] }) {
           ))}
           {recent.length === 0 && (
             <div className="px-3 py-8 text-center text-[13px] text-muted-foreground">
-              No pages yet
+              {t('dashboard.noPages')}
             </div>
           )}
         </div>
@@ -109,13 +112,14 @@ function RecentPages({ pages }: { pages: Page[] }) {
 }
 
 function WidgetCategories({ widgets }: { widgets: WidgetRegistryItem[] }) {
+  const { t } = useTranslation();
   const categories = [...new Set(widgets.map(w => w.category))];
   const total = widgets.length || 1;
 
   return (
     <Card>
       <CardContent className="p-5">
-        <h3 className="text-sm font-semibold mb-5">Widgets</h3>
+        <h3 className="text-sm font-semibold mb-5">{t('dashboard.widgetCategories')}</h3>
         <div className="space-y-4">
           {categories.map(cat => {
             const count = widgets.filter(w => w.category === cat).length;
@@ -136,16 +140,17 @@ function WidgetCategories({ widgets }: { widgets: WidgetRegistryItem[] }) {
 }
 
 function QuickLinks() {
+  const { t } = useTranslation();
   return (
     <Card>
       <CardContent className="p-5">
-        <h3 className="text-sm font-semibold mb-3">Quick Links</h3>
+        <h3 className="text-sm font-semibold mb-3">{t('dashboard.quickLinks')}</h3>
         <div className="flex flex-col gap-1">
           <a href="/admin/theme" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-            <Palette size={14} /> Customize Theme
+            <Palette size={14} /> {t('dashboard.customizeTheme')}
           </a>
           <a href="/admin/navigation" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-            <Navigation size={14} /> Edit Navigation
+            <Navigation size={14} /> {t('dashboard.editNavigation')}
           </a>
         </div>
       </CardContent>
@@ -154,6 +159,7 @@ function QuickLinks() {
 }
 
 export default function DashboardHome() {
+  const { t } = useTranslation();
   const [data, setData] = useState<DashboardData>({ pages: [], widgets: [], navigation: [], configs: {} });
   const [loading, setLoading] = useState(true);
 
@@ -194,17 +200,17 @@ export default function DashboardHome() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-[13px] text-muted-foreground mt-0.5">Welcome back — here's what's happening with your site.</p>
+        <h1 className="text-xl font-semibold tracking-tight">{t('dashboard.title')}</h1>
+        <p className="text-[13px] text-muted-foreground mt-0.5">{t('dashboard.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-        <StatCard label="Pages" value={pages.length} icon={FileText} href="/admin/pages" />
-        <StatCard label="Published" value={pages.filter(p => p.status === 'PUBLISHED').length} icon={Eye} />
-        <StatCard label="Drafts" value={pages.filter(p => p.status === 'DRAFT').length} icon={Pencil} />
-        <StatCard label="Widgets" value={widgets.length} icon={LayoutTemplate} />
-        <StatCard label="Nav Items" value={navigation.length} icon={Navigation} />
-        <StatCard label="Configs" value={Object.keys(data.configs).length} icon={Palette} />
+        <StatCard label={t('dashboard.pages')} value={pages.length} icon={FileText} href="/admin/pages" />
+        <StatCard label={t('dashboard.published')} value={pages.filter(p => p.status === 'PUBLISHED').length} icon={Eye} />
+        <StatCard label={t('dashboard.drafts')} value={pages.filter(p => p.status === 'DRAFT').length} icon={Pencil} />
+        <StatCard label={t('dashboard.widgets')} value={widgets.length} icon={LayoutTemplate} />
+        <StatCard label={t('dashboard.navItems')} value={navigation.length} icon={Navigation} />
+        <StatCard label={t('dashboard.configs')} value={Object.keys(data.configs).length} icon={Palette} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

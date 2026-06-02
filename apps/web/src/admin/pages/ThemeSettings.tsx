@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { RotateCcw } from 'lucide-react';
 import { webApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { SiteTheme } from '@/site/store/themeStore';
-import { defaultTheme } from '@/site/store/themeStore';
+import { defaultTheme, saveThemeToStorage } from '@/site/store/themeStore';
 
 const presetThemes = [
   { name: 'Zinc', primary: '#18181b', secondary: '#f4f4f5', accent: '#f4f4f5' },
@@ -17,6 +18,7 @@ const presetThemes = [
 ];
 
 export default function ThemeSettings() {
+  const { t } = useTranslation();
   const [theme, setTheme] = useState<SiteTheme>(defaultTheme);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -33,10 +35,12 @@ export default function ThemeSettings() {
     setLoading(true);
     try {
       await webApi.updateConfig('site_theme', theme);
+      saveThemeToStorage(theme);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+      window.dispatchEvent(new Event('theme-updated'));
     } catch (e) {
-      alert('Failed to save theme');
+      alert(t('theme.saveError'));
     } finally {
       setLoading(false);
     }
@@ -46,18 +50,26 @@ export default function ThemeSettings() {
     setTheme((t) => ({ ...t, primary: preset.primary, secondary: preset.secondary, accent: preset.accent }));
   };
 
+  const colorFields = [
+    { key: 'primary' as const, label: t('theme.primary'), desc: t('theme.primaryDesc') },
+    { key: 'secondary' as const, label: t('theme.secondary'), desc: t('theme.secondaryDesc') },
+    { key: 'accent' as const, label: t('theme.accent'), desc: t('theme.accentDesc') },
+    { key: 'background' as const, label: t('theme.background'), desc: t('theme.backgroundDesc') },
+    { key: 'foreground' as const, label: t('theme.foreground'), desc: t('theme.foregroundDesc') },
+  ];
+
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-xl font-semibold tracking-tight">Theme Settings</h1>
-        <p className="text-[13px] text-muted-foreground mt-0.5">Customize the look and feel of your site.</p>
+        <h1 className="text-xl font-semibold tracking-tight">{t('theme.title')}</h1>
+        <p className="text-[13px] text-muted-foreground mt-0.5">{t('theme.subtitle')}</p>
       </div>
 
       {/* Presets */}
       <Card className="mb-6">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Color Presets</CardTitle>
-          <CardDescription className="text-[13px]">Choose a predefined color scheme.</CardDescription>
+          <CardTitle className="text-sm">{t('theme.presets')}</CardTitle>
+          <CardDescription className="text-[13px]">{t('theme.presetsDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
@@ -78,16 +90,10 @@ export default function ThemeSettings() {
       {/* Colors */}
       <Card className="mb-6">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Custom Colors</CardTitle>
+          <CardTitle className="text-sm">{t('theme.customColors')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          {[
-            { key: 'primary' as const, label: 'Primary', desc: 'Buttons, links, active states' },
-            { key: 'secondary' as const, label: 'Secondary', desc: 'Subtle backgrounds, badges' },
-            { key: 'accent' as const, label: 'Accent', desc: 'Highlights, call-to-actions' },
-            { key: 'background' as const, label: 'Background', desc: 'Page background color' },
-            { key: 'foreground' as const, label: 'Foreground', desc: 'Text and icons' },
-          ].map(({ key, label, desc }) => (
+          {colorFields.map(({ key, label, desc }) => (
             <div key={key} className="flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-[13px] font-medium">{label}</p>
@@ -117,8 +123,8 @@ export default function ThemeSettings() {
       {/* Radius */}
       <Card className="mb-6">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Border Radius</CardTitle>
-          <CardDescription className="text-[13px]">Control the roundness of UI elements.</CardDescription>
+          <CardTitle className="text-sm">{t('theme.radius')}</CardTitle>
+          <CardDescription className="text-[13px]">{t('theme.radiusDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4">
@@ -154,7 +160,7 @@ export default function ThemeSettings() {
       {/* Preview */}
       <Card className="mb-6" style={{ backgroundColor: theme.background, color: theme.foreground }}>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Live Preview</CardTitle>
+          <CardTitle className="text-sm">{t('theme.preview')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <h3 className="text-lg font-semibold">Sample Heading</h3>
@@ -176,11 +182,11 @@ export default function ThemeSettings() {
       {/* Actions */}
       <div className="flex items-center gap-3">
         <Button onClick={handleSave} disabled={loading} size="sm">
-          {loading ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}
+          {loading ? t('theme.saving') : saved ? t('theme.saved') : t('theme.save')}
         </Button>
         <Button variant="ghost" size="sm" onClick={() => setTheme(defaultTheme)} className="gap-1.5">
           <RotateCcw size={14} />
-          Reset
+          {t('theme.reset')}
         </Button>
       </div>
     </div>

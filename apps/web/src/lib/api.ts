@@ -80,7 +80,16 @@ export const webApi = {
 
 // ─── Auth APIs ───
 
+export interface User {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  permissions: string[];
+}
+
 export const authApi = {
-  login: (username: string, password: string) =>
-    api.post('auth/login', { username, password }).then((r) => r.data),
+  login: (email: string, password: string) =>
+    api.post('auth/login', { email, password }).then((r) => r.data),
+  me: () => api.get('auth/me').then((r) => r.data as User),
 };

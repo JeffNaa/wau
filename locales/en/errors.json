@@ -43,6 +43,15 @@
       "navigation_not_found": "Navigation with id '{id}' not found",
       "navigation_parent_not_found": "Parent navigation with id '{id}' not found",
       "widget_not_found": "Widget with type '{type}' not found"
+    },
+    "validation": {
+      "required_fields": "Email and password are required",
+      "required": "{field} is required",
+      "invalid_email": "Please enter a valid email address",
+      "record_not_found": "Record not found",
+      "input_too_long": "{field} is too long",
+      "missing_identifier": "Required identifier is missing",
+      "database_error": "Database validation failed"
     }
   }
 }

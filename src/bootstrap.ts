@@ -1,4 +1,6 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe, BadRequestException } from '@nestjs/common';
+import { ValidationError } from 'class-validator';
 import * as path from 'path';
 
 // Store app reference on global so it survives module cache clears during restart
@@ -11,6 +13,28 @@ export async function bootstrap() {
   const { AppModule } = require('./app.module');
   g.__wauApp = await NestFactory.create(AppModule);
   g.__wauApp.setGlobalPrefix('api');
+
+  // Global validation pipe — transforms payloads to DTO instances and validates them
+  g.__wauApp.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      exceptionFactory: (errors: ValidationError[]) => {
+        const messages = errors.map((e) => {
+          const constraints = e.constraints || {};
+          const first = Object.values(constraints)[0] || `Invalid ${e.property}`;
+          return { field: e.property, message: first };
+        });
+        return new BadRequestException({
+          statusCode: 400,
+          message: messages.map((m) => `${m.field}: ${m.message}`).join('; '),
+          errors: messages,
+        });
+      },
+    }),
+  );
+
   const { PostgresExceptionFilter } = require('./common/filters/postgres-exception.filter');
   g.__wauApp.useGlobalFilters(g.__wauApp.get(PostgresExceptionFilter));
   await g.__wauApp.listen(process.env.PORT ?? 3000);

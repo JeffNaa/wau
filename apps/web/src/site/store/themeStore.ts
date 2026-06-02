@@ -38,7 +38,14 @@ export const useThemeStore = create<ThemeState>((set) => ({
   },
 }));
 
-function applyThemeToDOM(theme: SiteTheme) {
+const THEME_VARS = [
+  '--primary', '--secondary', '--accent', '--background', '--foreground',
+  '--card', '--card-foreground', '--popover', '--popover-foreground',
+  '--primary-foreground', '--secondary-foreground', '--accent-foreground',
+  '--muted', '--muted-foreground', '--border', '--input', '--ring', '--radius',
+];
+
+export function applyThemeToDOM(theme: SiteTheme) {
   const root = document.documentElement;
   root.style.setProperty('--primary', theme.primary);
   root.style.setProperty('--secondary', theme.secondary);
@@ -56,6 +63,59 @@ function applyThemeToDOM(theme: SiteTheme) {
   root.style.setProperty('--muted-foreground', blendColors(theme.foreground, theme.background, 0.5));
   root.style.setProperty('--border', blendColors(theme.foreground, theme.background, 0.1));
   root.style.setProperty('--input', blendColors(theme.foreground, theme.background, 0.1));
+  root.style.setProperty('--ring', theme.primary);
+  root.style.setProperty('--radius', `${theme.radius}rem`);
+}
+
+export function clearThemeFromDOM() {
+  const root = document.documentElement;
+  for (const v of THEME_VARS) {
+    root.style.removeProperty(v);
+  }
+}
+
+const THEME_CACHE_KEY = 'wau_site_theme';
+
+export function saveThemeToStorage(theme: SiteTheme) {
+  try {
+    localStorage.setItem(THEME_CACHE_KEY, JSON.stringify(theme));
+  } catch {}
+}
+
+export function loadThemeFromStorage(): SiteTheme | null {
+  try {
+    const raw = localStorage.getItem(THEME_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function applyDarkThemeToDOM(theme: SiteTheme) {
+  const root = document.documentElement;
+  const darkBg = '#0a0a0a';
+  const darkFg = '#fafafa';
+  const darkCard = '#141414';
+  // Darken user's secondary by blending toward black
+  const darkSecondary = blendColors(theme.secondary, '#000000', 0.82);
+  const darkMuted = blendColors(theme.secondary, '#000000', 0.75);
+
+  root.style.setProperty('--primary', theme.primary);
+  root.style.setProperty('--secondary', darkSecondary);
+  root.style.setProperty('--accent', theme.accent);
+  root.style.setProperty('--background', darkBg);
+  root.style.setProperty('--foreground', darkFg);
+  root.style.setProperty('--card', darkCard);
+  root.style.setProperty('--card-foreground', darkFg);
+  root.style.setProperty('--popover', darkCard);
+  root.style.setProperty('--popover-foreground', darkFg);
+  root.style.setProperty('--primary-foreground', getContrastColor(theme.primary));
+  root.style.setProperty('--secondary-foreground', darkFg);
+  root.style.setProperty('--accent-foreground', darkFg);
+  root.style.setProperty('--muted', darkMuted);
+  root.style.setProperty('--muted-foreground', blendColors(darkFg, darkBg, 0.4));
+  root.style.setProperty('--border', blendColors(darkFg, darkBg, 0.12));
+  root.style.setProperty('--input', blendColors(darkFg, darkBg, 0.15));
   root.style.setProperty('--ring', theme.primary);
   root.style.setProperty('--radius', `${theme.radius}rem`);
 }

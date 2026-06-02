@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, ArrowUp, ArrowDown, GripVertical, Navigation, ExternalLink } from 'lucide-react';
 import { webApi, type NavigationItem } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,19 +12,20 @@ interface NavFormData {
   position: string;
 }
 
-const TABS = [
-  { id: 'header', label: 'Header', desc: 'Top navigation bar' },
-  { id: 'footer', label: 'Footer', desc: 'Bottom navigation links' },
-  { id: 'dashboard_sidebar', label: 'Sidebar', desc: 'Admin sidebar menu' },
-];
-
 export default function NavigationManager() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<NavigationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('header');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<NavFormData>({ label: '', href: '', position: 'header' });
+
+  const TABS = [
+    { id: 'header', label: t('nav.header'), desc: t('nav.headerDesc') },
+    { id: 'footer', label: t('nav.footer'), desc: t('nav.footerDesc') },
+    { id: 'dashboard_sidebar', label: t('nav.sidebar'), desc: t('nav.sidebarDesc') },
+  ];
 
   const loadNav = () => {
     setLoading(true);
@@ -49,7 +51,7 @@ export default function NavigationManager() {
       setFormData({ label: '', href: '', position: 'header' });
       loadNav();
     } catch (e) {
-      alert('Failed to create');
+      alert(t('navigationManager.create'));
     }
   };
 
@@ -62,17 +64,17 @@ export default function NavigationManager() {
       setFormData({ label: '', href: '', position: 'header' });
       loadNav();
     } catch (e) {
-      alert('Failed to update');
+      alert(t('navigationManager.update'));
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this item?')) return;
+    if (!confirm(t('navigationManager.deleteConfirm'))) return;
     try {
       await webApi.deleteNavigation(id);
       loadNav();
     } catch (e) {
-      alert('Failed to delete');
+      alert(t('navigationManager.delete'));
     }
   };
 
@@ -89,7 +91,7 @@ export default function NavigationManager() {
       await webApi.reorderNavigation(orders);
       loadNav();
     } catch (e) {
-      alert('Failed to reorder');
+      alert(t('navigationManager.update'));
     }
   };
 
@@ -104,8 +106,8 @@ export default function NavigationManager() {
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-xl font-semibold tracking-tight">Navigation</h1>
-        <p className="text-[13px] text-muted-foreground mt-0.5">Manage your site navigation menus.</p>
+        <h1 className="text-xl font-semibold tracking-tight">{t('navigationManager.title')}</h1>
+        <p className="text-[13px] text-muted-foreground mt-0.5">{t('navigationManager.subtitle')}</p>
       </div>
 
       {/* Tabs */}
@@ -128,8 +130,8 @@ export default function NavigationManager() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold">{currentTab.label} Navigation</h2>
-          <p className="text-[12px] text-muted-foreground">{currentTab.desc} — {filteredItems.length} items</p>
+          <h2 className="text-sm font-semibold">{currentTab.label} {t('navigationManager.title')}</h2>
+          <p className="text-[12px] text-muted-foreground">{currentTab.desc} — {filteredItems.length} {t('navigationManager.itemsCount', { count: filteredItems.length }).split(' ')[1]}</p>
         </div>
         <Button
           size="sm"
@@ -141,7 +143,7 @@ export default function NavigationManager() {
           className="gap-1.5"
         >
           <Plus size={14} />
-          Add Item
+          {t('navigationManager.addItem')}
         </Button>
       </div>
 
@@ -151,18 +153,18 @@ export default function NavigationManager() {
           <CardContent className="p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <div>
-                <label className="text-[12px] font-medium mb-1.5 block">Label</label>
+                <label className="text-[12px] font-medium mb-1.5 block">{t('navigationManager.label')}</label>
                 <Input
-                  placeholder="e.g. Home"
+                  placeholder={t('navigationManager.labelPlaceholder')}
                   value={formData.label}
                   onChange={(e) => setFormData({ ...formData, label: e.target.value })}
                   className="h-9"
                 />
               </div>
               <div>
-                <label className="text-[12px] font-medium mb-1.5 block">URL</label>
+                <label className="text-[12px] font-medium mb-1.5 block">{t('navigationManager.url')}</label>
                 <Input
-                  placeholder="e.g. /"
+                  placeholder={t('navigationManager.urlPlaceholder')}
                   value={formData.href}
                   onChange={(e) => setFormData({ ...formData, href: e.target.value })}
                   className="h-9"
@@ -171,10 +173,10 @@ export default function NavigationManager() {
             </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={editingId ? handleUpdate : handleAdd}>
-                {editingId ? 'Update' : 'Add Item'}
+                {editingId ? t('navigationManager.update') : t('navigationManager.create')}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); setEditingId(null); }}>
-                Cancel
+                {t('navigationManager.cancel')}
               </Button>
             </div>
           </CardContent>
@@ -190,8 +192,8 @@ export default function NavigationManager() {
         <Card>
           <CardContent className="py-12 text-center">
             <Navigation size={24} className="mx-auto mb-3 text-muted-foreground" />
-            <p className="text-[13px] text-muted-foreground">No navigation items yet.</p>
-            <p className="text-[12px] text-muted-foreground mt-0.5">Add your first item above.</p>
+            <p className="text-[13px] text-muted-foreground">{t('navigationManager.empty')}</p>
+            <p className="text-[12px] text-muted-foreground mt-0.5">{t('navigationManager.emptyDesc')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -240,7 +242,7 @@ export default function NavigationManager() {
                       className="h-7 text-[12px]"
                       onClick={() => startEdit(item)}
                     >
-                      Edit
+                      {t('navigationManager.edit')}
                     </Button>
                     <Button
                       variant="ghost"

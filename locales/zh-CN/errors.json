@@ -43,6 +43,15 @@
       "navigation_not_found": "导航 id '{id}' 不存在",
       "navigation_parent_not_found": "父导航 id '{id}' 不存在",
       "widget_not_found": "组件 type '{type}' 不存在"
+    },
+    "validation": {
+      "required_fields": "邮箱和密码不能为空",
+      "required": "{field} 不能为空",
+      "invalid_email": "请输入有效的邮箱地址",
+      "record_not_found": "记录不存在",
+      "input_too_long": "{field} 超出长度限制",
+      "missing_identifier": "缺少必要的标识字段",
+      "database_error": "数据库验证失败"
     }
   }
 }

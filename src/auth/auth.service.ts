@@ -119,6 +119,10 @@ export class AuthService implements OnModuleInit {
 
   /** Login */
   async login(dto: LoginDto, ip?: string, userAgent?: string): Promise<{ user: { id: string; email: string; name: string | null }; token: TokenResponse }> {
+    if (!dto.email || !dto.password) {
+      throw new BadRequestException(this.i18n.t('errors.validation.required_fields'));
+    }
+
     const user = await this.prisma.client.user.findUnique({
       where: { email: dto.email },
       include: { role: true },

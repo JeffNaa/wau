@@ -1,5 +1,12 @@
-import { lazy, type ComponentType } from 'react';
-import { LayoutDashboard, Palette, Navigation, type LucideIcon } from 'lucide-react';
+import { type ComponentType } from 'react';
+import {
+  LayoutDashboard,
+  Palette,
+  Navigation,
+  FileText,
+  Settings,
+  type LucideIcon,
+} from 'lucide-react';
 
 export interface AdminRoute {
   path: string;
@@ -8,9 +15,10 @@ export interface AdminRoute {
   component: ComponentType;
 }
 
-const DashboardHome = lazy(() => import('../pages/DashboardHome'));
-const ThemeSettings = lazy(() => import('../pages/ThemeSettings'));
-const NavigationManager = lazy(() => import('../pages/NavigationManager'));
+import DashboardHome from '../pages/DashboardHome';
+import ThemeSettings from '../pages/ThemeSettings';
+import NavigationManager from '../pages/NavigationManager';
+import Login from '../pages/Login';
 
 export const adminRoutes: AdminRoute[] = [
   { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, component: DashboardHome },
@@ -18,4 +26,15 @@ export const adminRoutes: AdminRoute[] = [
   { path: '/admin/navigation', label: 'Navigation', icon: Navigation, component: NavigationManager },
 ];
 
+export const loginRoute = { path: '/admin/login', component: Login };
+
 export const adminNavItems = adminRoutes.map(({ path, label, icon }) => ({ path, label, icon }));
+
+// Fallback icon mapping for dynamic sidebar nav items
+export const iconMap: Record<string, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  theme: Palette,
+  navigation: Navigation,
+  pages: FileText,
+  settings: Settings,
+};
