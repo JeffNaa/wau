@@ -45,6 +45,7 @@ export interface WidgetRegistryItem {
   name: string;
   category: string;
   configSchema: Record<string, any>;
+  icon: string | null;
   isBuiltIn: boolean;
   plugin: string | null;
 }

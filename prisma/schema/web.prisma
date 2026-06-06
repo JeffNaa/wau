@@ -35,6 +35,7 @@ model WidgetRegistry {
   name         String
   category     String
   configSchema Json     @map("config_schema")
+  icon         String?
   isBuiltIn    Boolean  @default(false) @map("is_built_in")
   plugin       String?
   createdAt    DateTime @default(now()) @map("created_at")

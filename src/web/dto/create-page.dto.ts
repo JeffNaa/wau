@@ -1,5 +1,6 @@
 import { IsBoolean, IsNotEmpty, IsObject, IsOptional, IsString, IsEnum } from 'class-validator';
 import { PageStatus } from '@prisma/client';
+import { IsValidPageLayout } from './page-layout.validator';
 
 export class CreatePageDto {
   @IsString()
@@ -12,6 +13,7 @@ export class CreatePageDto {
 
   @IsOptional()
   @IsObject()
+  @IsValidPageLayout()
   layout?: Record<string, any>;
 
   @IsOptional()

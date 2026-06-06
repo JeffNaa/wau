@@ -18,10 +18,12 @@ export interface AdminRoute {
 import DashboardHome from '../pages/DashboardHome';
 import ThemeSettings from '../pages/ThemeSettings';
 import NavigationManager from '../pages/NavigationManager';
+import PageManager from '../pages/PageManager';
 import Login from '../pages/Login';
 
 export const adminRoutes: AdminRoute[] = [
   { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, component: DashboardHome },
+  { path: '/admin/pages', label: 'Pages', icon: FileText, component: PageManager },
   { path: '/admin/theme', label: 'Theme', icon: Palette, component: ThemeSettings },
   { path: '/admin/navigation', label: 'Navigation', icon: Navigation, component: NavigationManager },
 ];

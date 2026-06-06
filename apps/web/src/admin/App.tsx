@@ -33,6 +33,8 @@ import {
 import DashboardHome from './pages/DashboardHome';
 import ThemeSettings from './pages/ThemeSettings';
 import NavigationManager from './pages/NavigationManager';
+import PageManager from './pages/PageManager';
+import PageBuilder from './pages/PageBuilder';
 import Login from './pages/Login';
 
 /* ─── Auth Guard ─── */
@@ -345,6 +347,8 @@ function AdminApp() {
           <Route path="/admin/login" element={<Login />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route path="dashboard" element={<DashboardHome />} />
+            <Route path="pages" element={<PageManager />} />
+            <Route path="pages/:slug/build" element={<PageBuilder />} />
             <Route path="theme" element={<ThemeSettings />} />
             <Route path="navigation" element={<NavigationManager />} />
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />

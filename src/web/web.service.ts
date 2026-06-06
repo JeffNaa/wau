@@ -199,6 +199,7 @@ export class WebService {
           name: widget.name,
           category: widget.category,
           configSchema: widget.configSchema,
+          icon: widget.icon,
           isBuiltIn: true,
         },
         create: {
@@ -206,6 +207,7 @@ export class WebService {
           name: widget.name,
           category: widget.category,
           configSchema: widget.configSchema,
+          icon: widget.icon,
           isBuiltIn: true,
         },
       });
