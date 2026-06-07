@@ -1,7 +1,7 @@
 interface NumberFieldProps {
   label: string;
-  value: number | undefined;
-  onChange: (value: number) => void;
+  value: number | undefined | null;
+  onChange: (value: number | undefined) => void;
 }
 
 export default function NumberField({ label, value, onChange }: NumberFieldProps) {
@@ -12,8 +12,13 @@ export default function NumberField({ label, value, onChange }: NumberFieldProps
         type="number"
         value={value ?? ''}
         onChange={(e) => {
-          const v = e.target.value === '' ? 0 : Number(e.target.value);
-          onChange(v);
+          const v = e.target.value;
+          if (v === '') {
+            onChange(undefined);
+          } else {
+            const num = Number(v);
+            onChange(Number.isNaN(num) ? undefined : num);
+          }
         }}
         className="w-full h-8 px-3 rounded-lg border border-input bg-background text-[13px] focus:outline-none focus:ring-2 focus:ring-ring"
       />

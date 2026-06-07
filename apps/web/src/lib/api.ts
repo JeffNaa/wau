@@ -57,7 +57,8 @@ export const webApi = {
   updateConfig: (key: string, value: any) => api.put(`web/config/${key}`, { value }).then((r) => r.data),
 
   // Pages
-  getAllPages: () => api.get('web/pages').then((r) => r.data as Page[]),
+  getAllPages: (params?: { page?: number; limit?: number; search?: string }) =>
+    api.get('web/pages', { params }).then((r) => r.data as { data: Page[]; total: number; page: number; limit: number }),
   getPageBySlug: (slug: string) => api.get(`web/pages/${slug}`).then((r) => r.data as Page),
   getHomePage: () => api.get('web/pages/home/default').then((r) => r.data as Page | null),
   createPage: (data: any) => api.post('web/pages', data).then((r) => r.data),

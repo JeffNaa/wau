@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
@@ -15,9 +15,19 @@ import {
   ArrowDown,
   Copy,
   Image as ImageIcon,
+  LayoutTemplate,
+  X,
+  Minus,
+  MoveVertical,
+  Images,
+  Play,
+  Code,
+  Star,
+  Type,
 } from 'lucide-react';
 import { useBuilder } from './BuilderContext';
 import type { Section, Column, WidgetInstance } from '@/types/builder';
+import { COLUMN_LAYOUTS } from '@/lib/builder-utils';
 
 /* ─── Device width presets ─── */
 
@@ -26,6 +36,64 @@ const deviceWidths: Record<string, string> = {
   tablet: 'w-[768px]',
   mobile: 'w-[375px]',
 };
+
+/* ─── Column Layout Visual Preview ─── */
+
+function LayoutPreview({ widths }: { widths: number[] }) {
+  return (
+    <div className="grid grid-cols-12 gap-1 w-full h-8">
+      {widths.map((w, i) => (
+        <div
+          key={i}
+          className="rounded bg-primary/20 border border-primary/30"
+          style={{ gridColumn: `span ${w}` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ─── Layout Picker Modal ─── */
+
+interface LayoutPickerProps {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (widths: number[]) => void;
+  title?: string;
+}
+
+function LayoutPicker({ open, onClose, onSelect, title }: LayoutPickerProps) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-card rounded-2xl border border-border shadow-xl w-full max-w-lg p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold">{title || 'Choose Section Layout'}</h3>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground transition-colors"
+          >
+            <X size={14} />
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {COLUMN_LAYOUTS.map((layout) => (
+            <button
+              key={layout.label}
+              onClick={() => onSelect(layout.widths)}
+              className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/[0.03] transition-all text-left"
+            >
+              <LayoutPreview widths={layout.widths} />
+              <span className="text-[11px] text-muted-foreground font-medium">{layout.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ─── Empty Canvas ─── */
 
@@ -91,6 +159,103 @@ function WidgetPreview({ widget }: { widget: WidgetInstance }) {
           <span className="inline-flex items-center px-4 py-1.5 rounded-md text-[11px] font-medium bg-primary text-primary-foreground">
             {config?.text || 'Button'}
           </span>
+        </div>
+      );
+    case 'wau:divider':
+      return (
+        <div className="py-3 px-4">
+          <div
+            className="mx-auto border-t"
+            style={{
+              borderStyle: config?.style || 'solid',
+              borderColor: config?.color || 'currentColor',
+              borderWidth: `${config?.thickness || 1}px`,
+              width: config?.width === 'partial' ? '60%' : '100%',
+            }}
+          />
+        </div>
+      );
+    case 'wau:spacer':
+      return (
+        <div
+          className="flex items-center justify-center border border-dashed border-border rounded-lg mx-2"
+          style={{ height: `${config?.height || 40}px` }}
+        >
+          <MoveVertical size={12} className="text-muted-foreground/40" />
+        </div>
+      );
+    case 'wau:gallery':
+      return (
+        <div className="py-2 px-2">
+          {config?.images?.length > 0 ? (
+            <div
+              className="grid gap-2"
+              style={{
+                gridTemplateColumns: `repeat(${config?.columns || 3}, 1fr)`,
+                gap: `${config?.gap || 8}px`,
+              }}
+            >
+              {config.images.slice(0, 4).map((src: string, i: number) => (
+                <img
+                  key={i}
+                  src={src}
+                  alt=""
+                  className="w-full h-16 object-cover bg-muted"
+                  style={{ borderRadius: `${config?.borderRadius || 0}px` }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="w-full h-24 bg-muted rounded-lg flex items-center justify-center">
+              <Images size={20} className="text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      );
+    case 'wau:features': {
+      const items = config?.items || [];
+      return (
+        <div className="py-2 px-2">
+          {items.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2">
+              {items.slice(0, 4).map((item: any, i: number) => (
+                <div key={i} className="text-center">
+                  <div className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center mx-auto mb-1">
+                    <Star size={12} className="text-muted-foreground" />
+                  </div>
+                  <p className="text-[10px] font-medium truncate">{item.title || 'Feature'}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="w-full h-20 bg-muted rounded-lg flex items-center justify-center">
+              <Star size={20} className="text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      );
+    }
+    case 'wau:video':
+      return (
+        <div className="py-2 px-2">
+          <div className="w-full aspect-video bg-muted rounded-lg flex items-center justify-center">
+            <Play size={20} className="text-muted-foreground" />
+          </div>
+        </div>
+      );
+    case 'wau:html':
+      return (
+        <div className="py-2 px-2">
+          <div className="w-full bg-muted/50 rounded-lg px-3 py-2 max-h-20 overflow-hidden">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Code size={10} className="text-muted-foreground" />
+              <span className="text-[9px] text-muted-foreground font-mono">HTML</span>
+            </div>
+            <div
+              className="text-[10px] text-muted-foreground font-mono line-clamp-2"
+              dangerouslySetInnerHTML={{ __html: config?.html || '' }}
+            />
+          </div>
         </div>
       );
     default:
@@ -342,8 +507,26 @@ export default function BuilderCanvas() {
   const { state, dispatch } = useBuilder();
   const { layout, device } = state;
 
+  const [layoutPicker, setLayoutPicker] = useState<{
+    open: boolean;
+    afterSectionId?: string;
+  }>({ open: false });
+
   const widthClass = deviceWidths[device] || deviceWidths.desktop;
   const isDevice = device !== 'desktop';
+
+  const handleAddSection = (afterSectionId?: string) => {
+    setLayoutPicker({ open: true, afterSectionId });
+  };
+
+  const handleSelectLayout = (widths: number[]) => {
+    dispatch({
+      type: 'ADD_SECTION',
+      afterSectionId: layoutPicker.afterSectionId,
+      columnLayout: widths,
+    });
+    setLayoutPicker({ open: false });
+  };
 
   /* ─── Keyboard shortcuts ─── */
   useEffect(() => {
@@ -389,43 +572,51 @@ export default function BuilderCanvas() {
   }, [dispatch, state.selectedId, state.selectedType]);
 
   return (
-    <main
-      className="flex-1 overflow-auto bg-muted/30 flex flex-col items-center p-6"
-      onClick={() => dispatch({ type: 'SELECT_COMPONENT', id: null })}
-    >
-      <div
-        className={`${widthClass} transition-all duration-300 space-y-6 min-h-[400px] ${
-          isDevice ? 'bg-card rounded-[2rem] shadow-xl border border-border overflow-hidden' : ''
-        }`}
+    <>
+      <main
+        className="flex-1 overflow-auto bg-muted/30 flex flex-col items-center p-6"
+        onClick={() => dispatch({ type: 'SELECT_COMPONENT', id: null })}
       >
-        {layout.sections.length === 0 ? (
-          <EmptyCanvas onClick={() => dispatch({ type: 'ADD_SECTION' })} />
-        ) : (
-          <>
-            {isDevice && <div className="h-3" />}
-            <SortableContext items={layout.sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-              {layout.sections.map((section, index) => (
-                <CanvasSection key={section.id} section={section} index={index} />
-              ))}
-            </SortableContext>
-            {isDevice && <div className="h-3" />}
-          </>
-        )}
+        <div
+          className={`${widthClass} transition-all duration-300 space-y-6 min-h-[400px] ${
+            isDevice ? 'bg-card rounded-[2rem] shadow-xl border border-border overflow-hidden' : ''
+          }`}
+        >
+          {layout.sections.length === 0 ? (
+            <EmptyCanvas onClick={() => handleAddSection()} />
+          ) : (
+            <>
+              {isDevice && <div className="h-3" />}
+              <SortableContext items={layout.sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                {layout.sections.map((section, index) => (
+                  <CanvasSection key={section.id} section={section} index={index} />
+                ))}
+              </SortableContext>
+              {isDevice && <div className="h-3" />}
+            </>
+          )}
 
-        {/* Add section button at bottom */}
-        {layout.sections.length > 0 && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              dispatch({ type: 'ADD_SECTION' });
-            }}
-            className="w-full py-4 rounded-xl border-2 border-dashed border-border hover:border-muted-foreground/40 transition-colors text-muted-foreground hover:text-foreground flex items-center justify-center gap-2"
-          >
-            <Plus size={14} />
-            <span className="text-[12px] font-medium">{t('pageBuilder.addSection')}</span>
-          </button>
-        )}
-      </div>
-    </main>
+          {/* Add section button at bottom */}
+          {layout.sections.length > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddSection();
+              }}
+              className="w-full py-4 rounded-xl border-2 border-dashed border-border hover:border-muted-foreground/40 transition-colors text-muted-foreground hover:text-foreground flex items-center justify-center gap-2"
+            >
+              <LayoutTemplate size={14} />
+              <span className="text-[12px] font-medium">{t('pageBuilder.addSection')}</span>
+            </button>
+          )}
+        </div>
+      </main>
+
+      <LayoutPicker
+        open={layoutPicker.open}
+        onClose={() => setLayoutPicker({ open: false })}
+        onSelect={handleSelectLayout}
+      />
+    </>
   );
 }

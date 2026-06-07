@@ -36,8 +36,14 @@ export class WebController {
 
   @RequirePermissions('web:page:read')
   @Get('pages')
-  getAllPages() {
-    return this.webService.getAllPages();
+  getAllPages(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    const pageNum = Math.max(1, parseInt(page || '1', 10));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit || '20', 10)));
+    return this.webService.getAllPages(pageNum, limitNum, search);
   }
 
   @Public()

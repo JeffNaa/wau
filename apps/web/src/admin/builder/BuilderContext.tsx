@@ -141,6 +141,7 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         state.layout,
         action.afterSectionId,
         action.widgetType,
+        action.columnLayout,
       );
       const { history, index } = pushHistory(state.history, newLayout, state.historyIndex);
       return {

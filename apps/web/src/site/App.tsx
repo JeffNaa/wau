@@ -16,7 +16,7 @@ function PageRoute() {
     const loadPage = async () => {
       try {
         if (!slug) {
-          // Home page
+          // Home page — backend already filters for PUBLISHED
           const home = await webApi.getHomePage();
           setPage(home);
         } else {

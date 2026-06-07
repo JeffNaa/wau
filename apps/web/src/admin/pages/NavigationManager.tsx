@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, ArrowUp, ArrowDown, GripVertical, Navigation, ExternalLink } from 'lucide-react';
-import { webApi, type NavigationItem } from '@/lib/api';
+import { Plus, Trash2, ArrowUp, ArrowDown, GripVertical, Navigation, ExternalLink, X, FileText } from 'lucide-react';
+import { webApi, type NavigationItem, type Page } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,14 @@ export default function NavigationManager() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<NavFormData>({ label: '', href: '', position: 'header' });
+  const [pageSearch, setPageSearch] = useState('');
+  const [showPageDropdown, setShowPageDropdown] = useState(false);
+  const [dropdownPages, setDropdownPages] = useState<Page[]>([]);
+  const [dropdownPage, setDropdownPage] = useState(1);
+  const [dropdownTotal, setDropdownTotal] = useState(0);
+  const [dropdownLoading, setDropdownLoading] = useState(false);
+  const dropdownLimit = 8;
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const TABS = [
     { id: 'header', label: t('nav.header'), desc: t('nav.headerDesc') },
@@ -38,6 +46,29 @@ export default function NavigationManager() {
   useEffect(() => {
     loadNav();
   }, []);
+
+  // Fetch dropdown pages from backend with search
+  useEffect(() => {
+    if (!showPageDropdown) return;
+    setDropdownLoading(true);
+    webApi
+      .getAllPages({ page: dropdownPage, limit: dropdownLimit, search: pageSearch || undefined })
+      .then((res) => {
+        if (dropdownPage === 1) {
+          setDropdownPages(res.data);
+        } else {
+          setDropdownPages((prev) => [...prev, ...res.data]);
+        }
+        setDropdownTotal(res.total);
+      })
+      .catch(() => { })
+      .finally(() => setDropdownLoading(false));
+  }, [showPageDropdown, dropdownPage, pageSearch]);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setDropdownPage(1);
+  }, [pageSearch]);
 
   const filteredItems = items
     .filter((i) => i.position === activeTab)
@@ -102,6 +133,7 @@ export default function NavigationManager() {
   };
 
   const currentTab = TABS.find((t) => t.id === activeTab)!;
+  const hasMoreDropdown = dropdownPages.length < dropdownTotal;
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -161,14 +193,94 @@ export default function NavigationManager() {
                   className="h-9"
                 />
               </div>
-              <div>
+              <div className="relative">
                 <label className="text-[12px] font-medium mb-1.5 block">{t('navigationManager.url')}</label>
-                <Input
-                  placeholder={t('navigationManager.urlPlaceholder')}
-                  value={formData.href}
-                  onChange={(e) => setFormData({ ...formData, href: e.target.value })}
-                  className="h-9"
-                />
+                <div className="relative">
+                  <Input
+                    placeholder={t('navigationManager.urlPlaceholder')}
+                    value={formData.href}
+                    onChange={(e) => {
+                      setFormData({ ...formData, href: e.target.value });
+                      setPageSearch(e.target.value);
+                    }}
+                    onFocus={() => setShowPageDropdown(true)}
+                    className="h-9 pr-8"
+                  />
+                  {formData.href && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData({ ...formData, href: '' });
+                        setPageSearch('');
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Page search dropdown */}
+                {showPageDropdown && (
+                  <div
+                    ref={dropdownRef}
+                    onScroll={(e) => {
+                      const el = e.currentTarget;
+                      const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+                      if (nearBottom && !dropdownLoading && hasMoreDropdown) {
+                        setDropdownPage((prev) => prev + 1);
+                      }
+                    }}
+                    className="absolute z-50 left-0 right-0 mt-1 bg-card rounded-xl border border-border shadow-lg max-h-[240px] overflow-auto"
+                  >
+                    <div className="p-2">
+                      <div className="flex items-center justify-between px-2 py-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Pages
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {dropdownPages.length} / {dropdownTotal}
+                        </span>
+                      </div>
+
+                      {dropdownPages.map((page) => (
+                        <button
+                          key={page.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              href: page.isHome ? '/' : `/${page.slug}`,
+                            });
+                            setShowPageDropdown(false);
+                            setPageSearch('');
+                            setDropdownPage(1);
+                            setDropdownPages([]);
+                          }}
+                          className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-[12px] text-left hover:bg-secondary transition-colors"
+                        >
+                          <FileText size={13} className="text-muted-foreground shrink-0" />
+                          <span className="truncate flex-1">{page.title}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {page.isHome ? '/' : `/${page.slug}`}
+                          </span>
+                        </button>
+                      ))}
+
+                      {dropdownPages.length === 0 && !dropdownLoading && (
+                        <p className="text-[11px] text-muted-foreground text-center py-2">
+                          No pages found
+                        </p>
+                      )}
+
+                      {dropdownLoading && (
+                        <div className="flex items-center justify-center py-3">
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary/20 border-t-primary" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex gap-2">

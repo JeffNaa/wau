@@ -45,6 +45,8 @@ export interface BuilderState {
   hasChanges: boolean;
 }
 
+export type ColumnLayout = number[];
+
 export type BuilderAction =
   | { type: 'INIT_PAGE'; page: BuilderState['page']; layout: PageLayout }
   | { type: 'SET_LAYOUT'; layout: PageLayout }
@@ -53,7 +55,7 @@ export type BuilderAction =
   | { type: 'REORDER_WIDGET'; sectionId: string; columnId: string; oldIndex: number; newIndex: number }
   | { type: 'UPDATE_WIDGET_CONFIG'; widgetId: string; config: Record<string, any> }
   | { type: 'DELETE_WIDGET'; widgetId: string }
-  | { type: 'ADD_SECTION'; afterSectionId?: string; widgetType?: string }
+  | { type: 'ADD_SECTION'; afterSectionId?: string; widgetType?: string; columnLayout?: ColumnLayout }
   | { type: 'DELETE_SECTION'; sectionId: string }
   | { type: 'DUPLICATE_SECTION'; sectionId: string }
   | { type: 'REORDER_SECTION'; oldIndex: number; newIndex: number }

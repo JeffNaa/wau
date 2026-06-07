@@ -8,23 +8,35 @@ export function createEmptyLayout(): PageLayout {
   return { sections: [] };
 }
 
+export const COLUMN_LAYOUTS: { label: string; widths: number[] }[] = [
+  { label: '1 Column', widths: [12] },
+  { label: '2 Columns (50/50)', widths: [6, 6] },
+  { label: '2 Columns (33/66)', widths: [4, 8] },
+  { label: '2 Columns (66/33)', widths: [8, 4] },
+  { label: '3 Columns (33/33/33)', widths: [4, 4, 4] },
+  { label: '3 Columns (25/50/25)', widths: [3, 6, 3] },
+  { label: '4 Columns (25/25/25/25)', widths: [3, 3, 3, 3] },
+  { label: 'Sidebar Left', widths: [3, 9] },
+  { label: 'Sidebar Right', widths: [9, 3] },
+];
+
 export function createSection(
   afterSectionId?: string,
   layout: PageLayout = { sections: [] },
   widgetType?: string,
-): { layout: PageLayout; sectionId: string; columnId: string } {
+  columnWidths?: number[],
+): { layout: PageLayout; sectionId: string; columnIds: string[] } {
+  const widths = columnWidths && columnWidths.length > 0 ? columnWidths : [12];
   const newSection: Section = {
     id: generateId(),
     padding: '4rem 1rem',
     backgroundColor: 'transparent',
     fullWidth: false,
-    columns: [
-      {
-        id: generateId(),
-        width: 12,
-        widgets: widgetType ? [createWidget(widgetType)] : [],
-      },
-    ],
+    columns: widths.map((width, idx) => ({
+      id: generateId(),
+      width,
+      widgets: widgetType && idx === 0 ? [createWidget(widgetType)] : [],
+    })),
   };
 
   let newSections: Section[];
@@ -39,7 +51,7 @@ export function createSection(
   return {
     layout: { sections: newSections },
     sectionId: newSection.id,
-    columnId: newSection.columns[0].id,
+    columnIds: newSection.columns.map((c) => c.id),
   };
 }
 
@@ -209,8 +221,8 @@ export function updateWidgetConfig(
   return layout;
 }
 
-export function addSection(layout: PageLayout, afterSectionId?: string, widgetType?: string): { layout: PageLayout; sectionId: string; columnId: string } {
-  return createSection(afterSectionId, layout, widgetType);
+export function addSection(layout: PageLayout, afterSectionId?: string, widgetType?: string, columnLayout?: number[]): { layout: PageLayout; sectionId: string; columnIds: string[] } {
+  return createSection(afterSectionId, layout, widgetType, columnLayout);
 }
 
 export function deleteSection(layout: PageLayout, sectionId: string): PageLayout {

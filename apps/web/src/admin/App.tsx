@@ -16,10 +16,15 @@ import {
   ChevronRight,
   Sun,
   Moon,
+  LayoutDashboard,
+  FileText,
+  Palette,
+  Navigation,
+  Settings,
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { adminNavItems, iconMap } from './config/routes';
+import { iconMap } from './config/routes';
 import { webApi, authApi, type User } from '@/lib/api';
 import {
   applyThemeToDOM,
@@ -77,22 +82,34 @@ function Sidebar({
 }) {
   const { t } = useTranslation();
   const location = useLocation();
-  const [navItems, setNavItems] = useState<SidebarNavItem[]>(adminNavItems);
+  const [extraNavItems, setExtraNavItems] = useState<SidebarNavItem[]>([]);
+
+  // Core admin nav items — always shown
+  const coreNavItems: SidebarNavItem[] = [
+    { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/admin/pages', label: 'Pages', icon: FileText },
+    { path: '/admin/theme', label: 'Theme', icon: Palette },
+    { path: '/admin/navigation', label: 'Navigation', icon: Navigation },
+  ];
 
   useEffect(() => {
     webApi
       .getNavigation('dashboard_sidebar')
       .then((items) => {
         if (items && items.length > 0) {
-          const mapped: SidebarNavItem[] = items.map((item) => {
-            const key = item.label.toLowerCase().replace(/\s+/g, '_');
-            return {
-              path: item.href,
-              label: item.label,
-              icon: iconMap[key] || iconMap['settings'] || adminNavItems[0].icon,
-            };
-          });
-          setNavItems(mapped);
+          // Filter out items whose paths match core nav to avoid duplicates
+          const corePaths = new Set(coreNavItems.map((n) => n.path));
+          const mapped: SidebarNavItem[] = items
+            .filter((item) => !corePaths.has(item.href))
+            .map((item) => {
+              const key = item.label.toLowerCase().replace(/\s+/g, '_');
+              return {
+                path: item.href,
+                label: item.label,
+                icon: iconMap[key] || Settings,
+              };
+            });
+          setExtraNavItems(mapped);
         }
       })
       .catch(() => {
@@ -110,7 +127,7 @@ function Sidebar({
       )}
 
       <aside
-        className={`fixed lg:sticky lg:top-0 inset-y-0 left-0 z-50 w-[240px] bg-card flex flex-col transition-all duration-300 ease-out ${
+        className={`fixed lg:sticky lg:top-0 inset-y-0 left-0 z-50 w-[260px] bg-card flex flex-col transition-all duration-300 ease-out ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
         style={{ boxShadow: '4px 0 24px rgba(0,0,0,0.03)' }}
@@ -131,7 +148,8 @@ function Sidebar({
         </div>
 
         <nav className="flex-1 overflow-auto px-3 py-2 flex flex-col gap-1">
-          {navItems.map((item) => {
+          {/* Core admin nav items */}
+          {coreNavItems.map((item) => {
             const active = location.pathname === item.path;
             return (
               <Link
@@ -149,6 +167,31 @@ function Sidebar({
               </Link>
             );
           })}
+
+          {/* Extra nav items from API */}
+          {extraNavItems.length > 0 && (
+            <>
+              <div className="my-2 border-t border-border" />
+              {extraNavItems.map((item) => {
+                const active = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 ${
+                      active
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    }`}
+                  >
+                    <item.icon size={16} strokeWidth={active ? 2.5 : 2} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </nav>
 
         {/* User info */}

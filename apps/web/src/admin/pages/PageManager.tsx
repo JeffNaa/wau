@@ -34,32 +34,52 @@ export default function PageManager() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPublished, setTotalPublished] = useState(0);
+  const [totalDrafts, setTotalDrafts] = useState(0);
+  const limit = 10;
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ title: '', slug: '', status: 'DRAFT' as 'DRAFT' | 'PUBLISHED' });
   const [createLoading, setCreateLoading] = useState(false);
   const [deleteSlug, setDeleteSlug] = useState<string | null>(null);
 
-  const loadPages = () => {
+  const loadPages = (pageNum = page, searchQuery = search) => {
     setLoading(true);
     webApi
-      .getAllPages()
-      .then((data) => setPages(data))
+      .getAllPages({ page: pageNum, limit, search: searchQuery || undefined })
+      .then((res) => {
+        setPages(res.data);
+        setTotal(res.total);
+        setPage(res.page);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
 
+  // Load totals once for tab counts
   useEffect(() => {
-    loadPages();
+    webApi.getAllPages({ limit: 1000 }).then((res) => {
+      setTotalPublished(res.data.filter((p) => p.status === 'PUBLISHED').length);
+      setTotalDrafts(res.data.filter((p) => p.status === 'DRAFT').length);
+    }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    loadPages(1, search);
+    setPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    loadPages(page, search);
+  }, [page]);
 
   const filteredPages = pages.filter((page) => {
     const matchesFilter = filter === 'all' ? true : page.status.toLowerCase() === filter;
-    const matchesSearch =
-      !search.trim() ||
-      page.title.toLowerCase().includes(search.toLowerCase()) ||
-      page.slug.toLowerCase().includes(search.toLowerCase());
-    return matchesFilter && matchesSearch;
+    return matchesFilter;
   });
+
+  const totalPages = Math.ceil(total / limit) || 1;
 
   const handleCreate = async () => {
     if (!createForm.title.trim() || !createForm.slug.trim()) return;
@@ -108,9 +128,9 @@ export default function PageManager() {
   };
 
   const tabs = [
-    { id: 'all' as const, label: t('pageManager.all'), count: pages.length },
-    { id: 'published' as const, label: t('pageManager.published'), count: pages.filter((p) => p.status === 'PUBLISHED').length },
-    { id: 'draft' as const, label: t('pageManager.drafts'), count: pages.filter((p) => p.status === 'DRAFT').length },
+    { id: 'all' as const, label: t('pageManager.all'), count: total },
+    { id: 'published' as const, label: t('pageManager.published'), count: totalPublished },
+    { id: 'draft' as const, label: t('pageManager.drafts'), count: totalDrafts },
   ];
 
   return (
@@ -242,6 +262,39 @@ export default function PageManager() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-1 mt-6">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="px-3 py-1.5 rounded-lg text-[12px] font-medium border border-border hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Prev
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPage(p)}
+              className={`min-w-[32px] px-2 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
+                p === page
+                  ? 'bg-primary text-primary-foreground'
+                  : 'border border-border hover:bg-secondary'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="px-3 py-1.5 rounded-lg text-[12px] font-medium border border-border hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Next
+          </button>
         </div>
       )}
 

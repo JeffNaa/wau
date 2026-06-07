@@ -42,8 +42,28 @@ export class WebService {
 
   // ─── Page ───
 
-  async getAllPages() {
-    return this.prisma.client.page.findMany({ orderBy: { createdAt: 'desc' } });
+  async getAllPages(page = 1, limit = 20, search?: string) {
+    const skip = (page - 1) * limit;
+    const where = search
+      ? {
+          OR: [
+            { title: { contains: search, mode: 'insensitive' as const } },
+            { slug: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+
+    const [data, total] = await Promise.all([
+      this.prisma.client.page.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.client.page.count({ where }),
+    ]);
+
+    return { data, total, page, limit };
   }
 
   async getPageBySlug(slug: string) {
@@ -51,7 +71,9 @@ export class WebService {
   }
 
   async getHomePage() {
-    return this.prisma.client.page.findFirst({ where: { isHome: true } });
+    return this.prisma.client.page.findFirst({
+      where: { isHome: true, status: 'PUBLISHED' },
+    });
   }
 
   async createPage(dto: CreatePageDto) {

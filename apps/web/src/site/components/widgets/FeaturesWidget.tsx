@@ -1,4 +1,37 @@
-import { Star } from 'lucide-react';
+import {
+  Star, Heart, Zap, Shield, Check, Lock, Eye, Globe, Users, MessageCircle,
+  Phone, Mail, MapPin, Calendar, Clock, Award, Trophy, TrendingUp, BarChart, PieChart,
+  Layers, Grid3x3, Box, Package, Truck, CreditCard, Wallet, Bell, Search, Settings,
+  SlidersHorizontal, Filter, RefreshCw, Download, Upload, Cloud, Sun, Moon, Wifi,
+  BatteryFull, Monitor, Smartphone, Camera, Music, Video, Image, FileText, BookOpen,
+  Bookmark, Flag, Tag, FolderOpen, Database, Server, Code, Terminal, Cpu, HardDrive,
+  Printer, PenTool, Anchor, Compass, Map, Navigation, Target, Crosshair, AlertTriangle,
+  Info, HelpCircle, XCircle, CheckCircle, ArrowRight, ArrowLeft, ArrowUp, ArrowDown,
+  ExternalLink, Link, Share2, Copy, Pencil, Trash2, Save, Loader, Activity, HeartPulse,
+  Stethoscope, Pill, FlaskConical, GraduationCap, Briefcase, Building2, Home, Hotel,
+  Car, Plane, TrainFront, Bike, Bus, Ship, Rocket, Sparkles, Flame, Snowflake, Droplets,
+  Wind, Thermometer, Gauge, Scale, Ruler, Paintbrush, Palette, Shirt, ShoppingBag,
+  ShoppingCart, Gift, Coffee, UtensilsCrossed, Cherry, Apple, Leaf, TreePine, Flower2,
+  Mountain, Fish, Bird, Bug, Cat, Dog, Rabbit, LifeBuoy,
+  type LucideIcon,
+} from 'lucide-react';
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  Star, Heart, Zap, Shield, Check, Lock, Eye, Globe, Users, MessageCircle,
+  Phone, Mail, MapPin, Calendar, Clock, Award, Trophy, TrendingUp, BarChart, PieChart,
+  Layers, Grid3x3, Box, Package, Truck, CreditCard, Wallet, Bell, Search, Settings,
+  SlidersHorizontal, Filter, RefreshCw, Download, Upload, Cloud, Sun, Moon, Wifi,
+  BatteryFull, Monitor, Smartphone, Camera, Music, Video, Image, FileText, BookOpen,
+  Bookmark, Flag, Tag, FolderOpen, Database, Server, Code, Terminal, Cpu, HardDrive,
+  Printer, PenTool, Anchor, Compass, Map, Navigation, Target, Crosshair, AlertTriangle,
+  Info, HelpCircle, XCircle, CheckCircle, ArrowRight, ArrowLeft, ArrowUp, ArrowDown,
+  ExternalLink, Link, Share2, Copy, Pencil, Trash2, Save, Loader, Activity, HeartPulse,
+  Stethoscope, Pill, FlaskConical, GraduationCap, Briefcase, Building2, Home, Hotel,
+  Car, Plane, TrainFront, Bike, Bus, Ship, Rocket, Sparkles, Flame, Snowflake, Droplets,
+  Wind, Thermometer, Gauge, Scale, Ruler, Paintbrush, Palette, Shirt, ShoppingBag,
+  ShoppingCart, Gift, Coffee, UtensilsCrossed, Cherry, Apple, Leaf, TreePine, Flower2,
+  Mountain, Fish, Bird, Bug, Cat, Dog, Rabbit, LifeBuoy,
+};
 
 interface FeaturesWidgetProps {
   config: Record<string, any>;
@@ -29,15 +62,18 @@ export default function FeaturesWidget({ config }: FeaturesWidgetProps) {
   return (
     <div className="py-4">
       <div className={`grid ${columns} gap-6`}>
-        {items.map((item: any, index: number) => (
-          <div key={index} className={`text-${align}`}>
-            <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center mx-auto mb-3">
-              <Star size={18} className="text-secondary-foreground" />
+        {items.map((item: any, index: number) => {
+          const IconComponent = ICON_MAP[item.icon] || Star;
+          return (
+            <div key={index} className={`text-${align}`}>
+              <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center mx-auto mb-3">
+                <IconComponent size={18} className="text-secondary-foreground" />
+              </div>
+              <h3 className="text-base font-semibold mb-1">{item.title || 'Feature'}</h3>
+              <p className="text-sm text-muted-foreground">{item.description || 'Description'}</p>
             </div>
-            <h3 className="text-base font-semibold mb-1">{item.title || 'Feature'}</h3>
-            <p className="text-sm text-muted-foreground">{item.description || 'Description'}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

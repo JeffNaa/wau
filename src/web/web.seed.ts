@@ -96,7 +96,7 @@ export const BUILT_IN_WIDGETS = [
         type: 'array',
         label: 'Feature Items',
         itemSchema: {
-          icon: { type: 'string', label: 'Icon' },
+          icon: { type: 'icon', label: 'Icon' },
           title: { type: 'string', label: 'Title' },
           description: { type: 'text', label: 'Description' },
         },
@@ -124,7 +124,7 @@ export const BUILT_IN_WIDGETS = [
     category: 'content',
     icon: 'Code',
     configSchema: {
-      html: { type: 'text', label: 'HTML Content' },
+      html: { type: 'richtext', label: 'HTML Content' },
     },
   },
 ];

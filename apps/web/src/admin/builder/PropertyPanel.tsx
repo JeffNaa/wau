@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { FileText, LayoutGrid, Component, Save } from 'lucide-react';
 import { useBuilder } from './BuilderContext';
 import { webApi, type WidgetRegistryItem } from '@/lib/api';
-import { findWidget, findSection } from '@/lib/builder-utils';
+import { findWidget, findSection, generateId, COLUMN_LAYOUTS } from '@/lib/builder-utils';
 import { Input } from '@/components/ui/input';
 import StringField from './fields/StringField';
 import TextField from './fields/TextField';
@@ -13,6 +13,8 @@ import ColorField from './fields/ColorField';
 import ImageField from './fields/ImageField';
 import LinkField from './fields/LinkField';
 import ArrayField from './fields/ArrayField';
+import RichTextField from './fields/RichTextField';
+import IconField from './fields/IconField';
 
 function PageProperties() {
   const { state, dispatch } = useBuilder();
@@ -72,13 +74,85 @@ function PageProperties() {
   );
 }
 
+function LayoutPreview({ widths, active }: { widths: number[]; active: boolean }) {
+  return (
+    <div className="grid grid-cols-12 gap-0.5 w-full h-6">
+      {widths.map((w, i) => (
+        <div
+          key={i}
+          className={`rounded-sm ${active ? 'bg-primary' : 'bg-primary/30'}`}
+          style={{ gridColumn: `span ${w}` }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function SectionProperties() {
   const { state, dispatch } = useBuilder();
   const section = state.selectedId ? findSection(state.layout, state.selectedId) : undefined;
   if (!section) return null;
 
+  const currentWidths = section.columns.map((c) => c.width);
+  const currentLayout = COLUMN_LAYOUTS.find((l) =>
+    l.widths.length === currentWidths.length && l.widths.every((w, i) => w === currentWidths[i]),
+  );
+
+  const handleLayoutChange = (widths: number[]) => {
+    const existingColumns = section.columns;
+    const newColumns = widths.map((width, idx) => {
+      if (idx < existingColumns.length) {
+        // Reuse existing column with new width
+        return { ...existingColumns[idx], width };
+      }
+      // Create new empty column
+      return { id: generateId(), width, widgets: [] };
+    });
+
+    // If fewer columns, merge widgets from removed columns into the last column
+    if (widths.length < existingColumns.length) {
+      const lastNewColumn = newColumns[newColumns.length - 1];
+      for (let i = widths.length; i < existingColumns.length; i++) {
+        lastNewColumn.widgets.push(...existingColumns[i].widgets);
+      }
+    }
+
+    dispatch({
+      type: 'UPDATE_SECTION',
+      sectionId: section.id,
+      updates: { columns: newColumns },
+    });
+  };
+
   return (
     <div className="space-y-4">
+      <div>
+        <label className="text-[12px] font-medium mb-1.5 block">Column Layout</label>
+        <div className="grid grid-cols-3 gap-1.5">
+          {COLUMN_LAYOUTS.map((layout) => {
+            const isActive =
+              layout.widths.length === currentWidths.length &&
+              layout.widths.every((w, i) => w === currentWidths[i]);
+            return (
+              <button
+                key={layout.label}
+                onClick={() => handleLayoutChange(layout.widths)}
+                className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all ${
+                  isActive
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/30 hover:bg-primary/[0.02]'
+                }`}
+                title={layout.label}
+              >
+                <LayoutPreview widths={layout.widths} active={isActive} />
+                <span className="text-[10px] text-muted-foreground truncate w-full text-center">
+                  {layout.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <StringField
         label="Padding"
         value={section.padding || ''}
@@ -173,6 +247,15 @@ function WidgetProperties() {
                 onChange={(v) => handleConfigChange(key, v)}
               />
             );
+          case 'richtext':
+            return (
+              <RichTextField
+                key={key}
+                label={label}
+                value={value || ''}
+                onChange={(v) => handleConfigChange(key, v)}
+              />
+            );
           case 'number':
             return (
               <NumberField
@@ -222,6 +305,15 @@ function WidgetProperties() {
           case 'link':
             return (
               <LinkField
+                key={key}
+                label={label}
+                value={value || ''}
+                onChange={(v) => handleConfigChange(key, v)}
+              />
+            );
+          case 'icon':
+            return (
+              <IconField
                 key={key}
                 label={label}
                 value={value || ''}

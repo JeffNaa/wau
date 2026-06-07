@@ -165,13 +165,13 @@ export default function DashboardHome() {
 
   useEffect(() => {
     Promise.all([
-      webApi.getAllPages(),
+      webApi.getAllPages({ limit: 1000 }),
       webApi.getAllWidgets(),
       webApi.getNavigation(),
       webApi.getAllConfigs(),
     ])
-      .then(([pages, widgets, navigation, configs]) => {
-        setData({ pages, widgets, navigation, configs });
+      .then(([pagesRes, widgets, navigation, configs]) => {
+        setData({ pages: pagesRes.data, widgets, navigation, configs });
       })
       .catch(() => { })
       .finally(() => setLoading(false));
